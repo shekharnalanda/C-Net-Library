@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\JobController as AdminJobController;
 use App\Http\Controllers\Admin\LibraryController;
 use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\QrAttendanceController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SeatAvailabilityController;
 use App\Http\Controllers\Admin\SecurityController;
@@ -76,6 +77,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::post('/students/{student}/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
         Route::post('/students/{student}/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
+        Route::get('/attendance/scan', [QrAttendanceController::class, 'scan'])->name('attendance.scan');
+        Route::post('/attendance/scan/{student}', [QrAttendanceController::class, 'mark'])->name('attendance.scan.mark');
     });
 
     Route::middleware('permission:library.manage')->group(function () {

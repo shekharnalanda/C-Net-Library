@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             StudyStructureSeeder::class,
             AdminUserSeeder::class,
             CommunicationTemplateSeeder::class,
+            SettingsSeeder::class,
         ]);
     }
 }

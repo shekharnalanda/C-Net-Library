@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SeatAvailabilityController;
+use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
@@ -69,6 +70,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/communications', [CommunicationController::class, 'index'])->name('communications.index');
     Route::post('/communications/templates', [CommunicationController::class, 'store'])->name('communications.templates.store');
+
+    Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
+    Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+    Route::post('/staff/{staff}/attendance', [StaffController::class, 'attendance'])->name('staff.attendance');
+    Route::patch('/staff/leaves/{staffLeave}', [StaffController::class, 'leave'])->name('staff.leaves.update');
+    Route::post('/staff/{staff}/payroll', [StaffController::class, 'payroll'])->name('staff.payroll');
 
     Route::get('/available-seats', SeatAvailabilityController::class)->name('seats.available');
 });

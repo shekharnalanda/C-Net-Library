@@ -63,8 +63,18 @@ class AdmissionController extends Controller
             request: $request,
         );
 
+        $plainToken = $student->getAttribute('portal_activation_plain_token');
+        $activationUrl = $plainToken
+            ? route('student.activate', ['token' => $plainToken])
+            : null;
+
+        $message = "Admission approved. Student ID: {$student->student_code}.";
+        if ($activationUrl) {
+            $message .= " Portal setup link (valid 7 days): {$activationUrl}";
+        }
+
         return redirect()
             ->route('admin.admissions.show', $admission)
-            ->with('success', "Admission approved. Student ID: {$student->student_code}");
+            ->with('success', $message);
     }
 }

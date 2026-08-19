@@ -10,13 +10,20 @@ use Illuminate\Validation\ValidationException;
 
 class LibraryCirculationService
 {
-    public function issue(Student $student, BookCopy $copy, int $issueDays = 14, ?int $userId = null): BookIssue
+    public function __construct(
+        private readonly SettingsService $settings
+    ) {
+    }
+
+    public function issue(Student $student, BookCopy $copy, ?int $issueDays = null, ?int $userId = null): BookIssue
     {
         if ($copy->status !== 'available') {
             throw ValidationException::withMessages([
                 'book_copy_id' => 'Selected book copy is not available.',
             ]);
         }
+
+        $issueDays ??= (int) $this->settings->get('book_issue_days', 14, $student->branch_id);
 
         return DB::transaction(function () use ($student, $copy, $issueDays, $userId) {
             $issue = BookIssue::create([
@@ -34,13 +41,16 @@ class LibraryCirculationService
         });
     }
 
-    public function return(BookIssue $issue, float $finePerDay = 5, ?int $userId = null): BookIssue
+    public function return(BookIssue $issue, ?float $finePerDay = null, ?int $userId = null): BookIssue
     {
         if ($issue->status === 'returned') {
             throw ValidationException::withMessages([
                 'issue' => 'This book has already been returned.',
             ]);
         }
+
+        $branchId = $issue->student?->branch_id;
+        $finePerDay ??= (float) $this->settings->get('book_fine_per_day', 5, $branchId);
 
         return DB::transaction(function () use ($issue, $finePerDay, $userId) {
             $lateDays = $issue->due_at && $issue->due_at->lt(today())

@@ -13,6 +13,8 @@ class SettingsSeeder extends Seeder
             ['group' => 'institute', 'key' => 'institute_name', 'value' => 'C-Net Library', 'type' => 'string', 'is_public' => true],
             ['group' => 'institute', 'key' => 'support_phone', 'value' => '', 'type' => 'string', 'is_public' => true],
             ['group' => 'institute', 'key' => 'support_email', 'value' => '', 'type' => 'string', 'is_public' => true],
+            ['group' => 'institute', 'key' => 'institute_address', 'value' => '', 'type' => 'string', 'is_public' => true],
+            ['group' => 'institute', 'key' => 'map_embed_url', 'value' => '', 'type' => 'string', 'is_public' => true],
             ['group' => 'codes', 'key' => 'student_code_prefix', 'value' => 'CNL-STU', 'type' => 'string', 'is_public' => false],
             ['group' => 'codes', 'key' => 'receipt_prefix', 'value' => 'CNL', 'type' => 'string', 'is_public' => false],
             ['group' => 'membership', 'key' => 'membership_grace_days', 'value' => '0', 'type' => 'integer', 'is_public' => false],

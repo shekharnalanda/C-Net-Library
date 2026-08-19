@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DigitalResourceController;
 use App\Http\Controllers\Admin\LibraryController;
 use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
@@ -68,6 +69,11 @@ Route::middleware(['auth', 'admin'])
             ->name('library.issue');
         Route::post('/library/issues/{bookIssue}/return', [LibraryController::class, 'return'])
             ->name('library.return');
+
+        Route::get('/digital-library', [DigitalResourceController::class, 'index'])
+            ->name('digital-resources.index');
+        Route::post('/digital-library', [DigitalResourceController::class, 'store'])
+            ->name('digital-resources.store');
 
         Route::get('/available-seats', SeatAvailabilityController::class)
             ->name('seats.available');

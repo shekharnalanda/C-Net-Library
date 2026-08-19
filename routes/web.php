@@ -20,11 +20,14 @@ use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
 use App\Http\Controllers\Public\EnquiryController as PublicEnquiryController;
+use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\JobController as PublicJobController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
+use App\Models\CmsPage;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/page/{page:slug}', [HomeController::class, 'page'])->name('public.page');
 
 Route::get('/admission', [PublicAdmissionController::class, 'create'])->name('admission.create');
 Route::post('/admission', [PublicAdmissionController::class, 'store'])->name('admission.store');

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BookCopy;
 use App\Models\BookIssue;
 use App\Models\Student;
+use App\Services\AuditService;
 use App\Services\LibraryCirculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,7 +52,7 @@ class LibraryController extends Controller
         return view('admin.library.index', compact('copies', 'issues', 'students'));
     }
 
-    public function issue(Request $request): RedirectResponse
+    public function issue(Request $request, AuditService $audit): RedirectResponse
     {
         $data = $request->validate([
             'student_id' => ['required', 'exists:students,id'],
@@ -60,22 +61,46 @@ class LibraryController extends Controller
         ]);
 
         $student = Student::findOrFail($data['student_id']);
-        $copy = BookCopy::findOrFail($data['book_copy_id']);
+        $copy = BookCopy::with('book')->findOrFail($data['book_copy_id']);
 
-        $this->circulation->issue(
+        $issue = $this->circulation->issue(
             $student,
             $copy,
             isset($data['issue_days']) ? (int) $data['issue_days'] : null,
             auth()->id(),
         );
 
+        $audit->log('library.book.issued', $issue, [], [
+            'student_id' => $student->id,
+            'book_copy_id' => $copy->id,
+            'book_id' => $copy->book_id,
+            'issued_at' => $issue->issued_at?->toDateString(),
+            'due_at' => $issue->due_at?->toDateString(),
+            'status' => $issue->status,
+        ]);
+
         return back()->with('success', 'Book issued successfully.');
     }
 
-    public function return(BookIssue $bookIssue): RedirectResponse
+    public function return(BookIssue $bookIssue, AuditService $audit): RedirectResponse
     {
-        $bookIssue->loadMissing('student');
-        $this->circulation->return($bookIssue, null, auth()->id());
+        $bookIssue->loadMissing(['student', 'bookCopy.book']);
+        $oldValues = [
+            'status' => $bookIssue->status,
+            'due_at' => $bookIssue->due_at?->toDateString(),
+            'returned_at' => $bookIssue->returned_at?->toDateString(),
+            'fine_amount' => (float) $bookIssue->fine_amount,
+        ];
+
+        $returnedIssue = $this->circulation->return($bookIssue, null, auth()->id());
+
+        $audit->log('library.book.returned', $returnedIssue, $oldValues, [
+            'status' => $returnedIssue->status,
+            'returned_at' => $returnedIssue->returned_at?->toDateString(),
+            'fine_amount' => (float) $returnedIssue->fine_amount,
+            'book_copy_id' => $returnedIssue->book_copy_id,
+            'student_id' => $returnedIssue->student_id,
+        ]);
 
         return back()->with('success', 'Book returned successfully. Fine calculated if overdue.');
     }

@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             CommunicationTemplateSeeder::class,
             SettingsSeeder::class,
+            RolePermissionSeeder::class,
         ]);
     }
 }

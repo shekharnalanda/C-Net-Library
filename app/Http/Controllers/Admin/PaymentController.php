@@ -37,7 +37,7 @@ class PaymentController extends Controller
             return Payment::create([
                 'student_id' => $student->id,
                 'student_membership_id' => $membership->id,
-                'receipt_no' => $receiptService->generate(),
+                'receipt_no' => $receiptService->generate(branchId: $student->branch_id),
                 'amount' => $amount,
                 'discount' => 0,
                 'late_fee' => 0,

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
+use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
@@ -52,6 +53,13 @@ Route::middleware(['auth', 'admin'])
             ->name('students.payments.store');
         Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])
             ->name('payments.receipt');
+
+        Route::get('/attendance', [AttendanceController::class, 'index'])
+            ->name('attendance.index');
+        Route::post('/students/{student}/check-in', [AttendanceController::class, 'checkIn'])
+            ->name('attendance.check-in');
+        Route::post('/students/{student}/check-out', [AttendanceController::class, 'checkOut'])
+            ->name('attendance.check-out');
 
         Route::get('/available-seats', SeatAvailabilityController::class)
             ->name('seats.available');

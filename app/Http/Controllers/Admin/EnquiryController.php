@@ -7,6 +7,7 @@ use App\Models\Admission;
 use App\Models\Branch;
 use App\Models\Enquiry;
 use App\Models\User;
+use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,7 @@ class EnquiryController extends Controller
         ]);
     }
 
-    public function update(Request $request, Enquiry $enquiry): RedirectResponse
+    public function update(Request $request, Enquiry $enquiry, AuditService $audit): RedirectResponse
     {
         $data = $request->validate([
             'status' => ['required', 'in:new,contacted,follow_up,qualified,converted,lost'],
@@ -48,16 +49,24 @@ class EnquiryController extends Controller
             'follow_up_notes' => ['nullable', 'string', 'max:3000'],
         ]);
 
+        $old = $enquiry->only(['status', 'assigned_to', 'follow_up_date', 'follow_up_notes']);
         $enquiry->update($data);
+        $enquiry->refresh();
+
+        $audit->log('enquiry.updated', $enquiry, $old, $enquiry->only([
+            'status', 'assigned_to', 'follow_up_date', 'follow_up_notes',
+        ]));
 
         return back()->with('success', 'Enquiry updated.');
     }
 
-    public function convert(Enquiry $enquiry): RedirectResponse
+    public function convert(Enquiry $enquiry, AuditService $audit): RedirectResponse
     {
         if ($enquiry->converted_admission_id) {
             return redirect()->route('admin.admissions.show', $enquiry->converted_admission_id);
         }
+
+        $old = $enquiry->only(['status', 'converted_admission_id']);
 
         $admission = DB::transaction(function () use ($enquiry) {
             $applicationNo = $this->generateApplicationNo();
@@ -80,6 +89,13 @@ class EnquiryController extends Controller
 
             return $admission;
         });
+
+        $enquiry->refresh();
+        $audit->log('enquiry.converted_to_admission', $enquiry, $old, [
+            'status' => $enquiry->status,
+            'converted_admission_id' => $admission->id,
+            'application_no' => $admission->application_no,
+        ]);
 
         return redirect()->route('admin.admissions.show', $admission)
             ->with('success', 'Enquiry converted to admission application.');

@@ -40,4 +40,9 @@ class Payment extends Model
     {
         return $this->belongsTo(StudentMembership::class, 'student_membership_id');
     }
+
+    public function receiver()
+    {
+        return $this->belongsTo(User::class, 'received_by');
+    }
 }

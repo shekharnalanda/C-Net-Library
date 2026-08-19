@@ -38,7 +38,7 @@ class RolePermissionSeeder extends Seeder
 
         $roles = [
             'super-admin' => array_keys($permissions),
-            'branch-admin' => array_values(array_filter(array_keys($permissions), fn ($p) => !in_array($p, ['roles.manage'], true))),
+            'branch-admin' => array_values(array_filter(array_keys($permissions), fn ($p) => ! in_array($p, ['roles.manage'], true))),
             'reception' => ['dashboard.view', 'admissions.manage', 'enquiries.manage', 'students.manage', 'attendance.manage'],
             'accountant' => ['dashboard.view', 'students.manage', 'payments.manage', 'reports.view'],
             'librarian' => ['dashboard.view', 'students.manage', 'library.manage', 'digital-library.manage'],
@@ -57,12 +57,30 @@ class RolePermissionSeeder extends Seeder
             );
         }
 
-        $admin = User::where('role', 'super_admin')->first();
-        if ($admin) {
-            $superAdminRole = Role::where('slug', 'super-admin')->first();
-            if ($superAdminRole) {
-                $admin->roles()->syncWithoutDetaching([$superAdminRole->id]);
+        $superAdminRole = Role::where('slug', 'super-admin')->first();
+        $branchAdminRole = Role::where('slug', 'branch-admin')->first();
+
+        if ($superAdminRole) {
+            User::where('role', 'super_admin')->each(
+                fn (User $user) => $user->roles()->syncWithoutDetaching([$superAdminRole->id])
+            );
+        }
+
+        if ($branchAdminRole) {
+            User::where('role', 'admin')->each(
+                fn (User $user) => $user->roles()->syncWithoutDetaching([$branchAdminRole->id])
+            );
+        }
+
+        foreach (['reception', 'accountant', 'librarian'] as $legacyRole) {
+            $pivotRole = Role::where('slug', $legacyRole)->first();
+            if (! $pivotRole) {
+                continue;
             }
+
+            User::where('role', $legacyRole)->each(
+                fn (User $user) => $user->roles()->syncWithoutDetaching([$pivotRole->id])
+            );
         }
     }
 }

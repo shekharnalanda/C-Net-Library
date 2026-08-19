@@ -38,6 +38,10 @@ class CmsController extends Controller
             'status' => ['nullable', 'boolean'],
         ]);
 
+        if (array_key_exists('content', $data)) {
+            $data['content'] = $this->sanitizeHtml($data['content']);
+        }
+
         $old = $page->only(array_keys($data));
         $page->update($data + ['status' => $request->boolean('status')]);
         $audit->log('cms.page.updated', $page, $old, $page->only(array_keys($data)));
@@ -108,5 +112,19 @@ class CmsController extends Controller
         $galleryItem->delete();
 
         return back()->with('success', 'Gallery image removed.');
+    }
+
+    private function sanitizeHtml(?string $html): ?string
+    {
+        if ($html === null || trim($html) === '') {
+            return $html;
+        }
+
+        $clean = preg_replace('#<(script|style|iframe|object|embed|form|input|button)[^>]*>.*?</\1>#is', '', $html) ?? $html;
+        $clean = preg_replace('#<(script|style|iframe|object|embed|form|input|button)[^>]*/?>#is', '', $clean) ?? $clean;
+        $clean = preg_replace('/\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean) ?? $clean;
+        $clean = preg_replace('/\s+(href|src)\s*=\s*(["\'])\s*javascript:[^"\']*\2/i', '', $clean) ?? $clean;
+
+        return strip_tags($clean, '<p><br><strong><b><em><i><u><ul><ol><li><h2><h3><h4><blockquote><a><img><table><thead><tbody><tr><th><td><hr>');
     }
 }

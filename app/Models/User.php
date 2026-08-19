@@ -43,6 +43,10 @@ class User extends Authenticatable
             return true;
         }
 
+        if ($this->role === $role) {
+            return true;
+        }
+
         return $this->roles()->where('slug', $role)->exists();
     }
 
@@ -59,7 +63,18 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === 'super_admin'
-            || $this->roles()->whereIn('slug', ['super-admin', 'branch-admin'])->exists();
+        if (in_array($this->role, ['super_admin', 'admin', 'reception', 'accountant', 'librarian'], true)) {
+            return true;
+        }
+
+        return $this->roles()->whereIn('slug', [
+            'super-admin',
+            'branch-admin',
+            'reception',
+            'accountant',
+            'librarian',
+            'counselor',
+            'staff',
+        ])->exists();
     }
 }

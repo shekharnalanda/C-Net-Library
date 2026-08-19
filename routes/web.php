@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
 use App\Http\Controllers\Public\DigitalLibraryController as PublicDigitalLibraryController;
+use App\Http\Controllers\Public\DigitalResourceAccessController;
 use App\Http\Controllers\Public\EnquiryController as PublicEnquiryController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\JobController as PublicJobController;
@@ -30,6 +31,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/page/{page:slug}', [HomeController::class, 'page'])->name('public.page');
 Route::get('/digital-library', [PublicDigitalLibraryController::class, 'index'])->name('digital-library.index');
+Route::get('/digital-library/resources/{resource}', DigitalResourceAccessController::class)->name('digital-library.access');
 
 Route::get('/admission', [PublicAdmissionController::class, 'create'])->name('admission.create');
 Route::post('/admission', [PublicAdmissionController::class, 'store'])->name('admission.store');

@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CmsPage;
 use App\Models\Faq;
+use App\Models\GalleryItem;
 use App\Models\Testimonial;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class CmsController extends Controller
@@ -19,6 +21,7 @@ class CmsController extends Controller
             'pages' => CmsPage::query()->orderBy('sort_order')->orderBy('title')->get(),
             'faqs' => Faq::query()->orderBy('sort_order')->get(),
             'testimonials' => Testimonial::query()->latest()->get(),
+            'galleryItems' => GalleryItem::query()->orderBy('sort_order')->latest()->get(),
         ]);
     }
 
@@ -68,5 +71,42 @@ class CmsController extends Controller
         $audit->log('cms.testimonial.created', $testimonial, [], $testimonial->only(['name', 'designation', 'message', 'rating']));
 
         return back()->with('success', 'Testimonial added.');
+    }
+
+    public function storeGallery(Request $request, AuditService $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:180'],
+            'alt_text' => ['nullable', 'string', 'max:255'],
+            'image' => ['required', 'image', 'max:5120'],
+        ]);
+
+        $path = $request->file('image')->store('gallery', 'public');
+
+        $item = GalleryItem::create([
+            'title' => $data['title'] ?? null,
+            'image_path' => $path,
+            'alt_text' => $data['alt_text'] ?? $data['title'] ?? 'C-Net Library gallery image',
+            'sort_order' => (int) GalleryItem::max('sort_order') + 1,
+            'status' => true,
+        ]);
+
+        $audit->log('cms.gallery.created', $item, [], $item->only(['title', 'image_path', 'alt_text']));
+
+        return back()->with('success', 'Gallery image uploaded.');
+    }
+
+    public function destroyGallery(GalleryItem $galleryItem, AuditService $audit): RedirectResponse
+    {
+        $old = $galleryItem->toArray();
+
+        if ($galleryItem->image_path) {
+            Storage::disk('public')->delete($galleryItem->image_path);
+        }
+
+        $audit->log('cms.gallery.deleted', $galleryItem, $old, []);
+        $galleryItem->delete();
+
+        return back()->with('success', 'Gallery image removed.');
     }
 }

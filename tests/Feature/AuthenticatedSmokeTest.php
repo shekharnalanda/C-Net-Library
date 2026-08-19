@@ -21,7 +21,15 @@ class AuthenticatedSmokeTest extends TestCase
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
 
-        foreach (['/admin/dashboard', '/admin/reports', '/admin/library'] as $uri) {
+        foreach ([
+            '/admin/dashboard',
+            '/admin/reports',
+            '/admin/library',
+            '/admin/enquiries',
+            '/admin/staff',
+            '/admin/settings',
+            '/admin/communications',
+        ] as $uri) {
             $this->actingAs($admin)
                 ->get($uri)
                 ->assertOk();

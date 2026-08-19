@@ -11,10 +11,15 @@ use App\Models\Job;
 use App\Models\Seat;
 use App\Models\SeatAllocation;
 use App\Models\Testimonial;
+use App\Services\SettingsService;
 use Illuminate\View\View;
 
 class HomeController extends Controller
 {
+    public function __construct(private readonly SettingsService $settings)
+    {
+    }
+
     public function index(): View
     {
         $home = CmsPage::query()->where('slug', 'home')->where('status', true)->first();
@@ -53,9 +58,17 @@ class HomeController extends Controller
         $testimonials = Testimonial::query()->where('status', true)->latest()->limit(6)->get();
         $gallery = GalleryItem::query()->where('status', true)->orderBy('sort_order')->limit(8)->get();
 
+        $contact = [
+            'institute_name' => $this->settings->get('institute_name', 'C-Net Library'),
+            'phone' => $this->settings->get('support_phone'),
+            'email' => $this->settings->get('support_email'),
+            'address' => $this->settings->get('institute_address'),
+            'map_embed_url' => $this->settings->get('map_embed_url'),
+        ];
+
         return view('public.home', compact(
             'home', 'plans', 'totalSeats', 'occupiedSeats', 'availableSeats',
-            'jobs', 'faqs', 'testimonials', 'gallery'
+            'jobs', 'faqs', 'testimonials', 'gallery', 'contact'
         ));
     }
 

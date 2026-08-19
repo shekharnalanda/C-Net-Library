@@ -65,7 +65,7 @@ class LibraryController extends Controller
         $this->circulation->issue(
             $student,
             $copy,
-            (int) ($data['issue_days'] ?? 14),
+            isset($data['issue_days']) ? (int) $data['issue_days'] : null,
             auth()->id(),
         );
 
@@ -74,7 +74,8 @@ class LibraryController extends Controller
 
     public function return(BookIssue $bookIssue): RedirectResponse
     {
-        $this->circulation->return($bookIssue, 5, auth()->id());
+        $bookIssue->loadMissing('student');
+        $this->circulation->return($bookIssue, null, auth()->id());
 
         return back()->with('success', 'Book returned successfully. Fine calculated if overdue.');
     }

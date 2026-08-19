@@ -17,17 +17,15 @@ class AuthenticatedSmokeTest extends TestCase
         $this->seed(DatabaseSeeder::class);
     }
 
-    public function test_seeded_admin_can_open_dashboard_and_reports(): void
+    public function test_seeded_admin_can_open_core_admin_pages(): void
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
 
-        $this->actingAs($admin)
-            ->get('/admin/dashboard')
-            ->assertOk();
-
-        $this->actingAs($admin)
-            ->get('/admin/reports')
-            ->assertOk();
+        foreach (['/admin/dashboard', '/admin/reports', '/admin/library'] as $uri) {
+            $this->actingAs($admin)
+                ->get($uri)
+                ->assertOk();
+        }
     }
 
     public function test_student_middleware_rejects_admin_user(): void

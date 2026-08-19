@@ -16,13 +16,32 @@ If BigRock cannot change the document root, deploy the Laravel project outside `
 ## 2. Before every production deployment
 
 1. Confirm the intended commit SHA/tag.
-2. Put the application in maintenance mode when the change includes migrations or sensitive writes:
+2. Confirm `composer.lock` exists in the release commit and `composer validate --no-check-publish` passes.
+3. Confirm the main GitHub Actions CI workflow passes for the exact release commit.
+4. Put the application in maintenance mode when the change includes migrations or sensitive writes:
    `php artisan down --retry=60`
-3. Create a database backup before migrations.
-4. Preserve the existing production `.env`; never copy `.env.example` over it.
-5. Confirm production has `APP_ENV=production`, `APP_DEBUG=false`, HTTPS `APP_URL`, and the correct database credentials.
+5. Create a database backup before migrations.
+6. Preserve the existing production `.env`; never copy `.env.example` over it.
+7. Confirm production has `APP_ENV=production`, `APP_DEBUG=false`, HTTPS `APP_URL`, and the correct database credentials.
 
-## 3. Database backup
+Do not deploy a commit without `composer.lock`. CI intentionally fails when the lockfile is missing.
+
+## 3. Generating the Composer lockfile
+
+The repository contains a manual GitHub Actions workflow dedicated to generating the lockfile on a network-enabled GitHub runner.
+
+1. Open GitHub Actions for the repository.
+2. Select **Generate Composer Lockfile**.
+3. Run the workflow against `main`.
+4. Confirm the Composer update/validation step succeeds.
+5. Download the `composer-lock` artifact from that workflow run.
+6. Review the generated `composer.lock`, especially Laravel/framework and other direct dependency versions.
+7. Commit the exact generated `composer.lock` to `main`.
+8. Run the main **CI** workflow again and require it to pass before production deployment.
+
+The lock-generation workflow is a maintenance tool only. Production and normal CI must install from the committed lockfile; they must not run `composer update` as a fallback.
+
+## 4. Database backup
 
 Example MySQL command (replace values; do not store passwords in Git):
 
@@ -35,14 +54,14 @@ For a major release, retain at least:
 - the latest known-good backup
 - periodic off-host backups according to the organization's retention policy
 
-## 4. Deploy application code
+## 5. Deploy application code
 
 From the production project directory:
 
 1. Fetch/check out the intended release.
-2. Install exact production dependencies:
+2. Verify the deployed commit matches the CI-approved commit.
+3. Install exact production dependencies:
    `composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction`
-3. Until `composer.lock` is committed, dependency resolution is not fully reproducible. Committing a validated lock file is a release prerequisite before treating deployments as deterministic.
 4. Run migrations:
    `php artisan migrate --force`
 5. Create the public storage link if not already present:
@@ -50,15 +69,15 @@ From the production project directory:
 6. Cache production configuration and routes:
    `php artisan optimize`
 
-Do not run `migrate:fresh`, `db:wipe`, or destructive seed commands in production.
+Do not run `composer update`, `migrate:fresh`, `db:wipe`, or destructive seed commands in production.
 
-## 5. Seed data
+## 6. Seed data
 
 `php artisan db:seed --force` should only be run when the release explicitly requires idempotent master/default seed data and the seeders have been reviewed for production safety.
 
 The demo admin credentials from development seed data must never remain valid in production. Create/change production administrator credentials securely after initial setup.
 
-## 6. Permissions
+## 7. Permissions
 
 The PHP/web-server user needs write access to:
 
@@ -67,7 +86,7 @@ The PHP/web-server user needs write access to:
 
 Application source files and `.env` should not be broadly writable by the web process.
 
-## 7. Queue and scheduler
+## 8. Queue and scheduler
 
 The current application uses `QUEUE_CONNECTION=database` by default. A persistent queue worker is required for queued communication work once providers are connected.
 
@@ -79,7 +98,7 @@ For Laravel scheduled jobs, configure one cron entry:
 
 If the hosting plan cannot run persistent workers, use an appropriate cron-based queue strategy and document the operational limitation.
 
-## 8. Post-deploy smoke check
+## 9. Post-deploy smoke check
 
 Verify over HTTPS:
 
@@ -98,7 +117,7 @@ Verify over HTTPS:
 
 Also verify `php artisan route:list` and review the Laravel production log for new errors.
 
-## 9. Rollback
+## 10. Rollback
 
 If the release fails before irreversible data changes:
 
@@ -113,7 +132,7 @@ If the release fails before irreversible data changes:
 
 Laravel migrations do not automatically guarantee a safe production rollback. Treat the database backup as the authoritative rollback path for destructive or incompatible schema changes.
 
-## 10. Security release checklist
+## 11. Security release checklist
 
 - `APP_DEBUG=false`
 - unique production `APP_KEY`
@@ -128,14 +147,18 @@ Laravel migrations do not automatically guarantee a safe production rollback. Tr
 - audit logging operational
 - mail/SMS/WhatsApp credentials stored only in environment/secrets
 
-## 11. CI gate
+## 12. CI gate
 
-Before production release, the GitHub Actions workflow should pass:
+Before production release, the GitHub Actions **CI** workflow must pass for the exact release commit:
 
-- Composer validation/install
-- Laravel application boot
-- migrations on a clean database
+- committed `composer.lock` presence check
+- Composer manifest/lockfile validation
+- dependency install from `composer.lock`
+- Laravel environment/bootstrap
+- migrations on a clean SQLite database
 - route registration
-- PHPUnit smoke tests
+- PHPUnit feature/integration tests
 
-At the time this runbook was added, GitHub's connector had not surfaced a workflow status for the latest commit, so CI success must be explicitly confirmed before deployment.
+The CI workflow also supports manual `workflow_dispatch` runs for release verification.
+
+Do not treat an empty or unavailable connector status as a passing build. Confirm the green workflow run in GitHub Actions before deployment.

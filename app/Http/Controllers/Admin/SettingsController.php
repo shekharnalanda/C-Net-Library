@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 
 class SettingsController extends Controller
@@ -15,7 +16,7 @@ class SettingsController extends Controller
         return view('admin.settings.index', compact('settings'));
     }
 
-    public function update(Request $request)
+    public function update(Request $request, AuditService $audit)
     {
         $validated = $request->validate([
             'settings' => ['required', 'array'],
@@ -24,11 +25,24 @@ class SettingsController extends Controller
 
         foreach ($validated['settings'] as $id => $value) {
             $setting = Setting::findOrFail($id);
-            $setting->update([
-                'value' => $setting->type === 'json' && is_array($value)
-                    ? json_encode(array_values(array_filter($value)))
-                    : (is_bool($value) ? ($value ? '1' : '0') : (string) $value),
-            ]);
+            $old = ['value' => $setting->value];
+            $newValue = $setting->type === 'json' && is_array($value)
+                ? json_encode(array_values(array_filter($value)))
+                : (is_bool($value) ? ($value ? '1' : '0') : (string) $value);
+
+            if ($newValue === $setting->value) {
+                continue;
+            }
+
+            $setting->update(['value' => $newValue]);
+
+            $audit->log(
+                action: 'setting.updated',
+                auditable: $setting,
+                oldValues: $old,
+                newValues: ['value' => $newValue],
+                request: $request,
+            );
         }
 
         return back()->with('success', 'Settings updated successfully.');

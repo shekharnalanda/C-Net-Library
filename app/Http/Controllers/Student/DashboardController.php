@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
+use App\Services\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -19,7 +20,7 @@ class DashboardController extends Controller
                 'activeMembership.studySlot',
                 'activeMembership.payments',
                 'seatAllocations' => fn ($q) => $q->with('seat.studyHall')->latest(),
-                'attendances' => fn ($q) => $q->latest('check_in')->limit(10),
+                'attendances' => fn ($q) => $q->latest('check_in_at')->limit(10),
                 'bookIssues' => fn ($q) => $q->with('bookCopy.book')->latest('issued_at')->limit(10),
             ])
             ->firstOrFail();
@@ -28,18 +29,21 @@ class DashboardController extends Controller
         $paid = $membership ? (float) $membership->payments->whereIn('payment_status', ['paid', 'partial'])->sum('amount') : 0;
         $due = $membership ? max(0, (float) $membership->final_fee - $paid) : 0;
         $activeSeat = $student->seatAllocations->firstWhere('status', 'active');
-        $studyMinutes = (int) $student->attendances->sum('duration_minutes');
+        $studyMinutes = (int) $student->attendances->sum('study_minutes');
 
         return view('student.dashboard', compact('student', 'membership', 'paid', 'due', 'activeSeat', 'studyMinutes'));
     }
 
-    public function idCard(Request $request): View
+    public function idCard(Request $request, QrCodeService $qrCode): View
     {
         $student = Student::query()
             ->where('user_id', $request->user()->id)
             ->with(['branch', 'activeMembership.studySlot'])
             ->firstOrFail();
 
-        return view('student.id-card', compact('student'));
+        $scanUrl = route('admin.attendance.scan', ['token' => $student->qr_token]);
+        $qrDataUri = $qrCode->svgDataUri($scanUrl);
+
+        return view('student.id-card', compact('student', 'scanUrl', 'qrDataUri'));
     }
 }

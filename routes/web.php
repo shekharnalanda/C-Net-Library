@@ -20,6 +20,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
 use App\Http\Controllers\Public\EnquiryController as PublicEnquiryController;
 use App\Http\Controllers\Public\JobController as PublicJobController;
+use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
@@ -37,14 +38,14 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->middleware('permission:dashboard.view')
-        ->name('dashboard');
+Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->group(function () {
+    Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/id-card', [StudentDashboardController::class, 'idCard'])->name('id-card');
+});
 
-    Route::get('/reports', [ReportsController::class, 'index'])
-        ->middleware('permission:reports.view')
-        ->name('reports.index');
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
+    Route::get('/reports', [ReportsController::class, 'index'])->middleware('permission:reports.view')->name('reports.index');
 
     Route::middleware('permission:admissions.manage')->group(function () {
         Route::get('/admissions', [AdminAdmissionController::class, 'index'])->name('admissions.index');

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DigitalResourceController;
+use App\Http\Controllers\Admin\EnquiryController as AdminEnquiryController;
 use App\Http\Controllers\Admin\JobController as AdminJobController;
 use App\Http\Controllers\Admin\LibraryController;
 use App\Http\Controllers\Admin\MembershipRenewalController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Admin\SeatAvailabilityController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
+use App\Http\Controllers\Public\EnquiryController as PublicEnquiryController;
 use App\Http\Controllers\Public\JobController as PublicJobController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +23,10 @@ Route::get('/admission', [PublicAdmissionController::class, 'create'])
     ->name('admission.create');
 Route::post('/admission', [PublicAdmissionController::class, 'store'])
     ->name('admission.store');
+Route::get('/enquiry', [PublicEnquiryController::class, 'create'])
+    ->name('enquiry.create');
+Route::post('/enquiry', [PublicEnquiryController::class, 'store'])
+    ->name('enquiry.store');
 Route::get('/jobs', [PublicJobController::class, 'index'])
     ->name('jobs.index');
 
@@ -46,6 +52,13 @@ Route::middleware(['auth', 'admin'])
             ->name('admissions.show');
         Route::post('/admissions/{admission}/approve', [AdminAdmissionController::class, 'approve'])
             ->name('admissions.approve');
+
+        Route::get('/enquiries', [AdminEnquiryController::class, 'index'])
+            ->name('enquiries.index');
+        Route::patch('/enquiries/{enquiry}', [AdminEnquiryController::class, 'update'])
+            ->name('enquiries.update');
+        Route::post('/enquiries/{enquiry}/convert', [AdminEnquiryController::class, 'convert'])
+            ->name('enquiries.convert');
 
         Route::get('/students', [StudentController::class, 'index'])
             ->name('students.index');

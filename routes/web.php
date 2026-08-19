@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
 use App\Http\Controllers\Admin\AttendanceController;
+use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\CommunicationController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DigitalResourceController;
@@ -23,7 +24,6 @@ use App\Http\Controllers\Public\EnquiryController as PublicEnquiryController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\JobController as PublicJobController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
-use App\Models\CmsPage;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -116,6 +116,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::middleware('permission:settings.manage')->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::get('/cms', [CmsController::class, 'index'])->name('cms.index');
+        Route::patch('/cms/pages/{page}', [CmsController::class, 'updatePage'])->name('cms.pages.update');
+        Route::post('/cms/faqs', [CmsController::class, 'storeFaq'])->name('cms.faqs.store');
+        Route::post('/cms/testimonials', [CmsController::class, 'storeTestimonial'])->name('cms.testimonials.store');
     });
 
     Route::middleware('permission:roles.manage')->group(function () {

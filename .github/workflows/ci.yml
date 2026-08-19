@@ -24,7 +24,13 @@ jobs:
         run: composer validate --no-check-publish
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: |
+          if [ -f composer.lock ]; then
+            composer install --no-interaction --prefer-dist --no-progress
+          else
+            echo "::warning::composer.lock is missing; resolving dependencies with composer update for CI only. Generate and commit composer.lock before production release."
+            composer update --no-interaction --prefer-dist --no-progress
+          fi
 
       - name: Prepare environment
         run: |

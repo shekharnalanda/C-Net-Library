@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\SeatAvailabilityController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,14 +14,29 @@ Route::get('/admission', [PublicAdmissionController::class, 'create'])
 Route::post('/admission', [PublicAdmissionController::class, 'store'])
     ->name('admission.store');
 
-Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/admissions', [AdminAdmissionController::class, 'index'])
-        ->name('admissions.index');
-    Route::get('/admissions/{admission}', [AdminAdmissionController::class, 'show'])
-        ->name('admissions.show');
-    Route::post('/admissions/{admission}/approve', [AdminAdmissionController::class, 'approve'])
-        ->name('admissions.approve');
-
-    Route::get('/available-seats', SeatAvailabilityController::class)
-        ->name('seats.available');
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [LoginController::class, 'create'])->name('login');
+    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 });
+
+Route::post('/logout', [LoginController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('logout');
+
+Route::middleware(['auth', 'admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])
+            ->name('dashboard');
+
+        Route::get('/admissions', [AdminAdmissionController::class, 'index'])
+            ->name('admissions.index');
+        Route::get('/admissions/{admission}', [AdminAdmissionController::class, 'show'])
+            ->name('admissions.show');
+        Route::post('/admissions/{admission}/approve', [AdminAdmissionController::class, 'approve'])
+            ->name('admissions.approve');
+
+        Route::get('/available-seats', SeatAvailabilityController::class)
+            ->name('seats.available');
+    });

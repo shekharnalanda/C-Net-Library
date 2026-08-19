@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             CommunicationTemplateSeeder::class,
             SettingsSeeder::class,
             RolePermissionSeeder::class,
+            CmsSeeder::class,
         ]);
     }
 }

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\LibraryController;
 use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\SeatAvailabilityController;
@@ -60,6 +61,13 @@ Route::middleware(['auth', 'admin'])
             ->name('attendance.check-in');
         Route::post('/students/{student}/check-out', [AttendanceController::class, 'checkOut'])
             ->name('attendance.check-out');
+
+        Route::get('/library', [LibraryController::class, 'index'])
+            ->name('library.index');
+        Route::post('/library/issue', [LibraryController::class, 'issue'])
+            ->name('library.issue');
+        Route::post('/library/issues/{bookIssue}/return', [LibraryController::class, 'return'])
+            ->name('library.return');
 
         Route::get('/available-seats', SeatAvailabilityController::class)
             ->name('seats.available');

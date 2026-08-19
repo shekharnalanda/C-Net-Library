@@ -28,7 +28,7 @@ class SettingsController extends Controller
             $setting = Setting::findOrFail($id);
             $old = ['value' => $setting->value];
 
-            if ($setting->key === 'google_maps_embed_url' && filled($value)) {
+            if ($setting->key === 'map_embed_url' && filled($value)) {
                 $host = strtolower((string) parse_url((string) $value, PHP_URL_HOST));
                 $allowed = $host === 'google.com'
                     || $host === 'www.google.com'

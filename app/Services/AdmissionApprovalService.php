@@ -65,17 +65,21 @@ class AdmissionApprovalService
                 ['email' => $portalEmail],
                 [
                     'name' => $admission->name,
-                    'password' => Str::password(16),
+                    'password' => Str::random(64),
                     'role' => 'student',
                     'status' => true,
                 ]
             );
+
+            $activationToken = Str::random(64);
 
             $student = Student::create([
                 'branch_id' => $branchId,
                 'user_id' => $user->id,
                 'student_code' => $studentCode,
                 'qr_token' => (string) Str::uuid(),
+                'portal_activation_token' => hash('sha256', $activationToken),
+                'portal_activation_expires_at' => now()->addDays(7),
                 'name' => $admission->name,
                 'father_name' => $admission->father_name,
                 'dob' => $admission->dob,
@@ -86,6 +90,8 @@ class AdmissionApprovalService
                 'joining_date' => $startDate->toDateString(),
                 'status' => 'active',
             ]);
+
+            $student->setAttribute('portal_activation_plain_token', $activationToken);
 
             $discount = (float) ($data['discount'] ?? 0);
             $baseFee = (float) $feePlan->monthly_fee;

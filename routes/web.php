@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SeatAvailabilityController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Auth\LoginController;
@@ -76,6 +77,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/staff/{staff}/attendance', [StaffController::class, 'attendance'])->name('staff.attendance');
     Route::patch('/staff/leaves/{staffLeave}', [StaffController::class, 'leave'])->name('staff.leaves.update');
     Route::post('/staff/{staff}/payroll', [StaffController::class, 'payroll'])->name('staff.payroll');
+
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
     Route::get('/available-seats', SeatAvailabilityController::class)->name('seats.available');
 });

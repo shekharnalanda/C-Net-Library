@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DigitalResourceController;
+use App\Http\Controllers\Admin\JobController as AdminJobController;
 use App\Http\Controllers\Admin\LibraryController;
 use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Admin\SeatAvailabilityController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
+use App\Http\Controllers\Public\JobController as PublicJobController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
@@ -19,6 +21,8 @@ Route::get('/admission', [PublicAdmissionController::class, 'create'])
     ->name('admission.create');
 Route::post('/admission', [PublicAdmissionController::class, 'store'])
     ->name('admission.store');
+Route::get('/jobs', [PublicJobController::class, 'index'])
+    ->name('jobs.index');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -74,6 +78,11 @@ Route::middleware(['auth', 'admin'])
             ->name('digital-resources.index');
         Route::post('/digital-library', [DigitalResourceController::class, 'store'])
             ->name('digital-resources.store');
+
+        Route::get('/jobs', [AdminJobController::class, 'index'])
+            ->name('jobs.index');
+        Route::post('/jobs', [AdminJobController::class, 'store'])
+            ->name('jobs.store');
 
         Route::get('/available-seats', SeatAvailabilityController::class)
             ->name('seats.available');

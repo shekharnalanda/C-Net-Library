@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $student->name }} - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1100px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.actions{display:flex;gap:10px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:2fr 1fr;gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05);margin-bottom:18px}.muted{color:#6b7280}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.label{font-size:12px;color:#6b7280;text-transform:uppercase}.value{font-weight:600;margin-top:3px}.btn{display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 13px;border-radius:9px;border:0;cursor:pointer}.btn.alt{background:#2563eb}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.field{margin-bottom:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1100px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.actions{display:flex;gap:10px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:2fr 1fr;gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05);margin-bottom:18px}.muted{color:#6b7280}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.label{font-size:12px;color:#6b7280;text-transform:uppercase}.value{font-weight:600;margin-top:3px}.btn{display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 13px;border-radius:9px;border:0;cursor:pointer}.btn.alt{background:#2563eb}.btn.good{background:#047857}.btn.out{background:#b91c1c}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.field{margin-bottom:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
     </style>
 </head>
 <body>
@@ -93,6 +93,27 @@
 
         <div>
             @php($activeMembership = $student->memberships->where('status','active')->sortByDesc('id')->first())
+            @php($openAttendance = $student->attendances()->whereNull('check_out_at')->latest('id')->first())
+
+            <div class="card">
+                <h2 style="margin-top:0">Attendance</h2>
+                @if($openAttendance)
+                    <div class="field"><div class="label">Checked In</div><div class="value">{{ $openAttendance->check_in_at?->format('d M Y, h:i A') }}</div></div>
+                    <form method="POST" action="{{ route('admin.attendance.check-out', $student) }}">
+                        @csrf
+                        <button class="btn out" type="submit">Check Out</button>
+                    </form>
+                @else
+                    <div class="muted" style="margin-bottom:12px">Student is currently outside.</div>
+                    <form method="POST" action="{{ route('admin.attendance.check-in', $student) }}">
+                        @csrf
+                        <input type="hidden" name="entry_method" value="manual">
+                        <button class="btn good" type="submit">Check In</button>
+                    </form>
+                @endif
+                <div style="margin-top:12px"><a href="{{ route('admin.attendance.index', ['search' => $student->student_code]) }}">View attendance history</a></div>
+            </div>
+
             <div class="card">
                 <h2 style="margin-top:0">Current Seat</h2>
                 @php($allocation = $student->seatAllocations->where('status','active')->sortByDesc('id')->first())

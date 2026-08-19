@@ -1,0 +1,38 @@
+name: Generate Composer Lockfile
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-lock:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring
+          coverage: none
+
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish --no-check-lock
+
+      - name: Generate lockfile
+        run: composer update --lock --no-interaction --prefer-dist --no-progress
+
+      - name: Verify lockfile
+        run: |
+          test -f composer.lock
+          composer validate --no-check-publish
+
+      - name: Upload lockfile artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-lock
+          path: composer.lock
+          if-no-files-found: error
+          retention-days: 7

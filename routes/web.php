@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\SeatAvailabilityController;
 use App\Http\Controllers\Admin\StudentController;
@@ -43,6 +44,10 @@ Route::middleware(['auth', 'admin'])
             ->name('students.index');
         Route::get('/students/{student}', [StudentController::class, 'show'])
             ->name('students.show');
+        Route::get('/students/{student}/renew', [MembershipRenewalController::class, 'create'])
+            ->name('students.renew.create');
+        Route::post('/students/{student}/renew', [MembershipRenewalController::class, 'store'])
+            ->name('students.renew.store');
         Route::post('/students/{student}/payments', [PaymentController::class, 'store'])
             ->name('students.payments.store');
         Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])

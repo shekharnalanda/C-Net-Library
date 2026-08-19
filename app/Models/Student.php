@@ -14,6 +14,9 @@ class Student extends Model
         'user_id',
         'student_code',
         'qr_token',
+        'portal_activation_token',
+        'portal_activation_expires_at',
+        'portal_activated_at',
         'name',
         'father_name',
         'mother_name',
@@ -32,9 +35,15 @@ class Student extends Model
         'status',
     ];
 
+    protected $hidden = [
+        'portal_activation_token',
+    ];
+
     protected $casts = [
         'dob' => 'date',
         'joining_date' => 'date',
+        'portal_activation_expires_at' => 'datetime',
+        'portal_activated_at' => 'datetime',
     ];
 
     public function branch()

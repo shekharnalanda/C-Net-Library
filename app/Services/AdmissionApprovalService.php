@@ -9,6 +9,7 @@ use App\Models\SeatAllocation;
 use App\Models\Student;
 use App\Models\StudentMembership;
 use App\Models\StudySlot;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -33,13 +34,30 @@ class AdmissionApprovalService
             $slot = StudySlot::findOrFail($data['study_slot_id']);
             $seat = Seat::with('studyHall')->findOrFail($data['seat_id']);
 
-            if ($admission->branch_id && $seat->studyHall?->branch_id !== $admission->branch_id) {
+            $branchId = $admission->branch_id ?? $feePlan->branch_id;
+
+            if ((int) $feePlan->branch_id !== (int) $branchId) {
+                throw ValidationException::withMessages([
+                    'fee_plan_id' => 'Selected fee plan does not belong to the admission branch.',
+                ]);
+            }
+
+            if ((int) $slot->branch_id !== (int) $branchId) {
+                throw ValidationException::withMessages([
+                    'study_slot_id' => 'Selected study slot does not belong to the admission branch.',
+                ]);
+            }
+
+            if ((int) $seat->studyHall?->branch_id !== (int) $branchId) {
                 throw ValidationException::withMessages([
                     'seat_id' => 'Selected seat does not belong to the admission branch.',
                 ]);
             }
 
-            $startDate = isset($data['start_date']) ? now()->parse($data['start_date'])->startOfDay() : today();
+            $startDate = isset($data['start_date'])
+                ? Carbon::parse($data['start_date'])->startOfDay()
+                : today();
+
             $expiryDate = $startDate->copy()->addDays(max(1, (int) $feePlan->validity_days) - 1);
 
             $this->seatAllocationService->assertAvailable(
@@ -51,7 +69,7 @@ class AdmissionApprovalService
             );
 
             $student = Student::create([
-                'branch_id' => $admission->branch_id ?? $feePlan->branch_id,
+                'branch_id' => $branchId,
                 'student_code' => $this->generateStudentCode(),
                 'name' => $admission->name,
                 'father_name' => $admission->father_name,
@@ -66,6 +84,12 @@ class AdmissionApprovalService
 
             $discount = (float) ($data['discount'] ?? 0);
             $baseFee = (float) $feePlan->monthly_fee;
+
+            if ($discount > $baseFee) {
+                throw ValidationException::withMessages([
+                    'discount' => 'Discount cannot exceed the base fee.',
+                ]);
+            }
 
             $membership = StudentMembership::create([
                 'student_id' => $student->id,

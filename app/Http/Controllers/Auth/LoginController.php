@@ -37,6 +37,10 @@ class LoginController extends Controller
             ]);
         }
 
+        if (auth()->user()->role === 'student') {
+            return redirect()->intended(route('student.dashboard'));
+        }
+
         return redirect()->intended(route('admin.dashboard'));
     }
 

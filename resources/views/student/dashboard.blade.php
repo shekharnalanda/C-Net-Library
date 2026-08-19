@@ -43,7 +43,7 @@
                 <thead><tr><th>Date</th><th>In</th><th>Out</th><th>Minutes</th></tr></thead>
                 <tbody>
                 @forelse($student->attendances as $attendance)
-                    <tr><td>{{ $attendance->check_in?->format('d M') }}</td><td>{{ $attendance->check_in?->format('h:i A') }}</td><td>{{ $attendance->check_out?->format('h:i A') ?? 'Inside' }}</td><td>{{ $attendance->duration_minutes ?? '—' }}</td></tr>
+                    <tr><td>{{ $attendance->attendance_date?->format('d M') }}</td><td>{{ $attendance->check_in_at?->format('h:i A') ?? '—' }}</td><td>{{ $attendance->check_out_at?->format('h:i A') ?? 'Inside' }}</td><td>{{ $attendance->study_minutes }}</td></tr>
                 @empty
                     <tr><td colspan="4" class="muted">No attendance yet.</td></tr>
                 @endforelse

@@ -15,7 +15,8 @@ use Illuminate\Validation\ValidationException;
 class MembershipRenewalService
 {
     public function __construct(
-        private readonly SeatAllocationService $seatAllocationService
+        private readonly SeatAllocationService $seatAllocationService,
+        private readonly SettingsService $settings
     ) {
     }
 
@@ -26,13 +27,13 @@ class MembershipRenewalService
             $slot = StudySlot::findOrFail($data['study_slot_id']);
             $seat = isset($data['seat_id']) ? Seat::with('studyHall')->findOrFail($data['seat_id']) : null;
 
-            if ($feePlan->branch_id !== $student->branch_id || $slot->branch_id !== $student->branch_id) {
+            if ((int) $feePlan->branch_id !== (int) $student->branch_id || (int) $slot->branch_id !== (int) $student->branch_id) {
                 throw ValidationException::withMessages([
                     'fee_plan_id' => 'Selected fee plan or slot does not belong to the student branch.',
                 ]);
             }
 
-            if ($seat && $seat->studyHall?->branch_id !== $student->branch_id) {
+            if ($seat && (int) $seat->studyHall?->branch_id !== (int) $student->branch_id) {
                 throw ValidationException::withMessages([
                     'seat_id' => 'Selected seat does not belong to the student branch.',
                 ]);
@@ -47,8 +48,14 @@ class MembershipRenewalService
                 ? Carbon::parse($data['start_date'])->startOfDay()
                 : today();
 
-            if ($currentMembership && $currentMembership->expiry_date && $currentMembership->expiry_date->gte(today())) {
-                $requestedStart = $currentMembership->expiry_date->copy()->addDay()->startOfDay();
+            $graceDays = max(0, (int) $this->settings->get('membership_grace_days', 0, $student->branch_id));
+
+            if ($currentMembership && $currentMembership->expiry_date) {
+                $graceEnd = $currentMembership->expiry_date->copy()->addDays($graceDays);
+
+                if ($graceEnd->gte(today())) {
+                    $requestedStart = $currentMembership->expiry_date->copy()->addDay()->startOfDay();
+                }
             }
 
             $expiryDate = $requestedStart->copy()->addDays(max(1, (int) $feePlan->validity_days) - 1);
@@ -70,6 +77,12 @@ class MembershipRenewalService
             $discount = (float) ($data['discount'] ?? 0);
             $baseFee = (float) $feePlan->monthly_fee;
 
+            if ($discount > $baseFee) {
+                throw ValidationException::withMessages([
+                    'discount' => 'Discount cannot exceed the base fee.',
+                ]);
+            }
+
             $membership = StudentMembership::create([
                 'student_id' => $student->id,
                 'fee_plan_id' => $feePlan->id,
@@ -89,7 +102,7 @@ class MembershipRenewalService
 
             if ($currentAllocation) {
                 $currentAllocation->update([
-                    'allocated_to' => today()->toDateString(),
+                    'allocated_to' => min(today(), $requestedStart->copy()->subDay())->toDateString(),
                     'status' => 'released',
                 ]);
             }

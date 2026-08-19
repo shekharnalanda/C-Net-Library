@@ -32,8 +32,34 @@ class User extends Authenticatable
         ];
     }
 
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class);
+    }
+
+    public function hasRole(string $role): bool
+    {
+        if ($this->role === 'super_admin') {
+            return true;
+        }
+
+        return $this->roles()->where('slug', $role)->exists();
+    }
+
+    public function canAccess(string $permission): bool
+    {
+        if ($this->role === 'super_admin') {
+            return true;
+        }
+
+        return $this->roles()
+            ->whereHas('permissions', fn ($query) => $query->where('slug', $permission))
+            ->exists();
+    }
+
     public function isAdmin(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin'], true);
+        return $this->role === 'super_admin'
+            || $this->roles()->whereIn('slug', ['super-admin', 'branch-admin'])->exists();
     }
 }

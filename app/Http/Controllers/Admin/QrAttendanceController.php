@@ -38,7 +38,7 @@ class QrAttendanceController extends Controller
         abort_unless(hash_equals((string) $student->qr_token, (string) $request->input('token')), 403);
 
         if ($request->input('action') === 'check_out') {
-            $attendanceService->checkOut($student, (int) auth()->id(), 'QR scan');
+            $attendanceService->checkOut($student, (int) auth()->id(), 'QR scan', 'qr');
             return back()->with('success', 'Student checked out successfully.');
         }
 

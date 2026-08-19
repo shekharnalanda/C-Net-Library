@@ -10,14 +10,18 @@ use App\Models\GalleryItem;
 use App\Models\Job;
 use App\Models\Seat;
 use App\Models\SeatAllocation;
+use App\Models\StudySlot;
 use App\Models\Testimonial;
+use App\Services\SeatAllocationService;
 use App\Services\SettingsService;
 use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    public function __construct(private readonly SettingsService $settings)
-    {
+    public function __construct(
+        private readonly SettingsService $settings,
+        private readonly SeatAllocationService $seatAllocationService,
+    ) {
     }
 
     public function index(): View
@@ -31,18 +35,27 @@ class HomeController extends Controller
             ->limit(8)
             ->get();
 
-        $totalSeats = Seat::query()->where('status', true)->count();
-        $occupiedSeatIds = SeatAllocation::query()
-            ->whereIn('status', ['reserved', 'active'])
-            ->whereDate('allocated_from', '<=', today())
-            ->where(function ($query) {
-                $query->whereNull('allocated_to')->orWhereDate('allocated_to', '>=', today());
-            })
-            ->distinct()
-            ->pluck('seat_id');
+        $seats = Seat::query()->where('status', true)->get(['id']);
+        $slots = StudySlot::query()->where('status', true)->get(['id', 'name', 'start_time', 'end_time']);
+        $totalSeats = $seats->count();
+        $totalSeatSlots = $totalSeats * $slots->count();
 
-        $occupiedSeats = $occupiedSeatIds->count();
-        $availableSeats = max(0, $totalSeats - $occupiedSeats);
+        $availableSeatSlots = 0;
+        foreach ($slots as $slot) {
+            foreach ($seats as $seat) {
+                if ($this->seatAllocationService->isAvailable(
+                    $seat->id,
+                    today(),
+                    today(),
+                    $slot->start_time,
+                    $slot->end_time,
+                )) {
+                    $availableSeatSlots++;
+                }
+            }
+        }
+
+        $occupiedSeatSlots = max(0, $totalSeatSlots - $availableSeatSlots);
 
         $jobs = Job::query()
             ->where('status', true)
@@ -67,7 +80,7 @@ class HomeController extends Controller
         ];
 
         return view('public.home', compact(
-            'home', 'plans', 'totalSeats', 'occupiedSeats', 'availableSeats',
+            'home', 'plans', 'totalSeats', 'totalSeatSlots', 'occupiedSeatSlots', 'availableSeatSlots',
             'jobs', 'faqs', 'testimonials', 'gallery', 'contact'
         ));
     }

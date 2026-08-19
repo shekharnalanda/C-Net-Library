@@ -9,6 +9,7 @@ use App\Models\SeatAllocation;
 use App\Models\Student;
 use App\Models\StudentMembership;
 use App\Models\StudySlot;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -38,27 +39,16 @@ class AdmissionApprovalService
             $branchId = $admission->branch_id ?? $feePlan->branch_id;
 
             if ((int) $feePlan->branch_id !== (int) $branchId) {
-                throw ValidationException::withMessages([
-                    'fee_plan_id' => 'Selected fee plan does not belong to the admission branch.',
-                ]);
+                throw ValidationException::withMessages(['fee_plan_id' => 'Selected fee plan does not belong to the admission branch.']);
             }
-
             if ((int) $slot->branch_id !== (int) $branchId) {
-                throw ValidationException::withMessages([
-                    'study_slot_id' => 'Selected study slot does not belong to the admission branch.',
-                ]);
+                throw ValidationException::withMessages(['study_slot_id' => 'Selected study slot does not belong to the admission branch.']);
             }
-
             if ((int) $seat->studyHall?->branch_id !== (int) $branchId) {
-                throw ValidationException::withMessages([
-                    'seat_id' => 'Selected seat does not belong to the admission branch.',
-                ]);
+                throw ValidationException::withMessages(['seat_id' => 'Selected seat does not belong to the admission branch.']);
             }
 
-            $startDate = isset($data['start_date'])
-                ? Carbon::parse($data['start_date'])->startOfDay()
-                : today();
-
+            $startDate = isset($data['start_date']) ? Carbon::parse($data['start_date'])->startOfDay() : today();
             $expiryDate = $startDate->copy()->addDays(max(1, (int) $feePlan->validity_days) - 1);
 
             $this->seatAllocationService->assertAvailable(
@@ -69,9 +59,23 @@ class AdmissionApprovalService
                 endTime: $slot->end_time,
             );
 
+            $studentCode = $this->generateStudentCode($branchId);
+            $portalEmail = $admission->email ?: strtolower($studentCode).'@student.cnetlibrary.local';
+            $user = User::firstOrCreate(
+                ['email' => $portalEmail],
+                [
+                    'name' => $admission->name,
+                    'password' => Str::password(16),
+                    'role' => 'student',
+                    'status' => true,
+                ]
+            );
+
             $student = Student::create([
                 'branch_id' => $branchId,
-                'student_code' => $this->generateStudentCode($branchId),
+                'user_id' => $user->id,
+                'student_code' => $studentCode,
+                'qr_token' => (string) Str::uuid(),
                 'name' => $admission->name,
                 'father_name' => $admission->father_name,
                 'dob' => $admission->dob,
@@ -85,11 +89,8 @@ class AdmissionApprovalService
 
             $discount = (float) ($data['discount'] ?? 0);
             $baseFee = (float) $feePlan->monthly_fee;
-
             if ($discount > $baseFee) {
-                throw ValidationException::withMessages([
-                    'discount' => 'Discount cannot exceed the base fee.',
-                ]);
+                throw ValidationException::withMessages(['discount' => 'Discount cannot exceed the base fee.']);
             }
 
             $membership = StudentMembership::create([
@@ -131,11 +132,9 @@ class AdmissionApprovalService
     private function generateStudentCode(?int $branchId = null): string
     {
         $prefix = (string) $this->settings->get('student_code_prefix', 'CNL-STU', $branchId);
-
         do {
-            $code = $prefix . '-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
+            $code = $prefix.'-'.now()->format('Y').'-'.strtoupper(Str::random(6));
         } while (Student::query()->where('student_code', $code)->exists());
-
         return $code;
     }
 }

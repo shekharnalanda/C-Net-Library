@@ -17,7 +17,8 @@ use Illuminate\Validation\ValidationException;
 class AdmissionApprovalService
 {
     public function __construct(
-        private readonly SeatAllocationService $seatAllocationService
+        private readonly SeatAllocationService $seatAllocationService,
+        private readonly SettingsService $settings
     ) {
     }
 
@@ -70,7 +71,7 @@ class AdmissionApprovalService
 
             $student = Student::create([
                 'branch_id' => $branchId,
-                'student_code' => $this->generateStudentCode(),
+                'student_code' => $this->generateStudentCode($branchId),
                 'name' => $admission->name,
                 'father_name' => $admission->father_name,
                 'dob' => $admission->dob,
@@ -127,10 +128,12 @@ class AdmissionApprovalService
         });
     }
 
-    private function generateStudentCode(): string
+    private function generateStudentCode(?int $branchId = null): string
     {
+        $prefix = (string) $this->settings->get('student_code_prefix', 'CNL-STU', $branchId);
+
         do {
-            $code = 'CNL-STU-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
+            $code = $prefix . '-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
         } while (Student::query()->where('student_code', $code)->exists());
 
         return $code;

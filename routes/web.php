@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\JobController as AdminJobController;
 use App\Http\Controllers\Admin\LibraryController;
 use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SeatAvailabilityController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Auth\LoginController;
@@ -35,6 +36,7 @@ Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')-
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
 
     Route::get('/admissions', [AdminAdmissionController::class, 'index'])->name('admissions.index');
     Route::get('/admissions/{admission}', [AdminAdmissionController::class, 'show'])->name('admissions.show');

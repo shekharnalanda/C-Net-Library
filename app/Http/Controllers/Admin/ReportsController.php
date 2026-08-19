@@ -91,7 +91,7 @@ class ReportsController extends Controller
             'crm_conversion_percent' => $enquiryCount > 0 ? round(($convertedEnquiries / $enquiryCount) * 100, 1) : 0,
             'books_available' => BookCopy::query()->where('status', 'available')->count(),
             'books_issued' => BookIssue::query()->whereNull('returned_at')->count(),
-            'overdue_books' => BookIssue::query()->whereNull('returned_at')->whereDate('due_date', '<', today())->count(),
+            'overdue_books' => BookIssue::query()->whereNull('returned_at')->whereDate('due_at', '<', today())->count(),
         ];
 
         $dailyCollections = Payment::query()

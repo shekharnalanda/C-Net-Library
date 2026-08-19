@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             BranchSeeder::class,
             StudyStructureSeeder::class,
             AdminUserSeeder::class,
+            CommunicationTemplateSeeder::class,
         ]);
     }
 }

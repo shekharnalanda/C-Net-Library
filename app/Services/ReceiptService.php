@@ -7,8 +7,15 @@ use Illuminate\Support\Facades\DB;
 
 class ReceiptService
 {
-    public function generate(string $prefix = 'CNL'): string
+    public function __construct(
+        private readonly SettingsService $settings
+    ) {
+    }
+
+    public function generate(?string $prefix = null, ?int $branchId = null): string
     {
+        $prefix ??= (string) $this->settings->get('receipt_prefix', 'CNL', $branchId);
+
         return DB::transaction(function () use ($prefix) {
             $year = now()->format('Y');
             $lastId = (int) Payment::query()->lockForUpdate()->max('id');

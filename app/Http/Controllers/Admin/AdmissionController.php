@@ -8,6 +8,7 @@ use App\Models\Admission;
 use App\Models\FeePlan;
 use App\Models\StudySlot;
 use App\Services\AdmissionApprovalService;
+use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -44,9 +45,23 @@ class AdmissionController extends Controller
     public function approve(
         ApproveAdmissionRequest $request,
         Admission $admission,
-        AdmissionApprovalService $approvalService
+        AdmissionApprovalService $approvalService,
+        AuditService $auditService
     ): RedirectResponse {
+        $oldValues = $admission->only(['status', 'fee_plan_id', 'study_slot_id', 'remarks']);
         $student = $approvalService->approve($admission, $request->validated());
+        $admission->refresh();
+
+        $auditService->log(
+            action: 'admission.approved',
+            auditable: $admission,
+            oldValues: $oldValues,
+            newValues: array_merge(
+                $admission->only(['status', 'fee_plan_id', 'study_slot_id', 'remarks']),
+                ['student_id' => $student->id, 'student_code' => $student->student_code]
+            ),
+            request: $request,
+        );
 
         return redirect()
             ->route('admin.admissions.show', $admission)

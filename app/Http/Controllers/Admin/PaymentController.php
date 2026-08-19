@@ -7,14 +7,19 @@ use App\Http\Requests\StorePaymentRequest;
 use App\Models\Payment;
 use App\Models\Student;
 use App\Models\StudentMembership;
+use App\Services\AuditService;
 use App\Services\ReceiptService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
 {
-    public function store(StorePaymentRequest $request, Student $student, ReceiptService $receiptService)
-    {
+    public function store(
+        StorePaymentRequest $request,
+        Student $student,
+        ReceiptService $receiptService,
+        AuditService $auditService
+    ) {
         $membership = StudentMembership::query()
             ->whereKey($request->integer('student_membership_id'))
             ->where('student_id', $student->id)
@@ -49,6 +54,21 @@ class PaymentController extends Controller
                 'remarks' => $request->input('remarks'),
             ]);
         });
+
+        $auditService->log(
+            action: 'payment.received',
+            auditable: $payment,
+            newValues: $payment->only([
+                'student_id',
+                'student_membership_id',
+                'receipt_no',
+                'amount',
+                'payment_mode',
+                'payment_status',
+                'transaction_ref',
+            ]),
+            request: $request,
+        );
 
         return redirect()->route('admin.payments.receipt', $payment)
             ->with('success', 'Payment received successfully.');

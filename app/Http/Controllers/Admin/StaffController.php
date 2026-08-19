@@ -9,6 +9,7 @@ use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Models\StaffLeave;
 use App\Models\StaffShift;
+use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -30,7 +31,7 @@ class StaffController extends Controller
         ));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, AuditService $audit): RedirectResponse
     {
         $data = $request->validate([
             'branch_id' => ['nullable', 'exists:branches,id'],
@@ -46,16 +47,20 @@ class StaffController extends Controller
             $code = 'CNL-STF-' . strtoupper(Str::random(6));
         } while (Staff::where('staff_code', $code)->exists());
 
-        Staff::create($data + [
+        $staff = Staff::create($data + [
             'staff_code' => $code,
             'monthly_salary' => $data['monthly_salary'] ?? 0,
             'status' => 'active',
         ]);
 
+        $audit->log('staff.created', $staff, [], $staff->only([
+            'branch_id', 'staff_code', 'name', 'role', 'joining_date', 'monthly_salary', 'status',
+        ]));
+
         return back()->with('success', 'Staff member created.');
     }
 
-    public function attendance(Request $request, Staff $staff): RedirectResponse
+    public function attendance(Request $request, Staff $staff, AuditService $audit): RedirectResponse
     {
         $data = $request->validate([
             'staff_shift_id' => ['nullable', 'exists:staff_shifts,id'],
@@ -63,29 +68,42 @@ class StaffController extends Controller
             'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        StaffAttendance::updateOrCreate(
-            ['staff_id' => $staff->id, 'attendance_date' => today()->toDateString()],
-            $data + [
-                'check_in' => $data['status'] === 'present' ? now() : null,
-            ]
-        );
+        $attendance = StaffAttendance::firstOrNew([
+            'staff_id' => $staff->id,
+            'attendance_date' => today()->toDateString(),
+        ]);
+        $old = $attendance->exists ? $attendance->only(['staff_shift_id', 'status', 'check_in', 'check_out', 'remarks']) : [];
+
+        $attendance->fill($data + [
+            'check_in' => $data['status'] === 'present' ? now() : null,
+        ])->save();
+
+        $audit->log('staff.attendance.updated', $attendance, $old, $attendance->only([
+            'staff_id', 'attendance_date', 'staff_shift_id', 'status', 'check_in', 'check_out', 'remarks',
+        ]));
 
         return back()->with('success', 'Staff attendance updated.');
     }
 
-    public function leave(Request $request, StaffLeave $staffLeave): RedirectResponse
+    public function leave(Request $request, StaffLeave $staffLeave, AuditService $audit): RedirectResponse
     {
         $data = $request->validate([
             'status' => ['required', 'in:approved,rejected'],
             'admin_remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        $old = $staffLeave->only(['status', 'admin_remarks', 'approved_by']);
         $staffLeave->update($data + ['approved_by' => auth()->id()]);
+        $staffLeave->refresh();
+
+        $audit->log('staff.leave.reviewed', $staffLeave, $old, $staffLeave->only([
+            'status', 'admin_remarks', 'approved_by',
+        ]));
 
         return back()->with('success', 'Leave request updated.');
     }
 
-    public function payroll(Request $request, Staff $staff): RedirectResponse
+    public function payroll(Request $request, Staff $staff, AuditService $audit): RedirectResponse
     {
         $data = $request->validate([
             'month' => ['required', 'integer', 'between:1,12'],
@@ -102,21 +120,31 @@ class StaffController extends Controller
         $allowances = (float) ($data['allowances'] ?? 0);
         $deductions = (float) ($data['deductions'] ?? 0);
 
-        Payroll::updateOrCreate(
-            ['staff_id' => $staff->id, 'month' => $data['month'], 'year' => $data['year']],
-            [
-                'basic_salary' => $basic,
-                'allowances' => $allowances,
-                'deductions' => $deductions,
-                'net_salary' => max(0, $basic + $allowances - $deductions),
-                'status' => $data['status'],
-                'paid_on' => $data['status'] === 'paid' ? today() : null,
-                'payment_mode' => $data['payment_mode'] ?? null,
-                'transaction_ref' => $data['transaction_ref'] ?? null,
-                'processed_by' => auth()->id(),
-                'remarks' => $data['remarks'] ?? null,
-            ]
-        );
+        $payroll = Payroll::firstOrNew([
+            'staff_id' => $staff->id,
+            'month' => $data['month'],
+            'year' => $data['year'],
+        ]);
+        $old = $payroll->exists ? $payroll->only([
+            'basic_salary', 'allowances', 'deductions', 'net_salary', 'status', 'paid_on', 'payment_mode', 'transaction_ref', 'remarks',
+        ]) : [];
+
+        $payroll->fill([
+            'basic_salary' => $basic,
+            'allowances' => $allowances,
+            'deductions' => $deductions,
+            'net_salary' => max(0, $basic + $allowances - $deductions),
+            'status' => $data['status'],
+            'paid_on' => $data['status'] === 'paid' ? today() : null,
+            'payment_mode' => $data['payment_mode'] ?? null,
+            'transaction_ref' => $data['transaction_ref'] ?? null,
+            'processed_by' => auth()->id(),
+            'remarks' => $data['remarks'] ?? null,
+        ])->save();
+
+        $audit->log('staff.payroll.saved', $payroll, $old, $payroll->only([
+            'staff_id', 'month', 'year', 'basic_salary', 'allowances', 'deductions', 'net_salary', 'status', 'paid_on', 'payment_mode', 'transaction_ref', 'processed_by', 'remarks',
+        ]));
 
         return back()->with('success', 'Payroll record saved.');
     }

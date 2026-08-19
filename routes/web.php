@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\StudentActivationController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
 use App\Http\Controllers\Public\DigitalLibraryController as PublicDigitalLibraryController;
 use App\Http\Controllers\Public\DigitalResourceAccessController;
@@ -42,6 +43,8 @@ Route::get('/jobs', [PublicJobController::class, 'index'])->name('jobs.index');
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+    Route::get('/student/activate/{token}', [StudentActivationController::class, 'show'])->name('student.activate');
+    Route::post('/student/activate/{token}', [StudentActivationController::class, 'store'])->name('student.activate.store');
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');

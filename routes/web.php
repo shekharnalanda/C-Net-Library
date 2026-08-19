@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\MembershipRenewalController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SeatAvailabilityController;
+use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StudentController;
@@ -80,6 +81,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
+
+    Route::middleware('permission:roles.manage')->group(function () {
+        Route::get('/security', [SecurityController::class, 'index'])->name('security.index');
+        Route::patch('/security/roles/{role}', [SecurityController::class, 'updateRole'])->name('security.roles.update');
+        Route::patch('/security/users/{user}/roles', [SecurityController::class, 'updateUserRoles'])->name('security.users.roles.update');
+    });
 
     Route::get('/available-seats', SeatAvailabilityController::class)->name('seats.available');
 });

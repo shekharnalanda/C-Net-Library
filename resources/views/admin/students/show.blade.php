@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $student->name }} - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1100px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.grid{display:grid;grid-template-columns:2fr 1fr;gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05);margin-bottom:18px}.muted{color:#6b7280}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.label{font-size:12px;color:#6b7280;text-transform:uppercase}.value{font-weight:600;margin-top:3px}.btn{display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 13px;border-radius:9px;border:0;cursor:pointer}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.field{margin-bottom:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1100px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.actions{display:flex;gap:10px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:2fr 1fr;gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05);margin-bottom:18px}.muted{color:#6b7280}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.label{font-size:12px;color:#6b7280;text-transform:uppercase}.value{font-weight:600;margin-top:3px}.btn{display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 13px;border-radius:9px;border:0;cursor:pointer}.btn.alt{background:#2563eb}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.field{margin-bottom:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
     </style>
 </head>
 <body>
@@ -15,7 +15,10 @@
             <h1 style="margin:0">{{ $student->name }}</h1>
             <div class="muted">{{ $student->student_code }}</div>
         </div>
-        <a class="btn" href="{{ route('admin.students.index') }}">Back to Students</a>
+        <div class="actions">
+            <a class="btn alt" href="{{ route('admin.students.renew.create', $student) }}">Renew / Change Seat</a>
+            <a class="btn" href="{{ route('admin.students.index') }}">Back to Students</a>
+        </div>
     </div>
 
     @if(session('success'))

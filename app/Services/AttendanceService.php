@@ -8,6 +8,10 @@ use Illuminate\Validation\ValidationException;
 
 class AttendanceService
 {
+    public function __construct(private readonly SettingsService $settings)
+    {
+    }
+
     public function checkIn(Student $student, int $markedBy, string $entryMethod = 'manual', ?string $remarks = null): Attendance
     {
         $membership = $student->memberships()
@@ -21,6 +25,10 @@ class AttendanceService
             throw ValidationException::withMessages([
                 'student' => 'Student does not have an active membership today.',
             ]);
+        }
+
+        if ($entryMethod === 'qr') {
+            $this->assertQrCooldown($student);
         }
 
         $openSession = Attendance::query()
@@ -46,8 +54,12 @@ class AttendanceService
         ]);
     }
 
-    public function checkOut(Student $student, int $markedBy, ?string $remarks = null): Attendance
+    public function checkOut(Student $student, int $markedBy, ?string $remarks = null, string $entryMethod = 'manual'): Attendance
     {
+        if ($entryMethod === 'qr') {
+            $this->assertQrCooldown($student);
+        }
+
         $attendance = Attendance::query()
             ->where('student_id', $student->id)
             ->whereNull('check_out_at')
@@ -71,5 +83,29 @@ class AttendanceService
         ]);
 
         return $attendance->fresh();
+    }
+
+    private function assertQrCooldown(Student $student): void
+    {
+        $seconds = max(0, (int) $this->settings->get('qr_cooldown_seconds', 30, $student->branch_id));
+        if ($seconds === 0) {
+            return;
+        }
+
+        $recent = Attendance::query()
+            ->where('student_id', $student->id)
+            ->where('entry_method', 'qr')
+            ->where(function ($query) use ($seconds) {
+                $cutoff = now()->subSeconds($seconds);
+                $query->where('check_in_at', '>=', $cutoff)
+                    ->orWhere('check_out_at', '>=', $cutoff);
+            })
+            ->exists();
+
+        if ($recent) {
+            throw ValidationException::withMessages([
+                'student' => "Please wait {$seconds} seconds before scanning this QR again.",
+            ]);
+        }
     }
 }

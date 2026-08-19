@@ -35,20 +35,35 @@ class OperationsFlowsTest extends TestCase
     public function test_same_seat_allows_non_overlapping_slots_and_rejects_overlapping_slot(): void
     {
         $branch = Branch::query()->where('status', true)->firstOrFail();
+        $slot = StudySlot::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
+        $plan = FeePlan::query()->where('branch_id', $branch->id)->where('study_slot_id', $slot->id)->firstOrFail();
         $seat = Seat::query()->whereHas('studyHall', fn ($q) => $q->where('branch_id', $branch->id))->firstOrFail();
-        $service = app(SeatAllocationService::class);
+        $student = $this->makeStudent($branch);
+        $membership = StudentMembership::create([
+            'student_id' => $student->id,
+            'fee_plan_id' => $plan->id,
+            'study_slot_id' => $slot->id,
+            'start_date' => today(),
+            'expiry_date' => today()->addDays(10),
+            'base_fee' => $plan->monthly_fee,
+            'discount' => 0,
+            'final_fee' => $plan->monthly_fee,
+            'status' => 'active',
+        ]);
 
         SeatAllocation::create([
-            'student_id' => $this->makeStudent($branch)->id,
-            'student_membership_id' => null,
+            'student_id' => $student->id,
+            'student_membership_id' => $membership->id,
             'seat_id' => $seat->id,
-            'study_slot_id' => null,
+            'study_slot_id' => $slot->id,
             'allocated_from' => today()->toDateString(),
             'allocated_to' => today()->addDays(10)->toDateString(),
             'start_time' => '06:00:00',
             'end_time' => '10:00:00',
             'status' => 'active',
         ]);
+
+        $service = app(SeatAllocationService::class);
 
         $this->assertFalse($service->hasConflict(
             $seat->id,
@@ -159,7 +174,11 @@ class OperationsFlowsTest extends TestCase
         $student = $this->makeStudent($branch);
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
 
-        $category = BookCategory::create(['name' => 'Test Category', 'status' => true]);
+        $category = BookCategory::create([
+            'name' => 'Test Category',
+            'slug' => 'test-category',
+            'status' => true,
+        ]);
         $book = Book::create([
             'book_category_id' => $category->id,
             'title' => 'Integration Test Book',

@@ -1,0 +1,114 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Admission;
+use App\Models\FeePlan;
+use App\Models\Seat;
+use App\Models\SeatAllocation;
+use App\Models\Student;
+use App\Models\StudentMembership;
+use App\Models\StudySlot;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+
+class AdmissionApprovalService
+{
+    public function __construct(
+        private readonly SeatAllocationService $seatAllocationService
+    ) {
+    }
+
+    public function approve(Admission $admission, array $data): Student
+    {
+        if ($admission->status === 'converted') {
+            throw ValidationException::withMessages([
+                'admission' => 'This admission has already been converted to a student.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($admission, $data) {
+            $feePlan = FeePlan::findOrFail($data['fee_plan_id']);
+            $slot = StudySlot::findOrFail($data['study_slot_id']);
+            $seat = Seat::with('studyHall')->findOrFail($data['seat_id']);
+
+            if ($admission->branch_id && $seat->studyHall?->branch_id !== $admission->branch_id) {
+                throw ValidationException::withMessages([
+                    'seat_id' => 'Selected seat does not belong to the admission branch.',
+                ]);
+            }
+
+            $startDate = isset($data['start_date']) ? now()->parse($data['start_date'])->startOfDay() : today();
+            $expiryDate = $startDate->copy()->addDays(max(1, (int) $feePlan->validity_days) - 1);
+
+            $this->seatAllocationService->assertAvailable(
+                seatId: $seat->id,
+                allocatedFrom: $startDate->toDateString(),
+                allocatedTo: $expiryDate->toDateString(),
+                startTime: $slot->start_time,
+                endTime: $slot->end_time,
+            );
+
+            $student = Student::create([
+                'branch_id' => $admission->branch_id ?? $feePlan->branch_id,
+                'student_code' => $this->generateStudentCode(),
+                'name' => $admission->name,
+                'father_name' => $admission->father_name,
+                'dob' => $admission->dob,
+                'gender' => $admission->gender,
+                'mobile' => $admission->mobile,
+                'email' => $admission->email,
+                'address' => $admission->address,
+                'joining_date' => $startDate->toDateString(),
+                'status' => 'active',
+            ]);
+
+            $discount = (float) ($data['discount'] ?? 0);
+            $baseFee = (float) $feePlan->monthly_fee;
+
+            $membership = StudentMembership::create([
+                'student_id' => $student->id,
+                'fee_plan_id' => $feePlan->id,
+                'study_slot_id' => $slot->id,
+                'start_date' => $startDate->toDateString(),
+                'expiry_date' => $expiryDate->toDateString(),
+                'base_fee' => $baseFee,
+                'discount' => $discount,
+                'final_fee' => max(0, $baseFee - $discount),
+                'status' => 'active',
+            ]);
+
+            SeatAllocation::create([
+                'student_id' => $student->id,
+                'student_membership_id' => $membership->id,
+                'seat_id' => $seat->id,
+                'study_slot_id' => $slot->id,
+                'allocated_from' => $startDate->toDateString(),
+                'allocated_to' => $expiryDate->toDateString(),
+                'start_time' => $slot->start_time,
+                'end_time' => $slot->end_time,
+                'status' => 'active',
+                'remarks' => $data['remarks'] ?? null,
+            ]);
+
+            $admission->update([
+                'fee_plan_id' => $feePlan->id,
+                'study_slot_id' => $slot->id,
+                'status' => 'converted',
+                'remarks' => $data['remarks'] ?? $admission->remarks,
+            ]);
+
+            return $student;
+        });
+    }
+
+    private function generateStudentCode(): string
+    {
+        do {
+            $code = 'CNL-STU-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
+        } while (Student::query()->where('student_code', $code)->exists());
+
+        return $code;
+    }
+}

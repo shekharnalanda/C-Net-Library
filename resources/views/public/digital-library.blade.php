@@ -27,7 +27,7 @@
         <input type="search" name="q" value="{{ request('q') }}" placeholder="Search title, category or topic">
         <select name="type">
             <option value="">All resource types</option>
-            @foreach(['pdf'=>'PDF','ebook'=>'Ebook','note'=>'Note','question_paper'=>'Question Paper','video'=>'Video','external_link'=>'External Link'] as $value => $label)
+            @foreach(['pdf'=>'PDF','ebook'=>'Ebook','notes'=>'Notes','question_paper'=>'Question Paper','video'=>'Video','link'=>'External Link'] as $value => $label)
                 <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
             @endforeach
         </select>
@@ -41,12 +41,9 @@
                 <h3>{{ $resource->title }}</h3>
                 @if($resource->category)<div class="muted">{{ $resource->category }}</div>@endif
                 <p>{{ \Illuminate\Support\Str::limit($resource->description, 160) }}</p>
-                @if($resource->external_url)
-                    <a href="{{ $resource->external_url }}" target="_blank" rel="noopener">Open resource →</a>
-                @elseif($resource->file_path && $resource->download_allowed)
-                    <a href="{{ asset('storage/'.$resource->file_path) }}" target="_blank">View / Download →</a>
-                @else
-                    <div class="muted">Available through library access.</div>
+                <a href="{{ route('digital-library.access', $resource) }}" target="_blank" rel="noopener">Open resource →</a>
+                @if($resource->file_path && $resource->download_allowed)
+                    <div><a href="{{ route('digital-library.access', ['resource' => $resource, 'download' => 1]) }}">Download →</a></div>
                 @endif
             </article>
         @empty

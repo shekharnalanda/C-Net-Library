@@ -116,6 +116,20 @@ php artisan schedule:list
 
 `release:preflight` must report the resolved application timezone as acceptable and must not report production configuration/runtime-table failures. A passing preflight does not replace CI, migration review, or backup verification.
 
+## HTTPS, reverse proxies and session cookies
+
+Production requires `APP_URL=https://cnetlibrary.mciedu.com`, encrypted database sessions, `SESSION_SECURE_COOKIE=true`, an HttpOnly session cookie, and SameSite `lax` or `strict`.
+
+If BigRock, a CDN, or another upstream terminates TLS before PHP, do not blindly trust every `X-Forwarded-*` header. Configure Laravel/web-server proxy trust only for provider-documented proxy addresses or trusted private network ranges. A wildcard trust-all proxy configuration can let an untrusted client spoof scheme/host information if it can reach the application directly.
+
+After any proxy or TLS change, verify from the public HTTPS origin that generated URLs remain HTTPS, login/session cookies carry the Secure and HttpOnly attributes, redirects do not downgrade to HTTP, and HSTS is present. Keep `SESSION_DOMAIN` blank unless cross-subdomain cookie sharing is explicitly required; widening it unnecessarily increases cookie scope.
+
+## Upload limits and file handling
+
+Application validation currently limits gallery images to 5 MiB and private digital-resource files to 50 MiB. The PHP/web-server request limits must be at least as large as the intended application limits, otherwise PHP may reject requests before Laravel can return a useful validation error.
+
+Check the production PHP configuration for `upload_max_filesize` and `post_max_size`. `post_max_size` must exceed `upload_max_filesize` enough to accommodate multipart form overhead. Gallery uploads are restricted to JPEG, PNG, WebP and GIF raster formats; do not re-enable SVG in public uploads without a dedicated SVG sanitizer. Digital-resource uploads are stored on the private/local disk and are served through authorization-controlled application responses.
+
 ## Scheduler and queues
 
 Scheduled membership lifecycle handling depends on Laravel's scheduler. Production must invoke the scheduler every minute. On BigRock or another cron-based host, configure the equivalent of:
@@ -157,8 +171,11 @@ Before production deployment, verify all of the following:
 - `APP_ENV=production` and `APP_DEBUG=false`.
 - `APP_URL` uses HTTPS.
 - `APP_TIMEZONE=Asia/Kolkata`.
-- `SESSION_SECURE_COOKIE=true`.
-- `SESSION_DRIVER=database`, `CACHE_STORE=database`, and `QUEUE_CONNECTION=database` match the intended production runtime design.
+- `SESSION_DRIVER=database`, `SESSION_ENCRYPT=true`, `SESSION_SECURE_COOKIE=true`, and SameSite is `lax` or `strict`.
+- `SESSION_DOMAIN` is left blank unless cross-subdomain cookies are intentionally required.
+- If an HTTPS reverse proxy/CDN is used, only documented trusted proxies are configured and HTTPS URL/cookie behavior has been verified externally.
+- PHP/web-server upload limits support the intended 5 MiB gallery and 50 MiB digital-resource application limits.
+- `CACHE_STORE=database` and `QUEUE_CONNECTION=database` match the intended production runtime design.
 - `php artisan optimize:clear` and `php artisan config:cache` have been run after final environment/config changes.
 - `php artisan release:preflight` passes on the production-like/staging environment before and after migrations as applicable.
 - Database backup completed and restore procedure is known.

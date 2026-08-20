@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta name="robots" content="noindex,nofollow,noarchive">
     <title>QR Attendance Scanner - C-Net Library</title>
     <style>
         body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:760px;margin:35px auto;padding:0 18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 8px 28px rgba(15,23,42,.06);margin-bottom:18px}.row{display:grid;grid-template-columns:1fr auto;gap:10px}input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #d1d5db;border-radius:10px}.btn{display:inline-block;background:#111827;color:#fff;border:0;border-radius:10px;padding:11px 16px;text-decoration:none;cursor:pointer}.btn.alt{background:#2563eb}.btn.warn{background:#b45309}.muted{color:#6b7280}.student{display:grid;grid-template-columns:1fr 1fr;gap:12px}.label{font-size:12px;text-transform:uppercase;color:#6b7280}.value{font-weight:700;margin-top:3px}@media(max-width:650px){.row,.student{grid-template-columns:1fr}}
@@ -26,19 +28,20 @@
     @endif
 
     <div class="card">
-        <form method="GET" action="{{ route('admin.attendance.scan') }}">
+        <form method="POST" action="{{ route('admin.attendance.scan.lookup') }}" autocomplete="off">
+            @csrf
             <div class="row">
-                <input type="text" name="token" value="{{ request('token') }}" placeholder="QR token" autofocus required>
+                <input type="password" name="token" value="" placeholder="QR token" autocomplete="off" autofocus required>
                 <button class="btn alt" type="submit">Find Student</button>
             </div>
         </form>
     </div>
 
-    @if(request()->filled('token') && !$student)
+    @if($lookupAttempted && !$student)
         <div class="card" style="background:#fff7ed;border-color:#fdba74">No student found for this QR token.</div>
     @endif
 
-    @if($student)
+    @if($student && $token)
         <div class="card">
             <h2 style="margin-top:0">{{ $student->name }}</h2>
             <div class="student">
@@ -53,13 +56,13 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap">
                 <form method="POST" action="{{ route('admin.attendance.scan.mark', $student) }}">
                     @csrf
-                    <input type="hidden" name="token" value="{{ request('token') }}">
+                    <input type="hidden" name="token" value="{{ $token }}">
                     <input type="hidden" name="action" value="check_in">
                     <button class="btn alt" type="submit">Check In</button>
                 </form>
                 <form method="POST" action="{{ route('admin.attendance.scan.mark', $student) }}">
                     @csrf
-                    <input type="hidden" name="token" value="{{ request('token') }}">
+                    <input type="hidden" name="token" value="{{ $token }}">
                     <input type="hidden" name="action" value="check_out">
                     <button class="btn warn" type="submit">Check Out</button>
                 </form>

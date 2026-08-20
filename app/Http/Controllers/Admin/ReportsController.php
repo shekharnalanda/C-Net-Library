@@ -18,6 +18,7 @@ use App\Models\Student;
 use App\Models\StudentMembership;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReportsController extends Controller
 {
@@ -56,23 +57,31 @@ class ReportsController extends Controller
         $expenses = (float) (clone $expenseQuery)->sum('amount');
         $closingBalance = $collection - $expenses;
 
-        $activeMemberships = StudentMembership::query()
+        $membershipQuery = StudentMembership::query()
             ->where('status', 'active')
-            ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)))
-            ->with([
-                'payments' => fn ($query) => $query
-                    ->whereIn('payment_status', ['paid', 'partial'])
-                    ->withSum('adjustments', 'amount'),
-            ])
-            ->get();
+            ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
 
-        $totalDue = $activeMemberships->sum(function (StudentMembership $membership) {
-            $netPaid = $membership->payments->sum(function (Payment $payment) {
-                return max(0, (float) $payment->amount - (float) ($payment->adjustments_sum_amount ?? 0));
-            });
+        $activeMembershipCount = (clone $membershipQuery)->count();
 
-            return max(0, (float) $membership->final_fee - $netPaid);
-        });
+        $paidByMembership = Payment::query()
+            ->selectRaw('student_membership_id, SUM(amount) as gross_paid')
+            ->whereIn('payment_status', ['paid', 'partial'])
+            ->groupBy('student_membership_id');
+
+        $adjustedByMembership = PaymentAdjustment::query()
+            ->join('payments', 'payments.id', '=', 'payment_adjustments.payment_id')
+            ->selectRaw('payments.student_membership_id, SUM(payment_adjustments.amount) as adjusted_amount')
+            ->groupBy('payments.student_membership_id');
+
+        $totalDue = (float) (clone $membershipQuery)
+            ->leftJoinSub($paidByMembership, 'paid_totals', function ($join) {
+                $join->on('student_memberships.id', '=', 'paid_totals.student_membership_id');
+            })
+            ->leftJoinSub($adjustedByMembership, 'adjustment_totals', function ($join) {
+                $join->on('student_memberships.id', '=', 'adjustment_totals.student_membership_id');
+            })
+            ->selectRaw('SUM(GREATEST(0, student_memberships.final_fee - GREATEST(0, COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0)))) as total_due')
+            ->value('total_due');
 
         $seatQuery = Seat::query()
             ->where('status', true)
@@ -117,13 +126,13 @@ class ReportsController extends Controller
 
         $metrics = [
             'students' => (clone $students)->count(),
-            'active_memberships' => $activeMemberships->count(),
+            'active_memberships' => $activeMembershipCount,
             'collection' => $collection,
             'gross_collection' => $grossCollection,
             'adjustments' => $adjustments,
             'expenses' => $expenses,
             'closing_balance' => $closingBalance,
-            'due' => (float) $totalDue,
+            'due' => $totalDue,
             'seat_occupancy_percent' => $totalSeats > 0 ? round(($occupiedSeats / $totalSeats) * 100, 1) : 0,
             'occupied_seats' => $occupiedSeats,
             'total_seats' => $totalSeats,

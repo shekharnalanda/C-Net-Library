@@ -88,6 +88,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::middleware('permission:payments.manage')->group(function () {
         Route::post('/students/{student}/payments', [PaymentController::class, 'store'])->name('students.payments.store');
         Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
+        Route::post('/payments/{payment}/adjustments', [PaymentController::class, 'adjust'])->middleware('throttle:20,1')->name('payments.adjustments.store');
     });
 
     Route::middleware('permission:attendance.manage')->group(function () {

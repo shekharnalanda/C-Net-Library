@@ -11,11 +11,13 @@ return new class extends Migration
         Schema::create('receipt_sequences', function (Blueprint $table) {
             $table->id();
             $table->foreignId('branch_id')->nullable()->constrained()->restrictOnDelete();
+            $table->string('series_key', 32);
             $table->unsignedSmallInteger('year');
             $table->unsignedBigInteger('last_number')->default(0);
             $table->timestamps();
 
-            $table->unique(['branch_id', 'year']);
+            $table->unique(['series_key', 'year']);
+            $table->index(['branch_id', 'year']);
         });
 
         Schema::table('payments', function (Blueprint $table) {

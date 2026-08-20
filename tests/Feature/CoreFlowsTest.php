@@ -122,13 +122,13 @@ class CoreFlowsTest extends TestCase
     public function test_public_digital_resource_can_be_viewed_and_is_logged(): void
     {
         Storage::fake('local');
-        Storage::disk('local')->put('resources/public-note.txt', 'Public resource');
+        Storage::disk('local')->put('digital-resources/public-note.txt', 'Public resource');
 
         $resource = DigitalResource::create([
             'title' => 'Public Note',
             'slug' => 'public-note',
             'resource_type' => 'notes',
-            'file_path' => 'resources/public-note.txt',
+            'file_path' => 'digital-resources/public-note.txt',
             'access_type' => 'public',
             'download_allowed' => true,
             'status' => true,
@@ -146,13 +146,13 @@ class CoreFlowsTest extends TestCase
     public function test_member_resource_requires_student_with_active_membership(): void
     {
         Storage::fake('local');
-        Storage::disk('local')->put('resources/member-note.txt', 'Member resource');
+        Storage::disk('local')->put('digital-resources/member-note.txt', 'Member resource');
 
         $resource = DigitalResource::create([
             'title' => 'Member Note',
             'slug' => 'member-note',
             'resource_type' => 'notes',
-            'file_path' => 'resources/member-note.txt',
+            'file_path' => 'digital-resources/member-note.txt',
             'access_type' => 'members',
             'download_allowed' => true,
             'status' => true,
@@ -210,13 +210,13 @@ class CoreFlowsTest extends TestCase
     public function test_download_restriction_is_enforced_server_side(): void
     {
         Storage::fake('local');
-        Storage::disk('local')->put('resources/no-download.txt', 'Read only');
+        Storage::disk('local')->put('digital-resources/no-download.txt', 'Read only');
 
         $resource = DigitalResource::create([
             'title' => 'Read Only Resource',
             'slug' => 'read-only-resource',
             'resource_type' => 'notes',
-            'file_path' => 'resources/no-download.txt',
+            'file_path' => 'digital-resources/no-download.txt',
             'access_type' => 'public',
             'download_allowed' => false,
             'status' => true,

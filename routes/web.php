@@ -27,6 +27,7 @@ use App\Http\Controllers\Public\EnquiryController as PublicEnquiryController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\JobController as PublicJobController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
+use App\Http\Controllers\Student\SavedJobController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -55,6 +56,9 @@ Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')-
 Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
     Route::get('/id-card', [StudentDashboardController::class, 'idCard'])->name('id-card');
+    Route::get('/saved-jobs', [SavedJobController::class, 'index'])->name('saved-jobs.index');
+    Route::post('/saved-jobs/{job}', [SavedJobController::class, 'store'])->middleware('throttle:30,1')->name('saved-jobs.store');
+    Route::delete('/saved-jobs/{job}', [SavedJobController::class, 'destroy'])->middleware('throttle:30,1')->name('saved-jobs.destroy');
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {

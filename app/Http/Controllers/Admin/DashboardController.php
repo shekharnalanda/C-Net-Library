@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\Expense;
+use App\Models\ExpenseAdjustment;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Seat;
@@ -32,9 +33,17 @@ class DashboardController extends Controller
             ->sum('amount');
 
         $todayNetCollection = max(0, $todayGross - $todayAdjustments);
-        $todayExpenses = (float) $branchScope->apply(Expense::query(), $user)
-            ->whereDate('expense_date', today())
+
+        $todayExpenseQuery = $branchScope->apply(Expense::query(), $user)
+            ->whereDate('expense_date', today());
+        $todayGrossExpenses = (float) (clone $todayExpenseQuery)->sum('amount');
+
+        $todayExpenseAdjustments = (float) ExpenseAdjustment::query()
+            ->whereDate('created_at', today())
+            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('expense', fn ($expense) => $expense->where('branch_id', $user->branch_id)))
             ->sum('amount');
+
+        $todayNetExpenses = max(0, $todayGrossExpenses - $todayExpenseAdjustments);
 
         $data = [
             'active_students' => $branchScope->apply(Student::query(), $user)->where('status', 'active')->count(),
@@ -42,8 +51,10 @@ class DashboardController extends Controller
             'today_gross_collection' => $todayGross,
             'today_adjustments' => $todayAdjustments,
             'today_collection' => $todayNetCollection,
-            'today_expenses' => $todayExpenses,
-            'today_cash_position' => $todayNetCollection - $todayExpenses,
+            'today_gross_expenses' => $todayGrossExpenses,
+            'today_expense_adjustments' => $todayExpenseAdjustments,
+            'today_expenses' => $todayNetExpenses,
+            'today_cash_position' => $todayNetCollection - $todayNetExpenses,
             'pending_admissions' => $branchScope->apply(Admission::query(), $user)
                 ->whereIn('status', ['new', 'under_review', 'pending'])
                 ->count(),

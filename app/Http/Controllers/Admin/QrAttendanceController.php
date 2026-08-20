@@ -7,16 +7,16 @@ use App\Models\Student;
 use App\Services\AttendanceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Illuminate\Http\Response;
 
 class QrAttendanceController extends Controller
 {
-    public function scan(Request $request): View
+    public function scan(Request $request): Response
     {
-        return $this->scannerView($request);
+        return $this->scannerResponse();
     }
 
-    public function lookup(Request $request): View
+    public function lookup(Request $request): Response
     {
         $data = $request->validate([
             'token' => ['required', 'string', 'max:255'],
@@ -28,7 +28,7 @@ class QrAttendanceController extends Controller
             ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branchId()))
             ->first();
 
-        return $this->scannerView($request, $student, $student ? $data['token'] : null, true);
+        return $this->scannerResponse($student, $student ? $data['token'] : null, true);
     }
 
     public function mark(
@@ -56,18 +56,16 @@ class QrAttendanceController extends Controller
             ->with('success', 'Student checked in successfully.');
     }
 
-    private function scannerView(
-        Request $request,
+    private function scannerResponse(
         ?Student $student = null,
         ?string $token = null,
         bool $lookupAttempted = false,
-    ): View {
-        return view('admin.attendance.scan', compact('student', 'token', 'lookupAttempted'))
-            ->with('responseHeaders', [
-                'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
-                'Pragma' => 'no-cache',
-                'Referrer-Policy' => 'no-referrer',
-                'X-Robots-Tag' => 'noindex, nofollow, noarchive',
-            ]);
+    ): Response {
+        return response()
+            ->view('admin.attendance.scan', compact('student', 'token', 'lookupAttempted'))
+            ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer')
+            ->header('X-Robots-Tag', 'noindex, nofollow, noarchive');
     }
 }

@@ -6,10 +6,12 @@ use App\Models\Book;
 use App\Models\BookCopy;
 use App\Models\BookIssue;
 use App\Models\Branch;
+use App\Models\FeePlan;
 use App\Models\LibraryChargePayment;
 use App\Models\Payment;
 use App\Models\Student;
 use App\Models\StudentMembership;
+use App\Models\StudySlot;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +32,8 @@ class FinancialReportingIntegrationTest extends TestCase
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
         $branch = Branch::query()->where('status', true)->firstOrFail();
+        $feePlan = FeePlan::query()->where('branch_id', $branch->id)->firstOrFail();
+        $studySlot = StudySlot::query()->where('branch_id', $branch->id)->first();
 
         $student = Student::create([
             'branch_id' => $branch->id,
@@ -41,20 +45,17 @@ class FinancialReportingIntegrationTest extends TestCase
             'status' => 'active',
         ]);
 
-        $membership = StudentMembership::query()->where('student_id', $student->id)->first();
-        if (! $membership) {
-            $membership = StudentMembership::create([
-                'student_id' => $student->id,
-                'fee_plan_id' => null,
-                'study_slot_id' => null,
-                'start_date' => today(),
-                'expiry_date' => today()->addDays(30),
-                'base_fee' => 1000,
-                'discount' => 0,
-                'final_fee' => 1000,
-                'status' => 'active',
-            ]);
-        }
+        $membership = StudentMembership::create([
+            'student_id' => $student->id,
+            'fee_plan_id' => $feePlan->id,
+            'study_slot_id' => $studySlot?->id,
+            'start_date' => today(),
+            'expiry_date' => today()->addDays(30),
+            'base_fee' => 1000,
+            'discount' => 0,
+            'final_fee' => 1000,
+            'status' => 'active',
+        ]);
 
         Payment::create([
             'student_id' => $student->id,

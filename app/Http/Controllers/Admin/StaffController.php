@@ -12,6 +12,7 @@ use App\Models\StaffLeave;
 use App\Models\StaffShift;
 use App\Services\AdminBranchScope;
 use App\Services\AuditService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -165,74 +166,99 @@ class StaffController extends Controller
             'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $result = DB::transaction(function () use ($request, $staff, $data) {
-            $payroll = Payroll::query()
-                ->where('staff_id', $staff->id)
-                ->where('month', $data['month'])
-                ->where('year', $data['year'])
-                ->lockForUpdate()
-                ->first();
-
-            $old = $payroll?->only([
-                'basic_salary', 'allowances', 'deductions', 'net_salary', 'status', 'paid_on', 'payment_mode', 'transaction_ref', 'remarks',
-            ]) ?? [];
-
-            if ($payroll?->status === 'paid') {
-                throw ValidationException::withMessages([
-                    'status' => 'Paid payroll is immutable. Use a cashbook adjustment for any financial correction.',
-                ]);
-            }
-
-            $basic = (float) $staff->monthly_salary;
-            $allowances = (float) ($data['allowances'] ?? 0);
-            $deductions = (float) ($data['deductions'] ?? 0);
-            $net = max(0, $basic + $allowances - $deductions);
-            $transactionRef = trim((string) ($data['transaction_ref'] ?? ''));
-
-            $payroll ??= new Payroll([
-                'staff_id' => $staff->id,
-                'month' => $data['month'],
-                'year' => $data['year'],
+        $transactionRef = trim((string) ($data['transaction_ref'] ?? ''));
+        if ($transactionRef !== '' && Payroll::query()->where('transaction_ref', $transactionRef)->exists()) {
+            throw ValidationException::withMessages([
+                'transaction_ref' => 'This payroll transaction reference has already been recorded.',
             ]);
+        }
 
-            $payroll->fill([
-                'basic_salary' => $basic,
-                'allowances' => $allowances,
-                'deductions' => $deductions,
-                'net_salary' => $net,
-                'status' => $data['status'],
-                'paid_on' => $data['status'] === 'paid' ? today() : null,
-                'payment_mode' => $data['payment_mode'] ?? null,
-                'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
-                'processed_by' => auth()->id(),
-                'remarks' => $data['remarks'] ?? null,
-            ])->save();
+        try {
+            $result = DB::transaction(function () use ($staff, $data, $transactionRef) {
+                $payroll = Payroll::query()
+                    ->where('staff_id', $staff->id)
+                    ->where('month', $data['month'])
+                    ->where('year', $data['year'])
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($data['status'] === 'paid') {
-                if ($net <= 0) {
+                $old = $payroll?->only([
+                    'basic_salary', 'allowances', 'deductions', 'net_salary', 'status', 'paid_on', 'payment_mode', 'transaction_ref', 'remarks',
+                ]) ?? [];
+
+                if ($payroll?->status === 'paid') {
                     throw ValidationException::withMessages([
-                        'status' => 'A zero-value payroll cannot be marked paid.',
+                        'status' => 'Paid payroll is immutable. Use a cashbook adjustment for any financial correction.',
                     ]);
                 }
 
-                Expense::firstOrCreate(
-                    ['payroll_id' => $payroll->id],
-                    [
-                        'branch_id' => $staff->branch_id,
-                        'expense_date' => $payroll->paid_on,
-                        'category' => 'Salary',
-                        'payee' => $staff->name,
-                        'amount' => $net,
-                        'payment_mode' => $data['payment_mode'] ?? 'other',
-                        'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
-                        'description' => sprintf('Payroll %02d/%d for %s (%s)', $payroll->month, $payroll->year, $staff->name, $staff->staff_code),
-                        'created_by' => auth()->id(),
-                    ]
-                );
+                if ($transactionRef !== '' && Payroll::query()
+                    ->where('transaction_ref', $transactionRef)
+                    ->when($payroll, fn ($query) => $query->whereKeyNot($payroll->id))
+                    ->exists()) {
+                    throw ValidationException::withMessages([
+                        'transaction_ref' => 'This payroll transaction reference has already been recorded.',
+                    ]);
+                }
+
+                $basic = (float) $staff->monthly_salary;
+                $allowances = (float) ($data['allowances'] ?? 0);
+                $deductions = (float) ($data['deductions'] ?? 0);
+                $net = max(0, $basic + $allowances - $deductions);
+
+                $payroll ??= new Payroll([
+                    'staff_id' => $staff->id,
+                    'month' => $data['month'],
+                    'year' => $data['year'],
+                ]);
+
+                $payroll->fill([
+                    'basic_salary' => $basic,
+                    'allowances' => $allowances,
+                    'deductions' => $deductions,
+                    'net_salary' => $net,
+                    'status' => $data['status'],
+                    'paid_on' => $data['status'] === 'paid' ? today() : null,
+                    'payment_mode' => $data['payment_mode'] ?? null,
+                    'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
+                    'processed_by' => auth()->id(),
+                    'remarks' => $data['remarks'] ?? null,
+                ])->save();
+
+                if ($data['status'] === 'paid') {
+                    if ($net <= 0) {
+                        throw ValidationException::withMessages([
+                            'status' => 'A zero-value payroll cannot be marked paid.',
+                        ]);
+                    }
+
+                    Expense::firstOrCreate(
+                        ['payroll_id' => $payroll->id],
+                        [
+                            'branch_id' => $staff->branch_id,
+                            'expense_date' => $payroll->paid_on,
+                            'category' => 'Salary',
+                            'payee' => $staff->name,
+                            'amount' => $net,
+                            'payment_mode' => $data['payment_mode'] ?? 'other',
+                            'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
+                            'description' => sprintf('Payroll %02d/%d for %s (%s)', $payroll->month, $payroll->year, $staff->name, $staff->staff_code),
+                            'created_by' => auth()->id(),
+                        ]
+                    );
+                }
+
+                return [$payroll->fresh(), $old];
+            }, 3);
+        } catch (QueryException $exception) {
+            if ($this->isDuplicatePayrollTransactionReference($exception)) {
+                throw ValidationException::withMessages([
+                    'transaction_ref' => 'This payroll transaction reference has already been recorded.',
+                ]);
             }
 
-            return [$payroll->fresh(), $old];
-        }, 3);
+            throw $exception;
+        }
 
         [$payroll, $old] = $result;
 
@@ -252,5 +278,14 @@ class StaffController extends Controller
             || (int) $staff->branch_id === (int) $request->user()->branch_id,
             403
         );
+    }
+
+    private function isDuplicatePayrollTransactionReference(QueryException $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'payrolls_transaction_ref_unique')
+            || str_contains($message, 'payrolls.transaction_ref')
+            || (str_contains($message, 'duplicate entry') && str_contains($message, 'transaction_ref'));
     }
 }

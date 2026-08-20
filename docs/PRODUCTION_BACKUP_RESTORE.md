@@ -48,11 +48,13 @@ Prefer application roll-forward migrations. Do not run `migrate:rollback` in pro
 
 Several operational tables retain financial, attendance, seat-allocation, and library history. Treat student, branch, membership, attendance, payment, and audit records as retention-sensitive data.
 
+The runtime-support migration intentionally uses a non-destructive rollback because it may have skipped pre-existing framework runtime tables during `up()`. Do not expect `migrate:rollback` to delete sessions/cache/queue tables created or adopted by that migration.
+
 ## Runtime tables
 
 Production `.env.example` uses database-backed sessions, cache, and queues. The migration `2026_08_20_006000_create_runtime_support_tables.php` provides the required runtime tables on fresh installs.
 
-If a deployment already has framework runtime tables created outside this repository, confirm their schema before running or rolling back framework-table migrations.
+If a deployment already has framework runtime tables created outside this repository, confirm their schema before running framework-table migrations.
 
 ## Finance migration preflight
 
@@ -68,7 +70,33 @@ The command reports duplicate payroll transaction references and paid payroll ro
 
 Historical salary expenses created manually before payroll-to-cashbook linking was introduced are not auto-linked because matching them by amount/date/payee could attach the wrong ledger entry. Review those records manually and preserve an auditable reconciliation decision.
 
-Apply the same duplicate-reference preflight discipline to payment and expense transaction-reference unique migrations. Do not delete financial rows merely to make an index migration pass; correct or annotate duplicates through an approved accounting process and retain the audit trail.
+Apply the same duplicate-reference preflight discipline to payment, expense, payroll and library-charge transaction-reference unique migrations. Do not delete financial rows merely to make an index migration pass; correct or annotate duplicates through an approved accounting process and retain the audit trail.
+
+## Application timezone and cached configuration
+
+Production must set:
+
+```text
+APP_TIMEZONE=Asia/Kolkata
+```
+
+Membership start/expiry dates, attendance dates, receipt dates, reservation expiry and the scheduled membership activation command all depend on the Laravel application timezone. The scheduler currently runs `memberships:activate-scheduled` at 00:05 application time, so leaving Laravel on UTC would shift activation into the wrong local-time window.
+
+After changing `.env` or deploying config changes, clear and rebuild Laravel's cached configuration before verification:
+
+```text
+php artisan optimize:clear
+php artisan config:cache
+```
+
+Then run:
+
+```text
+php artisan release:preflight
+php artisan schedule:list
+```
+
+`release:preflight` must report the resolved application timezone as acceptable and must not report production configuration/runtime-table failures. A passing preflight does not replace CI, migration review, or backup verification.
 
 ## Scheduler and queues
 
@@ -86,7 +114,7 @@ The scheduler currently runs `memberships:activate-scheduled` daily at 00:05 app
 
 Operational checks:
 
-- Run `php artisan schedule:list` after deployment and confirm `memberships:activate-scheduled` is registered.
+- Run `php artisan schedule:list` after deployment and confirm `memberships:activate-scheduled` is registered for 00:05 application time.
 - Run `php artisan queue:failed` regularly when database queues are enabled.
 - Investigate failed jobs before using `queue:retry`; retries must be safe/idempotent.
 - Review application logs for `Scheduled membership activation completed` and any seat-conflict warnings.
@@ -101,7 +129,11 @@ Before production deployment, verify all of the following:
 - CI has explicitly passed on the exact commit being deployed.
 - `APP_ENV=production` and `APP_DEBUG=false`.
 - `APP_URL` uses HTTPS.
+- `APP_TIMEZONE=Asia/Kolkata`.
 - `SESSION_SECURE_COOKIE=true`.
+- `SESSION_DRIVER=database`, `CACHE_STORE=database`, and `QUEUE_CONNECTION=database` match the intended production runtime design.
+- `php artisan optimize:clear` and `php artisan config:cache` have been run after final environment/config changes.
+- `php artisan release:preflight` passes on the production-like/staging environment.
 - Database backup completed and restore procedure is known.
 - Private digital resources are included in file backup.
 - Writable Laravel storage/cache directories are configured.
@@ -109,6 +141,6 @@ Before production deployment, verify all of the following:
 - Finance duplicate-reference preflight has been completed before unique-index migrations.
 - `php artisan payroll:audit-reconciliation` has been reviewed for existing production data.
 - A one-minute Laravel scheduler cron is configured and verified.
-- `php artisan schedule:list` shows scheduled membership activation.
+- `php artisan schedule:list` shows scheduled membership activation at 00:05 application time.
 - Queue worker or bounded queue cron is configured before enabling queued features.
 - `jobs` and `failed_jobs` operational monitoring has an owner/process.

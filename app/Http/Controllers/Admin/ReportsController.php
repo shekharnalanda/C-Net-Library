@@ -10,6 +10,7 @@ use App\Models\BookIssue;
 use App\Models\Branch;
 use App\Models\Enquiry;
 use App\Models\Expense;
+use App\Models\ExpenseAdjustment;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Seat;
@@ -18,7 +19,6 @@ use App\Models\Student;
 use App\Models\StudentMembership;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ReportsController extends Controller
 {
@@ -54,7 +54,13 @@ class ReportsController extends Controller
         $expenseQuery = Expense::query()
             ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
             ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
-        $expenses = (float) (clone $expenseQuery)->sum('amount');
+        $grossExpenses = (float) (clone $expenseQuery)->sum('amount');
+        $expenseAdjustmentQuery = ExpenseAdjustment::query()
+            ->whereHas('expense', fn ($query) => $query
+                ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+                ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId)));
+        $expenseAdjustments = (float) (clone $expenseAdjustmentQuery)->sum('amount');
+        $expenses = max(0, $grossExpenses - $expenseAdjustments);
         $closingBalance = $collection - $expenses;
 
         $membershipQuery = StudentMembership::query()
@@ -130,6 +136,8 @@ class ReportsController extends Controller
             'collection' => $collection,
             'gross_collection' => $grossCollection,
             'adjustments' => $adjustments,
+            'gross_expenses' => $grossExpenses,
+            'expense_adjustments' => $expenseAdjustments,
             'expenses' => $expenses,
             'closing_balance' => $closingBalance,
             'due' => $totalDue,
@@ -156,22 +164,31 @@ class ReportsController extends Controller
             ->groupByRaw('DATE(created_at)')
             ->pluck('total', 'adjustment_day');
 
-        $dailyExpenses = (clone $expenseQuery)
+        $dailyGrossExpenses = (clone $expenseQuery)
             ->selectRaw('expense_date, SUM(amount) as total')
             ->groupBy('expense_date')
             ->pluck('total', 'expense_date');
 
+        $dailyExpenseAdjustments = (clone $expenseAdjustmentQuery)
+            ->join('expenses', 'expenses.id', '=', 'expense_adjustments.expense_id')
+            ->selectRaw('expenses.expense_date, SUM(expense_adjustments.amount) as total')
+            ->groupBy('expenses.expense_date')
+            ->pluck('total', 'expenses.expense_date');
+
         $dailyCollections = collect(array_unique(array_merge(
             $grossDaily->keys()->all(),
             $dailyAdjustments->keys()->all(),
-            $dailyExpenses->keys()->all()
+            $dailyGrossExpenses->keys()->all(),
+            $dailyExpenseAdjustments->keys()->all()
         )))
             ->sort()
             ->values()
-            ->map(function ($date) use ($grossDaily, $dailyAdjustments, $dailyExpenses) {
+            ->map(function ($date) use ($grossDaily, $dailyAdjustments, $dailyGrossExpenses, $dailyExpenseAdjustments) {
                 $gross = (float) ($grossDaily[$date] ?? 0);
                 $adjustment = (float) ($dailyAdjustments[$date] ?? 0);
-                $expense = (float) ($dailyExpenses[$date] ?? 0);
+                $grossExpense = (float) ($dailyGrossExpenses[$date] ?? 0);
+                $expenseAdjustment = (float) ($dailyExpenseAdjustments[$date] ?? 0);
+                $expense = max(0, $grossExpense - $expenseAdjustment);
                 $net = max(0, $gross - $adjustment);
 
                 return (object) [

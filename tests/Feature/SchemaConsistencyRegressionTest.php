@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\FeePlan;
+use App\Models\Role;
 use App\Models\Student;
 use App\Models\StudentMembership;
 use App\Models\StudySlot;
@@ -70,6 +71,9 @@ class SchemaConsistencyRegressionTest extends TestCase
             'branch_id' => $ownBranch->id,
             'role' => 'admin',
             'status' => true,
+        ]);
+        $admin->roles()->syncWithoutDetaching([
+            Role::query()->where('slug', 'branch-admin')->firstOrFail()->id,
         ]);
 
         $student = Student::create([

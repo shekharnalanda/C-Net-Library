@@ -118,8 +118,12 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
     Route::middleware('permission:library.manage')->group(function () {
         Route::get('/library', [LibraryController::class, 'index'])->name('library.index');
         Route::post('/library/issue', [LibraryController::class, 'issue'])->name('library.issue');
+        Route::post('/library/reservations', [LibraryController::class, 'reserve'])->name('library.reservations.store');
+        Route::post('/library/reservations/{reservation}/cancel', [LibraryController::class, 'cancelReservation'])->name('library.reservations.cancel');
         Route::post('/library/issues/{bookIssue}/return', [LibraryController::class, 'return'])->name('library.return');
         Route::post('/library/issues/{bookIssue}/lost', [LibraryController::class, 'lost'])->name('library.lost');
+        Route::post('/library/issues/{bookIssue}/charges', [LibraryController::class, 'collectCharge'])->middleware('throttle:30,1')->name('library.charges.store');
+        Route::post('/library/issues/{bookIssue}/recover', [LibraryController::class, 'recoverLost'])->name('library.recover');
     });
 
     Route::middleware('permission:digital-library.manage')->group(function () {

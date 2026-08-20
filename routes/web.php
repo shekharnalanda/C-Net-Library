@@ -106,6 +106,10 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::post('/students/{student}/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
         Route::post('/students/{student}/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
+        Route::get('/attendance/qr/{token}', [QrAttendanceController::class, 'landing'])
+            ->whereUuid('token')
+            ->middleware('throttle:60,1')
+            ->name('attendance.qr');
         Route::get('/attendance/scan', [QrAttendanceController::class, 'scan'])->name('attendance.scan');
         Route::post('/attendance/scan', [QrAttendanceController::class, 'lookup'])
             ->middleware('throttle:30,1')

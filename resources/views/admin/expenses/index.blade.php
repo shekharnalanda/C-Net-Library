@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cashbook - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1180px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:18px}.grid{display:grid;grid-template-columns:1fr 2fr;gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.field{margin-bottom:12px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.btn{display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 13px;border-radius:9px;border:0;cursor:pointer}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.muted{color:#6b7280}.metric{font-size:28px;font-weight:700}.filters{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:14px}@media(max-width:850px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1180px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:18px}.grid{display:grid;grid-template-columns:1fr 2fr;gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.field{margin-bottom:12px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.btn{display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 13px;border-radius:9px;border:0;cursor:pointer}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.muted{color:#6b7280}.metric{font-size:28px;font-weight:700}.filters{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:14px}.categories{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}.category{background:#f8fafc;border-radius:10px;padding:12px}@media(max-width:850px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
     </style>
 </head>
 <body>
@@ -36,20 +36,31 @@
         </div>
 
         <div>
-            <div class="card" style="margin-bottom:18px"><div class="muted">Expenses in selected period</div><div class="metric">₹{{ number_format($totalExpenses,2) }}</div></div>
+            <div class="card" style="margin-bottom:18px">
+                <div class="muted">Expenses in selected period</div><div class="metric">₹{{ number_format($totalExpenses,2) }}</div>
+                <div class="categories">
+                    @forelse($categoryTotals as $row)
+                        <div class="category"><div class="muted">{{ $row->category }}</div><strong>₹{{ number_format((float)$row->total,2) }}</strong></div>
+                    @empty
+                        <div class="muted">No category totals yet.</div>
+                    @endforelse
+                </div>
+            </div>
             <div class="card">
                 <form method="GET" class="filters">
                     <label>From<input type="date" name="from" value="{{ $from->toDateString() }}"></label>
                     <label>To<input type="date" name="to" value="{{ $to->toDateString() }}"></label>
+                    <label>Branch<select name="branch_id"><option value="">All Branches</option>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected($branchId == $branch->id)>{{ $branch->name }}</option>@endforeach</select></label>
                     <button class="btn" type="submit">Filter</button>
                 </form>
                 <div style="overflow:auto">
                     <table class="table">
-                        <thead><tr><th>Date</th><th>Category</th><th>Payee</th><th>Mode</th><th>Amount</th><th>Recorded By</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Branch</th><th>Category</th><th>Payee</th><th>Mode</th><th>Amount</th><th>Recorded By</th></tr></thead>
                         <tbody>
                         @forelse($expenses as $expense)
                             <tr>
                                 <td>{{ $expense->expense_date?->format('d M Y') }}</td>
+                                <td>{{ $expense->branch?->name ?? 'Global' }}</td>
                                 <td><strong>{{ $expense->category }}</strong>@if($expense->description)<div class="muted">{{ $expense->description }}</div>@endif</td>
                                 <td>{{ $expense->payee ?: '—' }}</td>
                                 <td>{{ strtoupper(str_replace('_',' ',$expense->payment_mode)) }}</td>
@@ -57,7 +68,7 @@
                                 <td>{{ $expense->creator?->name ?? '—' }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="muted">No expenses recorded for this period.</td></tr>
+                            <tr><td colspan="7" class="muted">No expenses recorded for this period.</td></tr>
                         @endforelse
                         </tbody>
                     </table>

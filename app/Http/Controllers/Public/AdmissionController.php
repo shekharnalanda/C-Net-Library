@@ -28,25 +28,32 @@ class AdmissionController extends Controller
         ApplicationNumberService $applicationNumbers
     ): RedirectResponse {
         $data = $request->validated();
-        $mobile = trim((string) $data['mobile']);
+        unset($data['website']);
+
+        $data['name'] = trim((string) $data['name']);
+        $data['father_name'] = isset($data['father_name']) && $data['father_name'] !== ''
+            ? trim((string) $data['father_name'])
+            : null;
+        $data['mobile'] = preg_replace('/\s+/', '', trim((string) $data['mobile']));
+        $data['email'] = isset($data['email']) && $data['email'] !== ''
+            ? strtolower(trim((string) $data['email']))
+            : null;
+        $data['address'] = isset($data['address']) && $data['address'] !== '' ? trim((string) $data['address']) : null;
 
         $existing = Admission::query()
             ->where('branch_id', $data['branch_id'])
-            ->where('mobile', $mobile)
+            ->where('mobile', $data['mobile'])
             ->whereIn('status', ['new', 'under_review', 'approved'])
             ->where('created_at', '>=', now()->subDays(7))
             ->latest('id')
             ->first();
 
         if ($existing) {
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'mobile' => "An active application already exists for this mobile number. Reference: {$existing->application_no}.",
-                ]);
+            return redirect()
+                ->route('admission.create')
+                ->with('success', 'Your application has been received. Our team will follow up if any action is needed.');
         }
 
-        $data['mobile'] = $mobile;
         $data['application_no'] = $applicationNumbers->generate();
         $data['status'] = 'new';
 

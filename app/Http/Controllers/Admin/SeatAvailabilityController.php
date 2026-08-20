@@ -5,13 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Seat;
 use App\Models\StudySlot;
-use App\Services\SeatAllocationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SeatAvailabilityController extends Controller
 {
-    public function __invoke(Request $request, SeatAllocationService $seatAllocationService): JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
         $data = $request->validate([
             'branch_id' => ['required', 'exists:branches,id'],
@@ -25,20 +24,34 @@ class SeatAvailabilityController extends Controller
 
         $from = $data['allocated_from'] ?? now()->toDateString();
         $to = $data['allocated_to'] ?? now()->addDays(30)->toDateString();
+        $startTime = $slot->start_time;
+        $endTime = $slot->end_time;
 
         $seats = Seat::query()
             ->whereHas('studyHall', fn ($query) => $query->where('branch_id', $data['branch_id']))
             ->where('status', true)
-            ->with('studyHall')
-            ->get()
-            ->filter(fn (Seat $seat) => $seatAllocationService->isAvailable(
-                $seat->id,
-                $from,
-                $to,
-                $slot->start_time,
-                $slot->end_time
-            ))
-            ->values()
+            ->whereDoesntHave('allocations', function ($query) use ($from, $to, $startTime, $endTime) {
+                $query->whereIn('status', ['reserved', 'active'])
+                    ->whereDate('allocated_from', '<=', $to)
+                    ->where(function ($dateQuery) use ($from) {
+                        $dateQuery->whereNull('allocated_to')
+                            ->orWhereDate('allocated_to', '>=', $from);
+                    });
+
+                if ($startTime && $endTime) {
+                    $query->where(function ($timeQuery) use ($startTime, $endTime) {
+                        $timeQuery->whereNull('start_time')
+                            ->orWhereNull('end_time')
+                            ->orWhere(function ($overlapQuery) use ($startTime, $endTime) {
+                                $overlapQuery->where('start_time', '<', $endTime)
+                                    ->where('end_time', '>', $startTime);
+                            });
+                    });
+                }
+            })
+            ->with('studyHall:id,name')
+            ->orderBy('seat_no')
+            ->get(['id', 'study_hall_id', 'seat_no'])
             ->map(fn (Seat $seat) => [
                 'id' => $seat->id,
                 'seat_no' => $seat->seat_no,

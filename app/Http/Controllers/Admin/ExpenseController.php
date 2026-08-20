@@ -15,23 +15,33 @@ class ExpenseController extends Controller
     {
         $from = $request->filled('from') ? $request->date('from') : now()->startOfMonth();
         $to = $request->filled('to') ? $request->date('to') : today();
+        $branchId = $request->filled('branch_id') ? $request->integer('branch_id') : null;
 
-        $expenses = Expense::query()
-            ->with(['branch', 'creator'])
+        $baseQuery = Expense::query()
             ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
+
+        $expenses = (clone $baseQuery)
+            ->with(['branch', 'creator'])
             ->latest('expense_date')
             ->latest('id')
             ->paginate(30)
             ->withQueryString();
+
+        $categoryTotals = (clone $baseQuery)
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->get();
 
         return view('admin.expenses.index', [
             'expenses' => $expenses,
             'branches' => Branch::query()->where('status', true)->orderBy('name')->get(),
             'from' => $from,
             'to' => $to,
-            'totalExpenses' => (float) Expense::query()
-                ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
-                ->sum('amount'),
+            'branchId' => $branchId,
+            'totalExpenses' => (float) (clone $baseQuery)->sum('amount'),
+            'categoryTotals' => $categoryTotals,
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\SeatAllocation;
+use App\Models\Student;
 use App\Models\StudentMembership;
 use App\Services\SeatAllocationService;
 use Illuminate\Console\Command;
@@ -38,6 +39,17 @@ class ActivateScheduledMemberships extends Command
                                 return false;
                             }
 
+                            $student = Student::query()
+                                ->whereKey($pending->student_id)
+                                ->lockForUpdate()
+                                ->firstOrFail();
+
+                            if ($student->status !== 'active') {
+                                throw ValidationException::withMessages([
+                                    'student' => 'Inactive students cannot have a scheduled membership activated.',
+                                ]);
+                            }
+
                             $reservedAllocation = SeatAllocation::query()
                                 ->where('student_membership_id', $pending->id)
                                 ->where('status', 'reserved')
@@ -55,21 +67,25 @@ class ActivateScheduledMemberships extends Command
                                 );
                             }
 
-                            StudentMembership::query()
+                            $previousMemberships = StudentMembership::query()
                                 ->where('student_id', $pending->student_id)
                                 ->where('status', 'active')
                                 ->whereKeyNot($pending->id)
                                 ->lockForUpdate()
-                                ->update(['status' => 'expired']);
+                                ->get();
 
-                            SeatAllocation::query()
-                                ->where('student_id', $pending->student_id)
-                                ->where('status', 'active')
-                                ->lockForUpdate()
-                                ->update([
-                                    'allocated_to' => $pending->start_date->copy()->subDay()->toDateString(),
-                                    'status' => 'released',
-                                ]);
+                            foreach ($previousMemberships as $previousMembership) {
+                                SeatAllocation::query()
+                                    ->where('student_membership_id', $previousMembership->id)
+                                    ->where('status', 'active')
+                                    ->lockForUpdate()
+                                    ->update([
+                                        'allocated_to' => $pending->start_date->copy()->subDay()->toDateString(),
+                                        'status' => 'released',
+                                    ]);
+
+                                $previousMembership->update(['status' => 'expired']);
+                            }
 
                             $pending->update(['status' => 'active']);
 
@@ -87,7 +103,7 @@ class ActivateScheduledMemberships extends Command
                         }
                     } catch (ValidationException $exception) {
                         $skipped++;
-                        Log::warning('Scheduled membership activation skipped due to seat conflict.', [
+                        Log::warning('Scheduled membership activation skipped.', [
                             'membership_id' => $membership->id,
                             'student_id' => $membership->student_id,
                             'errors' => $exception->errors(),

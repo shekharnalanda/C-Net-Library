@@ -27,6 +27,11 @@ jobs:
       - name: Validate Composer manifest and lockfile
         run: composer validate --no-check-publish
 
+      - name: Prepare Laravel runtime directories
+        run: |
+          mkdir -p bootstrap/cache
+          mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
+
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 

@@ -13,7 +13,7 @@
 <body>
 <div class="wrap">
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px">
-        <div><h1 style="margin:0">QR Attendance Scanner</h1><div class="muted">Scan or paste the student QR token.</div></div>
+        <div><h1 style="margin:0">QR Attendance Scanner</h1><div class="muted">Scan a student ID QR, or paste a QR token manually.</div></div>
         <a class="btn" href="{{ route('admin.attendance.index') }}">Attendance</a>
     </div>
 
@@ -41,7 +41,7 @@
         <div class="card" style="background:#fff7ed;border-color:#fdba74">No student found for this QR token.</div>
     @endif
 
-    @if($student && $token)
+    @if($student && $challenge)
         <div class="card">
             <h2 style="margin-top:0">{{ $student->name }}</h2>
             <div class="student">
@@ -56,17 +56,18 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap">
                 <form method="POST" action="{{ route('admin.attendance.scan.mark', $student) }}">
                     @csrf
-                    <input type="hidden" name="token" value="{{ $token }}">
+                    <input type="hidden" name="challenge" value="{{ $challenge }}">
                     <input type="hidden" name="action" value="check_in">
                     <button class="btn alt" type="submit">Check In</button>
                 </form>
                 <form method="POST" action="{{ route('admin.attendance.scan.mark', $student) }}">
                     @csrf
-                    <input type="hidden" name="token" value="{{ $token }}">
+                    <input type="hidden" name="challenge" value="{{ $challenge }}">
                     <input type="hidden" name="action" value="check_out">
                     <button class="btn warn" type="submit">Check Out</button>
                 </form>
             </div>
+            <div class="muted" style="margin-top:10px">This confirmation challenge expires quickly and can be used once.</div>
         </div>
     @endif
 </div>

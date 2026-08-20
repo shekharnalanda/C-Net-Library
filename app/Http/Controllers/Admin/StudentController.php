@@ -43,8 +43,9 @@ class StudentController extends Controller
             'branch',
             'memberships.studySlot',
             'memberships.feePlan',
+            'memberships.payments.adjustments',
             'seatAllocations.seat.studyHall',
-            'payments',
+            'payments.adjustments',
         ]);
 
         return view('admin.students.show', compact('student'));

@@ -7,6 +7,7 @@ use App\Models\Admission;
 use App\Models\Attendance;
 use App\Models\BookCopy;
 use App\Models\BookIssue;
+use App\Models\Branch;
 use App\Models\Enquiry;
 use App\Models\Expense;
 use App\Models\Payment;
@@ -30,23 +31,34 @@ class ReportsController extends Controller
             ? Carbon::parse($request->string('to'))->endOfDay()
             : now()->endOfDay();
 
-        $grossCollection = (float) Payment::query()
+        $branchId = $request->filled('branch_id') ? $request->integer('branch_id') : null;
+        if ($branchId) {
+            Branch::query()->whereKey($branchId)->where('status', true)->firstOrFail();
+        }
+
+        $payments = Payment::query()
             ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
             ->whereIn('payment_status', ['paid', 'partial'])
-            ->sum('amount');
+            ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
 
-        $adjustments = (float) PaymentAdjustment::query()
+        $grossCollection = (float) (clone $payments)->sum('amount');
+
+        $adjustmentQuery = PaymentAdjustment::query()
             ->whereBetween('created_at', [$from, $to])
-            ->sum('amount');
+            ->when($branchId, fn ($query) => $query->whereHas('payment.student', fn ($student) => $student->where('branch_id', $branchId)));
+        $adjustments = (float) (clone $adjustmentQuery)->sum('amount');
 
         $collection = max(0, $grossCollection - $adjustments);
-        $expenses = (float) Expense::query()
+
+        $expenseQuery = Expense::query()
             ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
-            ->sum('amount');
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
+        $expenses = (float) (clone $expenseQuery)->sum('amount');
         $closingBalance = $collection - $expenses;
 
         $activeMemberships = StudentMembership::query()
             ->where('status', 'active')
+            ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)))
             ->with([
                 'payments' => fn ($query) => $query
                     ->whereIn('payment_status', ['paid', 'partial'])
@@ -62,40 +74,49 @@ class ReportsController extends Controller
             return max(0, (float) $membership->final_fee - $netPaid);
         });
 
-        $totalSeats = Seat::query()->where('status', true)->count();
+        $seatQuery = Seat::query()
+            ->where('status', true)
+            ->when($branchId, fn ($query) => $query->whereHas('studyHall', fn ($hall) => $hall->where('branch_id', $branchId)));
+        $totalSeats = (clone $seatQuery)->count();
+
         $occupiedSeats = SeatAllocation::query()
             ->where('status', 'active')
             ->whereDate('allocated_from', '<=', today())
             ->where(function ($query) {
                 $query->whereNull('allocated_to')->orWhereDate('allocated_to', '>=', today());
             })
+            ->when($branchId, fn ($query) => $query->whereHas('seat.studyHall', fn ($hall) => $hall->where('branch_id', $branchId)))
             ->distinct('seat_id')
             ->count('seat_id');
 
         $attendanceMinutes = Attendance::query()
             ->whereBetween('check_in_at', [$from, $to])
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
             ->sum('study_minutes');
 
-        $admissionCount = Admission::query()
+        $admissions = Admission::query()
             ->whereBetween('created_at', [$from, $to])
-            ->count();
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
+        $admissionCount = (clone $admissions)->count();
+        $convertedAdmissions = (clone $admissions)->where('status', 'converted')->count();
 
-        $convertedAdmissions = Admission::query()
+        $enquiries = Enquiry::query()
             ->whereBetween('created_at', [$from, $to])
-            ->where('status', 'converted')
-            ->count();
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
+        $enquiryCount = (clone $enquiries)->count();
+        $convertedEnquiries = (clone $enquiries)->where('status', 'converted')->count();
 
-        $enquiryCount = Enquiry::query()
-            ->whereBetween('created_at', [$from, $to])
-            ->count();
+        $students = Student::query()
+            ->where('status', 'active')
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
 
-        $convertedEnquiries = Enquiry::query()
-            ->whereBetween('created_at', [$from, $to])
-            ->where('status', 'converted')
-            ->count();
+        $bookCopies = BookCopy::query()
+            ->when($branchId, fn ($query) => $query->whereHas('book', fn ($book) => $book->where('branch_id', $branchId)));
+        $bookIssues = BookIssue::query()
+            ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
 
         $metrics = [
-            'students' => Student::query()->where('status', 'active')->count(),
+            'students' => (clone $students)->count(),
             'active_memberships' => $activeMemberships->count(),
             'collection' => $collection,
             'gross_collection' => $grossCollection,
@@ -111,27 +132,23 @@ class ReportsController extends Controller
             'admission_conversion_percent' => $admissionCount > 0 ? round(($convertedAdmissions / $admissionCount) * 100, 1) : 0,
             'enquiries' => $enquiryCount,
             'crm_conversion_percent' => $enquiryCount > 0 ? round(($convertedEnquiries / $enquiryCount) * 100, 1) : 0,
-            'books_available' => BookCopy::query()->where('status', 'available')->count(),
-            'books_issued' => BookIssue::query()->whereNull('returned_at')->count(),
-            'overdue_books' => BookIssue::query()->whereNull('returned_at')->whereDate('due_at', '<', today())->count(),
+            'books_available' => (clone $bookCopies)->where('status', 'available')->count(),
+            'books_issued' => (clone $bookIssues)->whereNull('returned_at')->count(),
+            'overdue_books' => (clone $bookIssues)->whereNull('returned_at')->whereDate('due_at', '<', today())->count(),
         ];
 
-        $grossDaily = Payment::query()
+        $grossDaily = (clone $payments)
             ->selectRaw('payment_date, SUM(amount) as total')
-            ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
-            ->whereIn('payment_status', ['paid', 'partial'])
             ->groupBy('payment_date')
             ->pluck('total', 'payment_date');
 
-        $dailyAdjustments = PaymentAdjustment::query()
+        $dailyAdjustments = (clone $adjustmentQuery)
             ->selectRaw('DATE(created_at) as adjustment_day, SUM(amount) as total')
-            ->whereBetween('created_at', [$from, $to])
             ->groupByRaw('DATE(created_at)')
             ->pluck('total', 'adjustment_day');
 
-        $dailyExpenses = Expense::query()
+        $dailyExpenses = (clone $expenseQuery)
             ->selectRaw('expense_date, SUM(amount) as total')
-            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
             ->groupBy('expense_date')
             ->pluck('total', 'expense_date');
 
@@ -158,6 +175,13 @@ class ReportsController extends Controller
                 ];
             });
 
-        return view('admin.reports.index', compact('metrics', 'dailyCollections', 'from', 'to'));
+        return view('admin.reports.index', [
+            'metrics' => $metrics,
+            'dailyCollections' => $dailyCollections,
+            'from' => $from,
+            'to' => $to,
+            'branchId' => $branchId,
+            'branches' => Branch::query()->where('status', true)->orderBy('name')->get(),
+        ]);
     }
 }

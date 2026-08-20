@@ -14,6 +14,7 @@ use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class StaffController extends Controller
@@ -24,7 +25,14 @@ class StaffController extends Controller
         $staff = (clone $staffQuery)->with('branch')->latest()->paginate(25);
         $staffIds = (clone $staffQuery)->pluck('id');
 
-        $shifts = StaffShift::where('status', true)->orderBy('name')->get();
+        $shifts = StaffShift::where('status', true)
+            ->when(! $request->user()->isGlobalAdmin(), function ($query) use ($request) {
+                $query->where(function ($sub) use ($request) {
+                    $sub->whereNull('branch_id')->orWhere('branch_id', $request->user()->branch_id);
+                });
+            })
+            ->orderBy('name')
+            ->get();
         $branches = Branch::where('status', true)
             ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->whereKey($request->user()->branch_id))
             ->orderBy('name')
@@ -92,6 +100,15 @@ class StaffController extends Controller
             'status' => ['required', 'in:present,absent,half_day,leave'],
             'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        if (! empty($data['staff_shift_id'])) {
+            $shift = StaffShift::findOrFail($data['staff_shift_id']);
+            if ($shift->branch_id !== null && (int) $shift->branch_id !== (int) $staff->branch_id) {
+                throw ValidationException::withMessages([
+                    'staff_shift_id' => 'Selected shift does not belong to this staff branch.',
+                ]);
+            }
+        }
 
         $attendance = StaffAttendance::firstOrNew([
             'staff_id' => $staff->id,

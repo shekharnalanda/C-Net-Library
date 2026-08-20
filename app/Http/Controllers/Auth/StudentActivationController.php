@@ -7,6 +7,7 @@ use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class StudentActivationController extends Controller
@@ -23,7 +24,11 @@ class StudentActivationController extends Controller
         $student = $this->resolveStudent($token);
 
         $data = $request->validate([
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(10)->mixedCase()->numbers()->symbols(),
+            ],
         ]);
 
         $student->user->update(['password' => $data['password']]);
@@ -47,8 +52,8 @@ class StudentActivationController extends Controller
             ->where('portal_activation_token', hash('sha256', $token))
             ->firstOrFail();
 
-        abort_if(!$student->user || $student->user->role !== 'student', 404);
-        abort_if(!$student->portal_activation_expires_at || $student->portal_activation_expires_at->isPast(), 410, 'Activation link has expired.');
+        abort_if(! $student->user || $student->user->role !== 'student', 404);
+        abort_if(! $student->portal_activation_expires_at || $student->portal_activation_expires_at->isPast(), 410, 'Activation link has expired.');
         abort_if($student->portal_activated_at, 410, 'Student portal is already activated.');
 
         return $student;

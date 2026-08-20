@@ -11,6 +11,7 @@ class Expense extends Model
 
     protected $fillable = [
         'branch_id',
+        'payroll_id',
         'expense_date',
         'category',
         'payee',
@@ -29,6 +30,16 @@ class Expense extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function payroll()
+    {
+        return $this->belongsTo(Payroll::class);
+    }
+
+    public function adjustments()
+    {
+        return $this->hasMany(ExpenseAdjustment::class);
     }
 
     public function creator()

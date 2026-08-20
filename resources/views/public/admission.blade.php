@@ -31,6 +31,9 @@
 
                     <form method="POST" action="{{ route('admission.store') }}">
                         @csrf
+                        <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden">
+                            <label>Website<input type="text" name="website" value="" tabindex="-1" autocomplete="off"></label>
+                        </div>
 
                         <div class="row g-3">
                             <div class="col-md-6">

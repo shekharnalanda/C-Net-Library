@@ -3,6 +3,9 @@ name: Generate Composer Lockfile
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   generate-lock:
     runs-on: ubuntu-latest
@@ -33,6 +36,18 @@ jobs:
         run: |
           test -f composer.lock
           composer validate --no-check-publish
+
+      - name: Commit lockfile to main
+        run: |
+          if git diff --quiet -- composer.lock; then
+            echo "composer.lock is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock
+          git commit -m "Update Composer lockfile"
+          git push origin HEAD:main
 
       - name: Upload lockfile artifact
         uses: actions/upload-artifact@v4

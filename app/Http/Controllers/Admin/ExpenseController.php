@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Expense;
+use App\Models\ExpenseAdjustment;
 use App\Services\AuditService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ExpenseController extends Controller
@@ -25,11 +28,18 @@ class ExpenseController extends Controller
             ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
 
         $expenses = (clone $baseQuery)
-            ->with(['branch', 'creator'])
+            ->with(['branch', 'creator', 'adjustments.creator', 'payroll.staff'])
             ->latest('expense_date')
             ->latest('id')
             ->paginate(30)
             ->withQueryString();
+
+        $grossExpenses = (float) (clone $baseQuery)->sum('amount');
+        $adjustments = (float) ExpenseAdjustment::query()
+            ->whereHas('expense', fn ($query) => $query
+                ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+                ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId)))
+            ->sum('amount');
 
         $categoryTotals = (clone $baseQuery)
             ->selectRaw('category, SUM(amount) as total')
@@ -48,7 +58,9 @@ class ExpenseController extends Controller
             'from' => $from,
             'to' => $to,
             'branchId' => $branchId,
-            'totalExpenses' => (float) (clone $baseQuery)->sum('amount'),
+            'grossExpenses' => $grossExpenses,
+            'expenseAdjustments' => $adjustments,
+            'totalExpenses' => max(0, $grossExpenses - $adjustments),
             'categoryTotals' => $categoryTotals,
         ]);
     }
@@ -104,5 +116,43 @@ class ExpenseController extends Controller
         );
 
         return back()->with('success', 'Expense recorded in cashbook.');
+    }
+
+    public function adjust(Request $request, Expense $expense, AuditService $audit)
+    {
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['reversal', 'correction', 'refund'])],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $adjustment = DB::transaction(function () use ($expense, $data) {
+            $locked = Expense::query()->whereKey($expense->id)->lockForUpdate()->firstOrFail();
+            $alreadyAdjusted = (float) $locked->adjustments()->sum('amount');
+            $remaining = max(0, (float) $locked->amount - $alreadyAdjusted);
+            $amount = (float) $data['amount'];
+
+            if ($amount > $remaining) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Adjustment amount cannot exceed the remaining expense amount.',
+                ]);
+            }
+
+            return $locked->adjustments()->create([
+                'type' => $data['type'],
+                'amount' => $amount,
+                'reason' => $data['reason'],
+                'created_by' => auth()->id(),
+            ]);
+        });
+
+        $audit->log(
+            action: 'expense.adjustment.created',
+            auditable: $adjustment,
+            newValues: $adjustment->only(['expense_id', 'type', 'amount', 'reason']),
+            request: $request,
+        );
+
+        return back()->with('success', 'Expense adjustment recorded. Original expense remains unchanged.');
     }
 }

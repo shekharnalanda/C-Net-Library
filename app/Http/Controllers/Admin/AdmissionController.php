@@ -9,14 +9,17 @@ use App\Models\FeePlan;
 use App\Models\StudySlot;
 use App\Services\AdmissionApprovalService;
 use App\Services\AuditService;
+use App\Support\AdminBranchScope;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AdmissionController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $admissions = Admission::with(['branch', 'studySlot', 'feePlan'])
+        $admissions = AdminBranchScope::apply(Admission::query(), $request)
+            ->with(['branch', 'studySlot', 'feePlan'])
             ->latest()
             ->paginate(20);
 

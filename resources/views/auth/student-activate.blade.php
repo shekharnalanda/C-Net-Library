@@ -26,11 +26,12 @@
             @csrf
             <div class="field">
                 <label for="password">New Password</label>
-                <input id="password" type="password" name="password" required minlength="8" autocomplete="new-password">
+                <input id="password" type="password" name="password" required minlength="10" autocomplete="new-password">
+                <div class="muted" style="font-size:13px;margin-top:6px">Use at least 10 characters with uppercase, lowercase, a number, and a symbol.</div>
             </div>
             <div class="field">
                 <label for="password_confirmation">Confirm Password</label>
-                <input id="password_confirmation" type="password" name="password_confirmation" required minlength="8" autocomplete="new-password">
+                <input id="password_confirmation" type="password" name="password_confirmation" required minlength="10" autocomplete="new-password">
             </div>
             <button class="btn" type="submit">Activate Portal</button>
         </form>

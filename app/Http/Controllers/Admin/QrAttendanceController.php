@@ -13,17 +13,22 @@ class QrAttendanceController extends Controller
 {
     public function scan(Request $request): View
     {
-        $student = null;
+        return $this->scannerView($request);
+    }
 
-        if ($request->filled('token')) {
-            $student = Student::query()
-                ->with(['branch', 'activeMembership.studySlot'])
-                ->where('qr_token', $request->string('token'))
-                ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branchId()))
-                ->first();
-        }
+    public function lookup(Request $request): View
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string', 'max:255'],
+        ]);
 
-        return view('admin.attendance.scan', compact('student'));
+        $student = Student::query()
+            ->with(['branch', 'activeMembership.studySlot'])
+            ->where('qr_token', $data['token'])
+            ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branchId()))
+            ->first();
+
+        return $this->scannerView($request, $student, $student ? $data['token'] : null, true);
     }
 
     public function mark(
@@ -32,7 +37,7 @@ class QrAttendanceController extends Controller
         AttendanceService $attendanceService
     ): RedirectResponse {
         $request->validate([
-            'token' => ['required', 'string'],
+            'token' => ['required', 'string', 'max:255'],
             'action' => ['required', 'in:check_in,check_out'],
         ]);
 
@@ -40,11 +45,29 @@ class QrAttendanceController extends Controller
 
         if ($request->input('action') === 'check_out') {
             $attendanceService->checkOut($student, (int) auth()->id(), 'QR scan', 'qr');
-            return back()->with('success', 'Student checked out successfully.');
+
+            return redirect()->route('admin.attendance.scan')
+                ->with('success', 'Student checked out successfully.');
         }
 
         $attendanceService->checkIn($student, (int) auth()->id(), 'qr', 'QR scan');
 
-        return back()->with('success', 'Student checked in successfully.');
+        return redirect()->route('admin.attendance.scan')
+            ->with('success', 'Student checked in successfully.');
+    }
+
+    private function scannerView(
+        Request $request,
+        ?Student $student = null,
+        ?string $token = null,
+        bool $lookupAttempted = false,
+    ): View {
+        return view('admin.attendance.scan', compact('student', 'token', 'lookupAttempted'))
+            ->with('responseHeaders', [
+                'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Referrer-Policy' => 'no-referrer',
+                'X-Robots-Tag' => 'noindex, nofollow, noarchive',
+            ]);
     }
 }

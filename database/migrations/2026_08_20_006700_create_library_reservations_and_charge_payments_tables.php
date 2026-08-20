@@ -13,10 +13,10 @@ return new class extends Migration
             $table->foreignId('book_copy_id')->constrained()->restrictOnDelete();
             $table->foreignId('student_id')->constrained()->restrictOnDelete();
             $table->enum('status', ['active', 'fulfilled', 'cancelled', 'expired'])->default('active');
-            $table->timestamp('reserved_at');
-            $table->timestamp('expires_at');
-            $table->timestamp('fulfilled_at')->nullable();
-            $table->timestamp('cancelled_at')->nullable();
+            $table->dateTime('reserved_at');
+            $table->dateTime('expires_at');
+            $table->dateTime('fulfilled_at')->nullable();
+            $table->dateTime('cancelled_at')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('closed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('remarks')->nullable();

@@ -103,6 +103,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::middleware('permission:digital-library.manage')->group(function () {
         Route::get('/digital-library', [DigitalResourceController::class, 'index'])->name('digital-resources.index');
         Route::post('/digital-library', [DigitalResourceController::class, 'store'])->name('digital-resources.store');
+        Route::patch('/digital-library/{resource}', [DigitalResourceController::class, 'update'])->name('digital-resources.update');
+        Route::delete('/digital-library/{resource}', [DigitalResourceController::class, 'destroy'])->name('digital-resources.destroy');
     });
 
     Route::middleware('permission:jobs.manage')->group(function () {

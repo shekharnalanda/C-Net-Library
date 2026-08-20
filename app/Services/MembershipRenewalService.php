@@ -101,8 +101,11 @@ class MembershipRenewalService
                 ->first();
 
             if ($currentAllocation) {
+                $dayBeforeRenewal = $requestedStart->copy()->subDay()->startOfDay();
+                $releaseDate = $dayBeforeRenewal->lt(today()) ? $dayBeforeRenewal : today();
+
                 $currentAllocation->update([
-                    'allocated_to' => min(today(), $requestedStart->copy()->subDay())->toDateString(),
+                    'allocated_to' => $releaseDate->toDateString(),
                     'status' => 'released',
                 ]);
             }

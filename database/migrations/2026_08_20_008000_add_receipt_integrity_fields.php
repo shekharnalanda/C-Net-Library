@@ -19,9 +19,9 @@ return new class extends Migration
         });
 
         Schema::table('payments', function (Blueprint $table) {
-            $table->decimal('receipt_previous_paid', 10, 2)->nullable()->after('amount');
-            $table->decimal('receipt_balance_due', 10, 2)->nullable()->after('receipt_previous_paid');
-            $table->decimal('receipt_membership_fee', 10, 2)->nullable()->after('receipt_balance_due');
+            $table->decimal('receipt_previous_paid', 10, 2)->nullable();
+            $table->decimal('receipt_balance_due', 10, 2)->nullable();
+            $table->decimal('receipt_membership_fee', 10, 2)->nullable();
         });
     }
 

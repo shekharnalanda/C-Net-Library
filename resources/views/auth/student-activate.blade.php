@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta name="robots" content="noindex,nofollow,noarchive">
     <title>Activate Student Portal | C-Net Library</title>
     <style>
         body{font-family:Arial,sans-serif;background:#f3f6fa;margin:0;color:#1f2937}.wrap{max-width:520px;margin:70px auto;padding:20px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:26px;box-shadow:0 12px 32px rgba(15,23,42,.08)}h1{margin-top:0}.muted{color:#64748b}.field{margin:16px 0}label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:9px}.btn{width:100%;padding:12px;border:0;border-radius:9px;background:#0f766e;color:#fff;font-weight:700;cursor:pointer}.errors{background:#fef2f2;border:1px solid #fca5a5;padding:12px;border-radius:9px;margin-bottom:14px}

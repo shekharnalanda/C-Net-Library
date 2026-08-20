@@ -45,8 +45,20 @@ class ReleasePreflight extends Command
             $failures[] = 'SESSION_DRIVER must resolve to database for the production runtime design.';
         }
 
+        if (! (bool) config('session.encrypt')) {
+            $failures[] = 'SESSION_ENCRYPT must resolve to true in production.';
+        }
+
         if (! (bool) config('session.secure')) {
             $failures[] = 'SESSION_SECURE_COOKIE must resolve to true.';
+        }
+
+        if (! (bool) config('session.http_only')) {
+            $failures[] = 'Session cookies must be HttpOnly.';
+        }
+
+        if (! in_array(strtolower((string) config('session.same_site')), ['lax', 'strict'], true)) {
+            $failures[] = 'SESSION_SAME_SITE must resolve to lax or strict.';
         }
 
         if (config('cache.default') !== 'database') {

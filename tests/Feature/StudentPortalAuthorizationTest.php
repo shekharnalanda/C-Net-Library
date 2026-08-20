@@ -70,6 +70,19 @@ class StudentPortalAuthorizationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_inactive_linked_student_cannot_log_in(): void
+    {
+        [, $student] = $this->createStudentAccount('inactive-login@example.com', 'CNL-INACTIVE-LOGIN');
+        $student->update(['status' => 'inactive']);
+
+        $this->post(route('login.store'), [
+            'email' => 'inactive-login@example.com',
+            'password' => 'SecurePass123!',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
     public function test_inactive_student_cannot_use_activation_link(): void
     {
         [, $student] = $this->createStudentAccount('activation-inactive@example.com', 'CNL-ACT-INACTIVE');

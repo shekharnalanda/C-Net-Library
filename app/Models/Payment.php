@@ -14,6 +14,9 @@ class Payment extends Model
         'student_membership_id',
         'receipt_no',
         'amount',
+        'receipt_previous_paid',
+        'receipt_balance_due',
+        'receipt_membership_fee',
         'discount',
         'late_fee',
         'payment_date',
@@ -26,6 +29,9 @@ class Payment extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'receipt_previous_paid' => 'decimal:2',
+        'receipt_balance_due' => 'decimal:2',
+        'receipt_membership_fee' => 'decimal:2',
         'discount' => 'decimal:2',
         'late_fee' => 'decimal:2',
         'payment_date' => 'date',

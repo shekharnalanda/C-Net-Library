@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\Expense;
 use App\Models\Payroll;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
@@ -13,6 +14,7 @@ use App\Services\AdminBranchScope;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -158,42 +160,89 @@ class StaffController extends Controller
             'allowances' => ['nullable', 'numeric', 'min:0'],
             'deductions' => ['nullable', 'numeric', 'min:0'],
             'status' => ['required', 'in:pending,paid'],
-            'payment_mode' => ['nullable', 'string', 'max:50'],
+            'payment_mode' => ['nullable', 'in:cash,upi,card,bank_transfer,other'],
             'transaction_ref' => ['nullable', 'string', 'max:150'],
             'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $basic = (float) $staff->monthly_salary;
-        $allowances = (float) ($data['allowances'] ?? 0);
-        $deductions = (float) ($data['deductions'] ?? 0);
+        $result = DB::transaction(function () use ($request, $staff, $data) {
+            $payroll = Payroll::query()
+                ->where('staff_id', $staff->id)
+                ->where('month', $data['month'])
+                ->where('year', $data['year'])
+                ->lockForUpdate()
+                ->first();
 
-        $payroll = Payroll::firstOrNew([
-            'staff_id' => $staff->id,
-            'month' => $data['month'],
-            'year' => $data['year'],
-        ]);
-        $old = $payroll->exists ? $payroll->only([
-            'basic_salary', 'allowances', 'deductions', 'net_salary', 'status', 'paid_on', 'payment_mode', 'transaction_ref', 'remarks',
-        ]) : [];
+            $old = $payroll?->only([
+                'basic_salary', 'allowances', 'deductions', 'net_salary', 'status', 'paid_on', 'payment_mode', 'transaction_ref', 'remarks',
+            ]) ?? [];
 
-        $payroll->fill([
-            'basic_salary' => $basic,
-            'allowances' => $allowances,
-            'deductions' => $deductions,
-            'net_salary' => max(0, $basic + $allowances - $deductions),
-            'status' => $data['status'],
-            'paid_on' => $data['status'] === 'paid' ? today() : null,
-            'payment_mode' => $data['payment_mode'] ?? null,
-            'transaction_ref' => $data['transaction_ref'] ?? null,
-            'processed_by' => auth()->id(),
-            'remarks' => $data['remarks'] ?? null,
-        ])->save();
+            if ($payroll?->status === 'paid') {
+                throw ValidationException::withMessages([
+                    'status' => 'Paid payroll is immutable. Use a cashbook adjustment for any financial correction.',
+                ]);
+            }
+
+            $basic = (float) $staff->monthly_salary;
+            $allowances = (float) ($data['allowances'] ?? 0);
+            $deductions = (float) ($data['deductions'] ?? 0);
+            $net = max(0, $basic + $allowances - $deductions);
+            $transactionRef = trim((string) ($data['transaction_ref'] ?? ''));
+
+            $payroll ??= new Payroll([
+                'staff_id' => $staff->id,
+                'month' => $data['month'],
+                'year' => $data['year'],
+            ]);
+
+            $payroll->fill([
+                'basic_salary' => $basic,
+                'allowances' => $allowances,
+                'deductions' => $deductions,
+                'net_salary' => $net,
+                'status' => $data['status'],
+                'paid_on' => $data['status'] === 'paid' ? today() : null,
+                'payment_mode' => $data['payment_mode'] ?? null,
+                'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
+                'processed_by' => auth()->id(),
+                'remarks' => $data['remarks'] ?? null,
+            ])->save();
+
+            if ($data['status'] === 'paid') {
+                if ($net <= 0) {
+                    throw ValidationException::withMessages([
+                        'status' => 'A zero-value payroll cannot be marked paid.',
+                    ]);
+                }
+
+                Expense::firstOrCreate(
+                    ['payroll_id' => $payroll->id],
+                    [
+                        'branch_id' => $staff->branch_id,
+                        'expense_date' => $payroll->paid_on,
+                        'category' => 'Salary',
+                        'payee' => $staff->name,
+                        'amount' => $net,
+                        'payment_mode' => $data['payment_mode'] ?? 'other',
+                        'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
+                        'description' => sprintf('Payroll %02d/%d for %s (%s)', $payroll->month, $payroll->year, $staff->name, $staff->staff_code),
+                        'created_by' => auth()->id(),
+                    ]
+                );
+            }
+
+            return [$payroll->fresh(), $old];
+        }, 3);
+
+        [$payroll, $old] = $result;
 
         $audit->log('staff.payroll.saved', $payroll, $old, $payroll->only([
             'staff_id', 'month', 'year', 'basic_salary', 'allowances', 'deductions', 'net_salary', 'status', 'paid_on', 'payment_mode', 'transaction_ref', 'processed_by', 'remarks',
         ]));
 
-        return back()->with('success', 'Payroll record saved.');
+        return back()->with('success', $payroll->status === 'paid'
+            ? 'Payroll marked paid and posted to cashbook.'
+            : 'Payroll record saved.');
     }
 
     private function assertStaffBranch(Request $request, Staff $staff): void

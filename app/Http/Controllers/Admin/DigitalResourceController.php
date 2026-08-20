@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\DigitalResource;
+use App\Services\AdminBranchScope;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,9 +14,9 @@ use Illuminate\Validation\ValidationException;
 
 class DigitalResourceController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, AdminBranchScope $branchScope)
     {
-        $resources = DigitalResource::query()
+        $resources = $branchScope->apply(DigitalResource::query(), $request->user())
             ->with('branch')
             ->withCount('logs')
             ->when($request->search, fn ($q, $search) => $q->where(function ($query) use ($search) {
@@ -27,14 +28,24 @@ class DigitalResourceController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $branches = Branch::where('status', true)->orderBy('name')->get();
+        $branches = Branch::query()->where('status', true);
+        if (! $request->user()->isGlobalAdmin()) {
+            $branches->whereKey($request->user()->branch_id);
+        }
 
-        return view('admin.digital-resources.index', compact('resources', 'branches'));
+        return view('admin.digital-resources.index', [
+            'resources' => $resources,
+            'branches' => $branches->orderBy('name')->get(),
+        ]);
     }
 
     public function store(Request $request, AuditService $audit)
     {
         $data = $this->validatedData($request);
+
+        if (! $request->user()->isGlobalAdmin()) {
+            $data['branch_id'] = $request->user()->branch_id;
+        }
 
         if (! $request->hasFile('resource_file') && empty($data['external_url'])) {
             return back()->withErrors(['resource' => 'Upload a file or provide an external URL.'])->withInput();
@@ -70,6 +81,9 @@ class DigitalResourceController extends Controller
     public function update(Request $request, DigitalResource $resource, AuditService $audit)
     {
         $data = $this->validatedData($request);
+        if (! $request->user()->isGlobalAdmin()) {
+            $data['branch_id'] = $request->user()->branch_id;
+        }
         $this->validateSourceChoice($request, $data, $resource);
 
         $old = $resource->toArray();

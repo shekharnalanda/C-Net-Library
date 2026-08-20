@@ -111,7 +111,7 @@ class ReportsController extends Controller
             ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
 
         $bookCopies = BookCopy::query()
-            ->when($branchId, fn ($query) => $query->whereHas('book', fn ($book) => $book->where('branch_id', $branchId)));
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
         $bookIssues = BookIssue::query()
             ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
 

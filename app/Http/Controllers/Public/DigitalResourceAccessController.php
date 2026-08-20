@@ -9,6 +9,7 @@ use App\Services\DigitalResourceAccessService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -55,10 +56,25 @@ class DigitalResourceAccessController extends Controller
 
         $access->log($resource, $action, $student, $request->ip());
 
+        $absolutePath = Storage::disk('local')->path($path);
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $baseName = Str::slug($resource->title) ?: 'resource';
+        $downloadName = $baseName.($extension ? '.'.$extension : '');
+        $mimeType = mime_content_type($absolutePath) ?: 'application/octet-stream';
+
         if ($action === 'download') {
-            return Storage::disk('local')->download($path);
+            return response()->download($absolutePath, $downloadName, [
+                'Content-Type' => $mimeType,
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store',
+            ]);
         }
 
-        return response()->file(Storage::disk('local')->path($path));
+        return response()->file($absolutePath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="'.$downloadName.'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 }

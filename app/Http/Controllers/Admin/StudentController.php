@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
+use App\Support\AdminBranchScope;
 use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
     public function index(Request $request)
     {
-        $students = Student::query()
+        $query = AdminBranchScope::apply(Student::query(), $request);
+
+        $students = $query
             ->with([
                 'branch',
                 'activeMembership.studySlot',

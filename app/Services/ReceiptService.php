@@ -14,9 +14,14 @@ class ReceiptService
     public function generate(?string $prefix = null, ?int $branchId = null): string
     {
         $prefix ??= (string) $this->settings->get('receipt_prefix', 'CNL', $branchId);
-        $year = (int) now()->format('Y');
+        $prefix = strtoupper(trim($prefix));
+        $prefix = preg_replace('/[^A-Z0-9-]+/', '-', $prefix) ?: 'CNL';
+        $prefix = trim($prefix, '-') ?: 'CNL';
 
-        return DB::transaction(function () use ($prefix, $branchId, $year) {
+        $year = (int) now()->format('Y');
+        $series = $branchId === null ? 'GLOBAL' : 'B'.str_pad((string) $branchId, 6, '0', STR_PAD_LEFT);
+
+        return DB::transaction(function () use ($prefix, $branchId, $year, $series) {
             $query = DB::table('receipt_sequences')
                 ->where('year', $year)
                 ->where(function ($query) use ($branchId) {
@@ -50,7 +55,7 @@ class ReceiptService
                 'updated_at' => now(),
             ]);
 
-            return sprintf('%s-%d-%06d', $prefix, $year, $next);
+            return sprintf('%s-%s-%d-%06d', $prefix, $series, $year, $next);
         }, 3);
     }
 }

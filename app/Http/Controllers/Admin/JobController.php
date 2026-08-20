@@ -5,15 +5,18 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Job;
+use App\Services\AdminBranchScope;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class JobController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, AdminBranchScope $branchScope)
     {
-        $query = Job::query()->with('branch')->latest('id');
+        $query = $branchScope->apply(Job::query(), $request->user())
+            ->with('branch')
+            ->latest('id');
 
         if ($request->filled('q')) {
             $term = trim((string) $request->q);
@@ -29,9 +32,14 @@ class JobController extends Controller
             $query->where('job_type', $request->type);
         }
 
+        $branches = Branch::query()->where('status', true);
+        if (! $request->user()->isGlobalAdmin()) {
+            $branches->whereKey($request->user()->branch_id);
+        }
+
         return view('admin.jobs.index', [
             'jobs' => $query->paginate(25)->withQueryString(),
-            'branches' => Branch::query()->where('status', true)->orderBy('name')->get(),
+            'branches' => $branches->orderBy('name')->get(),
         ]);
     }
 
@@ -52,6 +60,10 @@ class JobController extends Controller
             'is_featured' => ['nullable', 'boolean'],
             'status' => ['nullable', 'boolean'],
         ]);
+
+        if (! $request->user()->isGlobalAdmin()) {
+            $data['branch_id'] = $request->user()->branch_id;
+        }
 
         $scheme = strtolower((string) parse_url($data['official_url'], PHP_URL_SCHEME));
         if (! in_array($scheme, ['http', 'https'], true)) {

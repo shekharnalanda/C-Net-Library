@@ -40,8 +40,10 @@ class StudentController extends Controller
         return view('admin.students.index', compact('students'));
     }
 
-    public function show(Student $student)
+    public function show(Request $request, Student $student)
     {
+        AdminBranchScope::authorize($request, $student->branch_id);
+
         $student->load([
             'branch',
             'memberships.studySlot',
@@ -56,6 +58,8 @@ class StudentController extends Controller
 
     public function rotateQr(Request $request, Student $student, AuditService $audit): RedirectResponse
     {
+        AdminBranchScope::authorize($request, $student->branch_id);
+
         $student->update([
             'qr_token' => (string) Str::uuid(),
         ]);

@@ -37,6 +37,18 @@ class AdmissionApprovalService
                 ]);
             }
 
+            if ($lockedAdmission->status === 'rejected') {
+                throw ValidationException::withMessages([
+                    'admission' => 'A rejected admission cannot be approved. Create or review a new admission record instead.',
+                ]);
+            }
+
+            if (! in_array($lockedAdmission->status, ['new', 'under_review', 'approved'], true)) {
+                throw ValidationException::withMessages([
+                    'admission' => 'This admission is not in an approvable state.',
+                ]);
+            }
+
             $feePlan = FeePlan::findOrFail($data['fee_plan_id']);
             $slot = StudySlot::findOrFail($data['study_slot_id']);
             $seat = Seat::query()
@@ -55,6 +67,18 @@ class AdmissionApprovalService
             }
             if ((int) $seat->studyHall?->branch_id !== (int) $branchId) {
                 throw ValidationException::withMessages(['seat_id' => 'Selected seat does not belong to the admission branch.']);
+            }
+
+            $duplicateStudent = Student::query()
+                ->where('branch_id', $branchId)
+                ->where('mobile', $lockedAdmission->mobile)
+                ->where('status', 'active')
+                ->exists();
+
+            if ($duplicateStudent) {
+                throw ValidationException::withMessages([
+                    'mobile' => 'An active student with this mobile number already exists in this branch.',
+                ]);
             }
 
             $startDate = isset($data['start_date']) ? Carbon::parse($data['start_date'])->startOfDay() : today();
@@ -164,6 +188,7 @@ class AdmissionApprovalService
         do {
             $code = $prefix.'-'.now()->format('Y').'-'.strtoupper(Str::random(6));
         } while (Student::query()->where('student_code', $code)->exists());
+
         return $code;
     }
 }

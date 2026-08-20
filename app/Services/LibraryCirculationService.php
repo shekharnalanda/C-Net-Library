@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\BookCopy;
 use App\Models\BookIssue;
+use App\Models\BookReservation;
+use App\Models\LibraryChargePayment;
 use App\Models\Student;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -26,6 +28,8 @@ class LibraryCirculationService
         $issueDays ??= (int) $this->settings->get('book_issue_days', 14, $student->branch_id);
 
         return DB::transaction(function () use ($student, $copy, $issueDays, $userId) {
+            $this->assertNoOutstandingCharges($student);
+
             $lockedCopy = BookCopy::query()
                 ->whereKey($copy->id)
                 ->lockForUpdate()
@@ -37,7 +41,39 @@ class LibraryCirculationService
                 ]);
             }
 
-            if ($lockedCopy->status !== 'available') {
+            $activeReservation = BookReservation::query()
+                ->where('book_copy_id', $lockedCopy->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->orderBy('id')
+                ->first();
+
+            if ($activeReservation && $activeReservation->expires_at->lte(now())) {
+                $activeReservation->update([
+                    'status' => 'expired',
+                    'cancelled_at' => now(),
+                    'closed_by' => $userId,
+                ]);
+                $activeReservation = null;
+
+                if ($lockedCopy->status === 'reserved') {
+                    $lockedCopy->update(['status' => 'available']);
+                }
+            }
+
+            if ($activeReservation) {
+                if ((int) $activeReservation->student_id !== (int) $student->id) {
+                    throw ValidationException::withMessages([
+                        'book_copy_id' => 'Selected book copy is reserved for another student.',
+                    ]);
+                }
+
+                if (! in_array($lockedCopy->status, ['reserved', 'available'], true)) {
+                    throw ValidationException::withMessages([
+                        'book_copy_id' => 'Selected reserved copy is not available for issue.',
+                    ]);
+                }
+            } elseif ($lockedCopy->status !== 'available') {
                 throw ValidationException::withMessages([
                     'book_copy_id' => 'Selected book copy is not available.',
                 ]);
@@ -62,6 +98,14 @@ class LibraryCirculationService
                 'status' => 'issued',
                 'issued_by' => $userId,
             ]);
+
+            if ($activeReservation) {
+                $activeReservation->update([
+                    'status' => 'fulfilled',
+                    'fulfilled_at' => now(),
+                    'closed_by' => $userId,
+                ]);
+            }
 
             $lockedCopy->update(['status' => 'issued']);
 
@@ -169,5 +213,31 @@ class LibraryCirculationService
 
             return $lockedIssue->fresh(['student', 'bookCopy.book']);
         }, 3);
+    }
+
+    private function assertNoOutstandingCharges(Student $student): void
+    {
+        $issues = BookIssue::query()
+            ->where('student_id', $student->id)
+            ->where(function ($query) {
+                $query->where('fine_amount', '>', 0)
+                    ->orWhere('loss_charge', '>', 0);
+            })
+            ->withSum(['chargePayments as fine_collected' => fn ($query) => $query->where('charge_type', 'fine')], 'amount')
+            ->withSum(['chargePayments as loss_collected' => fn ($query) => $query->where('charge_type', 'loss')], 'amount')
+            ->get();
+
+        $outstanding = $issues->sum(function (BookIssue $issue) {
+            $fineDue = max(0, (float) $issue->fine_amount - (float) ($issue->fine_collected ?? 0));
+            $lossDue = max(0, (float) $issue->loss_charge - (float) ($issue->loss_collected ?? 0));
+
+            return $fineDue + $lossDue;
+        });
+
+        if ($outstanding > 0) {
+            throw ValidationException::withMessages([
+                'student_id' => 'Student has outstanding library fines or loss charges and cannot borrow another book.',
+            ]);
+        }
     }
 }

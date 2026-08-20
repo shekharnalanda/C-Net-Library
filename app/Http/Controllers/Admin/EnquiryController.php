@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\Enquiry;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Support\AdminBranchScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,10 @@ class EnquiryController extends Controller
 {
     public function index(Request $request): View
     {
-        $enquiries = Enquiry::query()
+        $branchId = AdminBranchScope::id($request);
+        $query = AdminBranchScope::apply(Enquiry::query(), $request);
+
+        $enquiries = $query
             ->with(['branch', 'assignee', 'convertedAdmission'])
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('q'), function ($query) use ($request) {
@@ -35,8 +39,14 @@ class EnquiryController extends Controller
 
         return view('admin.enquiries.index', [
             'enquiries' => $enquiries,
-            'branches' => Branch::query()->where('status', true)->orderBy('name')->get(),
-            'staff' => User::query()->whereIn('role', ['super_admin', 'branch_admin', 'counselor', 'admin'])->orderBy('name')->get(),
+            'branches' => $branchId === null
+                ? Branch::query()->where('status', true)->orderBy('name')->get()
+                : Branch::query()->whereKey($branchId)->get(),
+            'staff' => User::query()
+                ->whereIn('role', ['super_admin', 'branch_admin', 'counselor', 'admin'])
+                ->when($branchId !== null, fn ($query) => $query->where('branch_id', $branchId))
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -48,6 +58,14 @@ class EnquiryController extends Controller
             'follow_up_date' => ['nullable', 'date'],
             'follow_up_notes' => ['nullable', 'string', 'max:3000'],
         ]);
+
+        if (! empty($data['assigned_to']) && ! $request->user()->isGlobalAdmin()) {
+            $validAssignee = User::query()
+                ->whereKey($data['assigned_to'])
+                ->where('branch_id', $request->user()->branch_id)
+                ->exists();
+            abort_unless($validAssignee, 403);
+        }
 
         $old = $enquiry->only(['status', 'assigned_to', 'follow_up_date', 'follow_up_notes']);
         $enquiry->update($data);

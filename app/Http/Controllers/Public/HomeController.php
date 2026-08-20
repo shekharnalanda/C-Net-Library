@@ -62,8 +62,8 @@ class HomeController extends Controller
             ->where(function ($query) {
                 $query->whereNull('last_date')->orWhereDate('last_date', '>=', today());
             })
-            ->orderByDesc('featured')
-            ->orderByDesc('published_at')
+            ->orderByDesc('is_featured')
+            ->orderByDesc('published_date')
             ->limit(6)
             ->get();
 

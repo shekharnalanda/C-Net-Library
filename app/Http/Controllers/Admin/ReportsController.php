@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\BookCopy;
 use App\Models\BookIssue;
 use App\Models\Enquiry;
+use App\Models\Expense;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Seat;
@@ -35,10 +36,14 @@ class ReportsController extends Controller
             ->sum('amount');
 
         $adjustments = (float) PaymentAdjustment::query()
-            ->whereBetween('adjustment_date', [$from->toDateString(), $to->toDateString()])
+            ->whereBetween('created_at', [$from, $to])
             ->sum('amount');
 
         $collection = max(0, $grossCollection - $adjustments);
+        $expenses = (float) Expense::query()
+            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->sum('amount');
+        $closingBalance = $collection - $expenses;
 
         $activeMemberships = StudentMembership::query()
             ->where('status', 'active')
@@ -95,6 +100,8 @@ class ReportsController extends Controller
             'collection' => $collection,
             'gross_collection' => $grossCollection,
             'adjustments' => $adjustments,
+            'expenses' => $expenses,
+            'closing_balance' => $closingBalance,
             'due' => (float) $totalDue,
             'seat_occupancy_percent' => $totalSeats > 0 ? round(($occupiedSeats / $totalSeats) * 100, 1) : 0,
             'occupied_seats' => $occupiedSeats,
@@ -117,20 +124,37 @@ class ReportsController extends Controller
             ->pluck('total', 'payment_date');
 
         $dailyAdjustments = PaymentAdjustment::query()
-            ->selectRaw('adjustment_date, SUM(amount) as total')
-            ->whereBetween('adjustment_date', [$from->toDateString(), $to->toDateString()])
-            ->groupBy('adjustment_date')
-            ->pluck('total', 'adjustment_date');
+            ->selectRaw('DATE(created_at) as adjustment_day, SUM(amount) as total')
+            ->whereBetween('created_at', [$from, $to])
+            ->groupByRaw('DATE(created_at)')
+            ->pluck('total', 'adjustment_day');
 
-        $dailyCollections = collect(array_unique(array_merge($grossDaily->keys()->all(), $dailyAdjustments->keys()->all())))
+        $dailyExpenses = Expense::query()
+            ->selectRaw('expense_date, SUM(amount) as total')
+            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->groupBy('expense_date')
+            ->pluck('total', 'expense_date');
+
+        $dailyCollections = collect(array_unique(array_merge(
+            $grossDaily->keys()->all(),
+            $dailyAdjustments->keys()->all(),
+            $dailyExpenses->keys()->all()
+        )))
             ->sort()
             ->values()
-            ->map(function ($date) use ($grossDaily, $dailyAdjustments) {
+            ->map(function ($date) use ($grossDaily, $dailyAdjustments, $dailyExpenses) {
+                $gross = (float) ($grossDaily[$date] ?? 0);
+                $adjustment = (float) ($dailyAdjustments[$date] ?? 0);
+                $expense = (float) ($dailyExpenses[$date] ?? 0);
+                $net = max(0, $gross - $adjustment);
+
                 return (object) [
                     'payment_date' => $date,
-                    'total' => max(0, (float) ($grossDaily[$date] ?? 0) - (float) ($dailyAdjustments[$date] ?? 0)),
-                    'gross_total' => (float) ($grossDaily[$date] ?? 0),
-                    'adjustment_total' => (float) ($dailyAdjustments[$date] ?? 0),
+                    'total' => $net,
+                    'gross_total' => $gross,
+                    'adjustment_total' => $adjustment,
+                    'expense_total' => $expense,
+                    'cash_balance' => $net - $expense,
                 ];
             });
 

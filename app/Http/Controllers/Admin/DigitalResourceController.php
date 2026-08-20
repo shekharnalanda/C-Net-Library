@@ -38,31 +38,24 @@ class DigitalResourceController extends Controller
             'resource_type' => ['required', 'in:pdf,ebook,notes,question_paper,video,link'],
             'category' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'file_path' => ['nullable', 'string', 'max:1000'],
+            'resource_file' => [
+                'nullable',
+                'file',
+                'max:51200',
+                'mimes:pdf,epub,txt,doc,docx,ppt,pptx,xls,xlsx,mp4,webm',
+                'mimetypes:application/pdf,application/epub+zip,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,video/mp4,video/webm',
+            ],
             'external_url' => ['nullable', 'url', 'max:1000'],
             'access_type' => ['required', 'in:public,members,premium'],
             'download_allowed' => ['nullable', 'boolean'],
         ]);
 
-        if (empty($data['file_path']) && empty($data['external_url'])) {
-            return back()->withErrors(['resource' => 'Provide a private file path or external URL.'])->withInput();
+        if (! $request->hasFile('resource_file') && empty($data['external_url'])) {
+            return back()->withErrors(['resource' => 'Upload a file or provide an external URL.'])->withInput();
         }
 
-        if (! empty($data['file_path'])) {
-            $normalizedPath = ltrim(str_replace('\\', '/', $data['file_path']), '/');
-
-            if (
-                ! str_starts_with($normalizedPath, 'digital-resources/')
-                || str_contains($normalizedPath, '../')
-                || str_contains($normalizedPath, '/..')
-                || str_contains($normalizedPath, "\0")
-            ) {
-                throw ValidationException::withMessages([
-                    'file_path' => 'Private files must be stored inside the digital-resources directory.',
-                ]);
-            }
-
-            $data['file_path'] = $normalizedPath;
+        if ($request->hasFile('resource_file') && ! empty($data['external_url'])) {
+            return back()->withErrors(['resource' => 'Choose either a file upload or an external URL, not both.'])->withInput();
         }
 
         if (! empty($data['external_url'])) {
@@ -74,6 +67,24 @@ class DigitalResourceController extends Controller
             }
         }
 
+        if ($data['resource_type'] === 'link' && $request->hasFile('resource_file')) {
+            throw ValidationException::withMessages([
+                'resource_file' => 'Link resources must use an external URL.',
+            ]);
+        }
+
+        if ($data['resource_type'] !== 'link' && ! $request->hasFile('resource_file') && ! empty($data['external_url'])) {
+            // External videos/documents are allowed, but are always served through the secure access endpoint.
+        }
+
+        $filePath = null;
+        if ($request->hasFile('resource_file')) {
+            $file = $request->file('resource_file');
+            $extension = strtolower($file->getClientOriginalExtension());
+            $fileName = Str::uuid().($extension ? '.'.$extension : '');
+            $filePath = $file->storeAs('digital-resources', $fileName, 'local');
+        }
+
         $baseSlug = Str::slug($data['title']);
         $slug = $baseSlug;
         $counter = 2;
@@ -82,8 +93,15 @@ class DigitalResourceController extends Controller
         }
 
         DigitalResource::create([
-            ...$data,
+            'branch_id' => $data['branch_id'] ?? null,
+            'title' => $data['title'],
             'slug' => $slug,
+            'resource_type' => $data['resource_type'],
+            'category' => $data['category'] ?? null,
+            'description' => $data['description'] ?? null,
+            'file_path' => $filePath,
+            'external_url' => $data['external_url'] ?? null,
+            'access_type' => $data['access_type'],
             'download_allowed' => $request->boolean('download_allowed'),
             'status' => true,
             'uploaded_by' => auth()->id(),

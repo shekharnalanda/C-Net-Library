@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureBranchScope;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureStudent;
 use App\Http\Middleware\SecurityHeaders;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin' => EnsureAdmin::class,
+            'admin.branch' => EnsureBranchScope::class,
             'permission' => EnsurePermission::class,
             'student' => EnsureStudent::class,
         ]);

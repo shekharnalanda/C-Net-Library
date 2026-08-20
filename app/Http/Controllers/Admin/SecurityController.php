@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Branch;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SecurityController extends Controller
@@ -18,13 +20,14 @@ class SecurityController extends Controller
     {
         $roles = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('group')->orderBy('name')->get();
-        $users = User::with('roles')->orderBy('name')->get();
+        $users = User::with(['roles', 'branch'])->orderBy('name')->get();
+        $branches = Branch::query()->where('status', true)->orderBy('name')->get();
         $logs = AuditLog::with('user')
             ->latest()
             ->limit(100)
             ->get();
 
-        return view('admin.security.index', compact('roles', 'permissions', 'users', 'logs'));
+        return view('admin.security.index', compact('roles', 'permissions', 'users', 'branches', 'logs'));
     }
 
     public function updateRole(Request $request, Role $role, AuditService $audit): RedirectResponse
@@ -48,14 +51,54 @@ class SecurityController extends Controller
         $data = $request->validate([
             'roles' => ['array'],
             'roles.*' => ['integer', 'exists:roles,id'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
         ]);
 
-        $old = $user->roles()->pluck('roles.id')->all();
-        $user->roles()->sync($data['roles'] ?? []);
-        $new = $user->roles()->pluck('roles.id')->all();
+        $selectedRoles = Role::query()
+            ->whereIn('id', $data['roles'] ?? [])
+            ->get(['id', 'slug']);
+        $selectedSlugs = $selectedRoles->pluck('slug');
 
-        $audit->log('user.roles.updated', $user, ['roles' => $old], ['roles' => $new]);
+        if ($user->role === 'student' && $selectedRoles->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'roles' => 'Student portal users cannot be assigned backoffice roles.',
+            ]);
+        }
 
-        return back()->with('success', 'User roles updated.');
+        $hasGlobalRole = $selectedSlugs->contains('super-admin') || $user->role === 'super_admin';
+        $hasBranchScopedRole = $selectedSlugs->intersect([
+            'branch-admin', 'reception', 'accountant', 'librarian', 'counselor', 'staff',
+        ])->isNotEmpty() || in_array($user->role, ['admin', 'reception', 'accountant', 'librarian'], true);
+
+        if ($hasGlobalRole && filled($data['branch_id'] ?? null)) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'Super-admin users must remain global and cannot be assigned to a branch.',
+            ]);
+        }
+
+        if (! $hasGlobalRole && $hasBranchScopedRole && empty($data['branch_id'])) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'A branch assignment is required for branch-scoped backoffice roles.',
+            ]);
+        }
+
+        $old = [
+            'roles' => $user->roles()->pluck('roles.id')->all(),
+            'branch_id' => $user->branch_id,
+        ];
+
+        $user->roles()->sync($selectedRoles->pluck('id')->all());
+        $user->update([
+            'branch_id' => $hasGlobalRole ? null : ($data['branch_id'] ?? null),
+        ]);
+
+        $new = [
+            'roles' => $user->roles()->pluck('roles.id')->all(),
+            'branch_id' => $user->fresh()->branch_id,
+        ];
+
+        $audit->log('user.roles.updated', $user, $old, $new);
+
+        return back()->with('success', 'User roles and branch assignment updated.');
     }
 }

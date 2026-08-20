@@ -51,7 +51,7 @@
                 @if($job->last_date)<p><strong>Last Date:</strong> {{ $job->last_date->format('d M Y') }}</p>@endif
                 @if($job->summary)<p>{{ $job->summary }}</p>@endif
                 <div class="actions">
-                    <a class="btn" href="{{ $job->official_url }}" target="_blank" rel="noopener noreferrer">Official Apply / Details</a>
+                    <a class="btn" href="{{ route('jobs.official', $job) }}" target="_blank" rel="noopener noreferrer nofollow">Official Apply / Details</a>
                     @auth
                         @if(auth()->user()->role === 'student')
                             <form method="POST" action="{{ route('student.saved-jobs.store', $job) }}">

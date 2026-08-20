@@ -54,6 +54,22 @@ Production `.env.example` uses database-backed sessions, cache, and queues. The 
 
 If a deployment already has framework runtime tables created outside this repository, confirm their schema before running or rolling back framework-table migrations.
 
+## Finance migration preflight
+
+Before applying migrations that add unique transaction-reference indexes, check production data for duplicate non-null references first. A unique-index migration will fail if duplicates already exist.
+
+Run the read-only payroll reconciliation audit before the payroll transaction-reference migration whenever upgrading an existing database:
+
+```text
+php artisan payroll:audit-reconciliation
+```
+
+The command reports duplicate payroll transaction references and paid payroll rows whose linked cashbook expense is missing or does not match branch, amount, date, category, or transaction reference. It does not alter any data.
+
+Historical salary expenses created manually before payroll-to-cashbook linking was introduced are not auto-linked because matching them by amount/date/payee could attach the wrong ledger entry. Review those records manually and preserve an auditable reconciliation decision.
+
+Apply the same duplicate-reference preflight discipline to payment and expense transaction-reference unique migrations. Do not delete financial rows merely to make an index migration pass; correct or annotate duplicates through an approved accounting process and retain the audit trail.
+
 ## Scheduler and queues
 
 Scheduled membership renewals depend on Laravel's scheduler. Production must invoke the scheduler every minute. On BigRock or another cron-based host, configure the equivalent of:
@@ -90,6 +106,8 @@ Before production deployment, verify all of the following:
 - Private digital resources are included in file backup.
 - Writable Laravel storage/cache directories are configured.
 - Public storage symlink exists where required by the hosting setup.
+- Finance duplicate-reference preflight has been completed before unique-index migrations.
+- `php artisan payroll:audit-reconciliation` has been reviewed for existing production data.
 - A one-minute Laravel scheduler cron is configured and verified.
 - `php artisan schedule:list` shows scheduled membership activation.
 - Queue worker or bounded queue cron is configured before enabling queued features.

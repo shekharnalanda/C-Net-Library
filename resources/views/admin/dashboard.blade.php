@@ -12,6 +12,7 @@
         .card { background:white; border-radius:12px; padding:20px; box-shadow:0 5px 20px rgba(0,0,0,.05); }
         .label { color:#667085; font-size:14px; }
         .value { font-size:30px; font-weight:700; margin-top:8px; }
+        .muted { color:#667085; font-size:12px; margin-top:5px; }
         .actions { margin-top:24px; display:flex; gap:12px; flex-wrap:wrap; }
         a, button { text-decoration:none; border:0; border-radius:8px; padding:10px 14px; font-weight:700; cursor:pointer; }
         a { background:#e5e7eb; color:#111827; }
@@ -31,14 +32,18 @@
     <div class="cards">
         <div class="card"><div class="label">Active Students</div><div class="value">{{ $data['active_students'] }}</div></div>
         <div class="card"><div class="label">Total Seats</div><div class="value">{{ $data['total_seats'] }}</div></div>
-        <div class="card"><div class="label">Today's Collection</div><div class="value">₹{{ number_format($data['today_collection'], 2) }}</div></div>
+        <div class="card"><div class="label">Today's Net Collection</div><div class="value">₹{{ number_format($data['today_collection'], 2) }}</div><div class="muted">Gross ₹{{ number_format($data['today_gross_collection'], 2) }} · Adjustments ₹{{ number_format($data['today_adjustments'], 2) }}</div></div>
+        <div class="card"><div class="label">Today's Expenses</div><div class="value">₹{{ number_format($data['today_expenses'], 2) }}</div></div>
+        <div class="card"><div class="label">Today's Cash Position</div><div class="value">₹{{ number_format($data['today_cash_position'], 2) }}</div></div>
         <div class="card"><div class="label">Pending Admissions</div><div class="value">{{ $data['pending_admissions'] }}</div></div>
         <div class="card"><div class="label">Renewals Due (7 Days)</div><div class="value">{{ $data['renewals_due'] }}</div></div>
     </div>
 
     <div class="actions">
         <a href="{{ route('admin.admissions.index') }}">Manage Admissions</a>
-        <a href="{{ route('admission.create') }}" target="_blank">Open Public Admission Form</a>
+        <a href="{{ route('admin.reports.index') }}">Reports</a>
+        <a href="{{ route('admin.expenses.index') }}">Cashbook</a>
+        <a href="{{ route('admission.create') }}" target="_blank" rel="noopener">Open Public Admission Form</a>
     </div>
 </main>
 </body>

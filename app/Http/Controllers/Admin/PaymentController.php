@@ -20,25 +20,46 @@ class PaymentController extends Controller
         ReceiptService $receiptService,
         AuditService $auditService
     ) {
-        $membership = StudentMembership::query()
-            ->whereKey($request->integer('student_membership_id'))
-            ->where('student_id', $student->id)
-            ->firstOrFail();
+        $payment = DB::transaction(function () use ($request, $student, $receiptService) {
+            $membership = StudentMembership::query()
+                ->whereKey($request->integer('student_membership_id'))
+                ->where('student_id', $student->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $alreadyPaid = (float) $membership->payments()
-            ->whereIn('payment_status', ['paid', 'partial'])
-            ->sum('amount');
+            $alreadyPaid = (float) $membership->payments()
+                ->whereIn('payment_status', ['paid', 'partial'])
+                ->sum('amount');
 
-        $due = max(0, (float) $membership->final_fee - $alreadyPaid);
-        $amount = (float) $request->input('amount');
+            $due = max(0, (float) $membership->final_fee - $alreadyPaid);
+            $amount = (float) $request->input('amount');
 
-        if ($amount > $due) {
-            throw ValidationException::withMessages([
-                'amount' => 'Payment current due amount se zyada nahi ho sakta.',
-            ]);
-        }
+            if ($due <= 0) {
+                throw ValidationException::withMessages([
+                    'amount' => 'This membership has no outstanding balance.',
+                ]);
+            }
 
-        $payment = DB::transaction(function () use ($request, $student, $membership, $receiptService, $amount, $due) {
+            if ($amount > $due) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Payment current due amount se zyada nahi ho sakta.',
+                ]);
+            }
+
+            $transactionRef = trim((string) $request->input('transaction_ref'));
+            if ($transactionRef !== '') {
+                $duplicateReference = Payment::query()
+                    ->where('transaction_ref', $transactionRef)
+                    ->whereIn('payment_status', ['paid', 'partial'])
+                    ->exists();
+
+                if ($duplicateReference) {
+                    throw ValidationException::withMessages([
+                        'transaction_ref' => 'This transaction reference has already been recorded.',
+                    ]);
+                }
+            }
+
             return Payment::create([
                 'student_id' => $student->id,
                 'student_membership_id' => $membership->id,
@@ -48,7 +69,7 @@ class PaymentController extends Controller
                 'late_fee' => 0,
                 'payment_date' => today(),
                 'payment_mode' => $request->input('payment_mode'),
-                'transaction_ref' => $request->input('transaction_ref'),
+                'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
                 'payment_status' => $amount >= $due ? 'paid' : 'partial',
                 'received_by' => auth()->id(),
                 'remarks' => $request->input('remarks'),
@@ -94,6 +115,10 @@ class PaymentController extends Controller
             (float) $payment->membership->final_fee - ($previousPaid + (float) $payment->amount)
         );
 
-        return view('admin.payments.receipt', compact('payment', 'previousPaid', 'balanceDue'));
+        return response()
+            ->view('admin.payments.receipt', compact('payment', 'previousPaid', 'balanceDue'))
+            ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('X-Robots-Tag', 'noindex, nofollow, noarchive');
     }
 }

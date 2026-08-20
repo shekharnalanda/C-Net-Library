@@ -28,8 +28,19 @@ class ReleaseSmokeCheck extends Command
         }
 
         $publicStorage = public_path('storage');
-        if (! is_link($publicStorage) && ! is_dir($publicStorage)) {
+        $expectedStorage = storage_path('app/public');
+
+        if (! file_exists($publicStorage) && ! is_link($publicStorage)) {
             $failures[] = 'public/storage is missing. Run php artisan storage:link if the host supports symlinks.';
+        } elseif (is_link($publicStorage)) {
+            $resolvedPublicStorage = realpath($publicStorage);
+            $resolvedExpectedStorage = realpath($expectedStorage);
+
+            if ($resolvedPublicStorage === false || $resolvedExpectedStorage === false || $resolvedPublicStorage !== $resolvedExpectedStorage) {
+                $failures[] = 'public/storage symlink does not resolve to storage/app/public.';
+            }
+        } elseif (! is_dir($publicStorage)) {
+            $failures[] = 'public/storage exists but is not a directory or symlink.';
         }
 
         try {

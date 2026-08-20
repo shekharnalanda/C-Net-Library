@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BookCopy;
 use App\Models\BookIssue;
 use App\Models\Student;
+use App\Services\AdminBranchScope;
 use App\Services\AuditService;
 use App\Services\LibraryCirculationService;
 use Illuminate\Http\RedirectResponse;
@@ -18,9 +19,9 @@ class LibraryController extends Controller
     {
     }
 
-    public function index(Request $request): View
+    public function index(Request $request, AdminBranchScope $branchScope): View
     {
-        $copies = BookCopy::query()
+        $copies = $branchScope->apply(BookCopy::query(), $request->user())
             ->with(['book.category', 'branch'])
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -39,12 +40,13 @@ class LibraryController extends Controller
 
         $issues = BookIssue::query()
             ->with(['student', 'bookCopy.book'])
+            ->whereHas('student', fn ($query) => $branchScope->apply($query, $request->user()))
             ->whereIn('status', ['issued', 'overdue'])
             ->orderBy('due_at')
             ->limit(50)
             ->get();
 
-        $students = Student::query()
+        $students = $branchScope->apply(Student::query(), $request->user())
             ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name', 'student_code']);
@@ -62,6 +64,13 @@ class LibraryController extends Controller
 
         $student = Student::findOrFail($data['student_id']);
         $copy = BookCopy::with('book')->findOrFail($data['book_copy_id']);
+
+        abort_unless(
+            $request->user()->isGlobalAdmin()
+            || ((int) $student->branch_id === (int) $request->user()->branch_id
+                && (int) $copy->branch_id === (int) $request->user()->branch_id),
+            403
+        );
 
         $issue = $this->circulation->issue(
             $student,

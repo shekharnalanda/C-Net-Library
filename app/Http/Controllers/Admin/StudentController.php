@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
+use App\Services\AuditService;
 use App\Support\AdminBranchScope;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class StudentController extends Controller
 {
@@ -49,5 +52,21 @@ class StudentController extends Controller
         ]);
 
         return view('admin.students.show', compact('student'));
+    }
+
+    public function rotateQr(Request $request, Student $student, AuditService $audit): RedirectResponse
+    {
+        $student->update([
+            'qr_token' => (string) Str::uuid(),
+        ]);
+
+        $audit->log(
+            action: 'student.qr_rotated',
+            auditable: $student,
+            newValues: ['qr_token' => '[ROTATED]'],
+            request: $request,
+        );
+
+        return back()->with('success', 'Student QR code has been rotated. The previous QR is no longer valid.');
     }
 }

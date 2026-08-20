@@ -54,6 +54,29 @@ Production `.env.example` uses database-backed sessions, cache, and queues. The 
 
 If a deployment already has framework runtime tables created outside this repository, confirm their schema before running or rolling back framework-table migrations.
 
+## Scheduler and queues
+
+Scheduled membership renewals depend on Laravel's scheduler. Production must invoke the scheduler every minute. On BigRock or another cron-based host, configure the equivalent of:
+
+```text
+* * * * * cd /absolute/path/to/cnet-library && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Use the actual PHP binary and absolute application path supplied by the host. Do not assume the CLI PHP version matches the web PHP version; both must satisfy the application's PHP requirement.
+
+The scheduler currently runs `memberships:activate-scheduled` daily at 00:05 application time. If cron stops, future renewals remain pending/reserved and do not become active automatically. After deployment, verify the command manually with `php artisan memberships:activate-scheduled` and inspect its activated/skipped counts before relying on cron.
+
+`QUEUE_CONNECTION=database` requires a queue consumer for any queued jobs introduced or enabled. Prefer a supervised long-running `php artisan queue:work` process when the host supports it. If BigRock does not support persistent workers, use a host-supported cron invocation with bounded execution, such as `php artisan queue:work --stop-when-empty --tries=3`, at an appropriate interval. Do not run both unmanaged worker strategies simultaneously without understanding duplicate process behavior.
+
+Operational checks:
+
+- Run `php artisan schedule:list` after deployment and confirm `memberships:activate-scheduled` is registered.
+- Run `php artisan queue:failed` regularly when database queues are enabled.
+- Investigate failed jobs before using `queue:retry`; retries must be safe/idempotent.
+- Review application logs for `Scheduled membership activation completed` and any seat-conflict warnings.
+- Monitor the `jobs` and `failed_jobs` tables for unexpected growth.
+- Restart long-running queue workers after every deployment so they load the new application code.
+
 ## Release gate
 
 Before production deployment, verify all of the following:
@@ -67,4 +90,7 @@ Before production deployment, verify all of the following:
 - Private digital resources are included in file backup.
 - Writable Laravel storage/cache directories are configured.
 - Public storage symlink exists where required by the hosting setup.
-- Queue worker/scheduler requirements, if enabled, are configured by the host.
+- A one-minute Laravel scheduler cron is configured and verified.
+- `php artisan schedule:list` shows scheduled membership activation.
+- Queue worker or bounded queue cron is configured before enabling queued features.
+- `jobs` and `failed_jobs` operational monitoring has an owner/process.

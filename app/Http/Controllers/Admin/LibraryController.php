@@ -11,6 +11,7 @@ use App\Services\AuditService;
 use App\Services\LibraryCirculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class LibraryController extends Controller
@@ -91,26 +92,72 @@ class LibraryController extends Controller
         return back()->with('success', 'Book issued successfully.');
     }
 
-    public function return(BookIssue $bookIssue, AuditService $audit): RedirectResponse
+    public function return(Request $request, BookIssue $bookIssue, AuditService $audit): RedirectResponse
     {
+        $data = $request->validate([
+            'return_condition' => ['nullable', Rule::in(['good', 'fair', 'damaged'])],
+        ]);
+
         $bookIssue->loadMissing(['student', 'bookCopy.book']);
         $oldValues = [
             'status' => $bookIssue->status,
             'due_at' => $bookIssue->due_at?->toDateString(),
             'returned_at' => $bookIssue->returned_at?->toDateString(),
+            'return_condition' => $bookIssue->return_condition,
             'fine_amount' => (float) $bookIssue->fine_amount,
+            'book_copy_status' => $bookIssue->bookCopy?->status,
         ];
 
-        $returnedIssue = $this->circulation->return($bookIssue, null, auth()->id());
+        $returnedIssue = $this->circulation->return(
+            $bookIssue,
+            null,
+            auth()->id(),
+            $data['return_condition'] ?? 'good',
+        );
 
         $audit->log('library.book.returned', $returnedIssue, $oldValues, [
             'status' => $returnedIssue->status,
             'returned_at' => $returnedIssue->returned_at?->toDateString(),
+            'return_condition' => $returnedIssue->return_condition,
             'fine_amount' => (float) $returnedIssue->fine_amount,
             'book_copy_id' => $returnedIssue->book_copy_id,
+            'book_copy_status' => $returnedIssue->bookCopy?->status,
             'student_id' => $returnedIssue->student_id,
         ]);
 
-        return back()->with('success', 'Book returned successfully. Fine calculated if overdue.');
+        return back()->with('success', 'Book return recorded. Fine calculated if overdue.');
+    }
+
+    public function lost(Request $request, BookIssue $bookIssue, AuditService $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'loss_charge' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'remarks' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $bookIssue->loadMissing(['student', 'bookCopy.book']);
+        $oldValues = [
+            'status' => $bookIssue->status,
+            'loss_charge' => (float) $bookIssue->loss_charge,
+            'book_copy_status' => $bookIssue->bookCopy?->status,
+        ];
+
+        $lostIssue = $this->circulation->markLost(
+            $bookIssue,
+            (float) ($data['loss_charge'] ?? 0),
+            auth()->id(),
+            $data['remarks'],
+        );
+
+        $audit->log('library.book.lost', $lostIssue, $oldValues, [
+            'status' => $lostIssue->status,
+            'loss_charge' => (float) $lostIssue->loss_charge,
+            'book_copy_id' => $lostIssue->book_copy_id,
+            'book_copy_status' => $lostIssue->bookCopy?->status,
+            'student_id' => $lostIssue->student_id,
+            'remarks' => $lostIssue->remarks,
+        ]);
+
+        return back()->with('success', 'Book marked lost. Copy is no longer available for circulation.');
     }
 }

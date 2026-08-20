@@ -87,4 +87,9 @@ class Student extends Model
     {
         return $this->hasMany(BookIssue::class);
     }
+
+    public function savedJobs()
+    {
+        return $this->belongsToMany(Job::class, 'saved_jobs')->withTimestamps();
+    }
 }

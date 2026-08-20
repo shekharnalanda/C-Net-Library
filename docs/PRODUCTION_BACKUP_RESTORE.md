@@ -86,7 +86,7 @@ For an existing deployment, do not jump straight to `php artisan migrate --force
 8. Run `php artisan migrate --force`.
 9. Run `php artisan migrate:status` and confirm every expected migration is applied exactly once. If an older deployment used renamed migration filenames, reconcile the `migrations` table before rerunning equivalent schema changes.
 10. Run `php artisan release:preflight` again against the fully migrated schema.
-11. Run `php artisan route:list`, `php artisan schedule:list`, and the application smoke checks before reopening traffic.
+11. Run `php artisan release:smoke`, `php artisan route:list`, and `php artisan schedule:list` before reopening traffic.
 
 If any migration fails, preserve the database and logs for diagnosis. Prefer a forward repair after review rather than an automatic production rollback.
 
@@ -111,10 +111,11 @@ Then run:
 
 ```text
 php artisan release:preflight
+php artisan release:smoke
 php artisan schedule:list
 ```
 
-`release:preflight` must report the resolved application timezone as acceptable and must not report production configuration/runtime-table failures. A passing preflight does not replace CI, migration review, or backup verification.
+`release:preflight` must report the resolved application timezone as acceptable and must not report production configuration/runtime-table failures. `release:smoke` checks non-destructive post-deployment boot contracts such as DB round-trip, critical route registration, scheduler registration, writable runtime paths and the public storage link. Neither command replaces CI, migration review, backup verification or browser smoke testing.
 
 ## HTTPS, reverse proxies and session cookies
 
@@ -178,6 +179,7 @@ Before production deployment, verify all of the following:
 - `CACHE_STORE=database` and `QUEUE_CONNECTION=database` match the intended production runtime design.
 - `php artisan optimize:clear` and `php artisan config:cache` have been run after final environment/config changes.
 - `php artisan release:preflight` passes on the production-like/staging environment before and after migrations as applicable.
+- `php artisan release:smoke` passes after migrations/config-cache refresh and before production traffic is reopened.
 - Database backup completed and restore procedure is known.
 - Private digital resources are included in file backup.
 - Writable Laravel storage/cache directories are configured.

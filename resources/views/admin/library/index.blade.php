@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Physical Library - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin-top:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.btn{display:inline-block;background:#111827;color:#fff;border:0;border-radius:8px;padding:9px 12px;text-decoration:none;cursor:pointer}.btn.green{background:#047857}.btn.blue{background:#2563eb}input,select{padding:9px;border:1px solid #d1d5db;border-radius:8px}.muted{color:#6b7280}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:800px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin-top:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px;vertical-align:top}.btn{display:inline-block;background:#111827;color:#fff;border:0;border-radius:8px;padding:9px 12px;text-decoration:none;cursor:pointer}.btn.green{background:#047857}.btn.blue{background:#2563eb}.btn.warn{background:#b45309}input,select,textarea{padding:9px;border:1px solid #d1d5db;border-radius:8px}.muted{color:#6b7280}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.actions{display:flex;gap:8px;flex-wrap:wrap}.inline-form{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.inline-form input,.inline-form select{max-width:150px}@media(max-width:800px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
     </style>
 </head>
 <body>
 <div class="wrap">
     <div class="top">
-        <div><h1 style="margin:0">Physical Library</h1><div class="muted">Books, copies, issue/return and fines</div></div>
+        <div><h1 style="margin:0">Physical Library</h1><div class="muted">Books, copies, issue/return, loss and fines</div></div>
         <a class="btn" href="{{ route('admin.dashboard') }}">Dashboard</a>
     </div>
 
@@ -68,7 +68,23 @@
                         <td>{{ $issue->due_at?->format('d M Y') }}</td>
                         <td>{{ $issue->due_at && $issue->due_at->lt(today()) ? 'Overdue' : ucfirst($issue->status) }}</td>
                         <td>
-                            <form method="POST" action="{{ route('admin.library.return', $issue) }}">@csrf<button class="btn green" type="submit">Return</button></form>
+                            <div class="actions">
+                                <form class="inline-form" method="POST" action="{{ route('admin.library.return', $issue) }}">
+                                    @csrf
+                                    <select name="return_condition" aria-label="Return condition">
+                                        <option value="good">Good</option>
+                                        <option value="fair">Fair</option>
+                                        <option value="damaged">Damaged</option>
+                                    </select>
+                                    <button class="btn green" type="submit">Return</button>
+                                </form>
+                                <form class="inline-form" method="POST" action="{{ route('admin.library.lost', $issue) }}">
+                                    @csrf
+                                    <input type="number" name="loss_charge" min="0" step="0.01" placeholder="Loss charge">
+                                    <input type="text" name="remarks" maxlength="1000" placeholder="Loss reason" required>
+                                    <button class="btn warn" type="submit">Mark Lost</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @empty

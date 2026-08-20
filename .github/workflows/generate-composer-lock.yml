@@ -22,7 +22,7 @@ jobs:
         run: composer validate --no-check-publish --no-check-lock
 
       - name: Generate lockfile
-        run: composer update --lock --no-interaction --prefer-dist --no-progress
+        run: composer update --no-interaction --prefer-dist --no-progress
 
       - name: Verify lockfile
         run: |

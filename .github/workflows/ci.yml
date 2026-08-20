@@ -35,6 +35,7 @@ jobs:
           cp .env.example .env
           php -r "file_exists('database/database.sqlite') || touch('database/database.sqlite');"
           php artisan key:generate
+          php artisan storage:link
 
       - name: Run migrations
         env:
@@ -42,11 +43,19 @@ jobs:
           DB_DATABASE: database/database.sqlite
         run: php artisan migrate --force
 
-      - name: Verify routes
+      - name: Verify routes and scheduler
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
-        run: php artisan route:list
+        run: |
+          php artisan route:list
+          php artisan schedule:list
+
+      - name: Run release smoke checks
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+        run: php artisan release:smoke
 
       - name: Run tests
         env:

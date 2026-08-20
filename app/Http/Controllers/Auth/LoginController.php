@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,6 +44,21 @@ class LoginController extends Controller
         ];
 
         if (! Auth::attempt($attemptCredentials, $remember)) {
+            RateLimiter::hit($key, 60);
+
+            return back()->withErrors([
+                'email' => 'Invalid login credentials or inactive account.',
+            ])->onlyInput('email');
+        }
+
+        $user = Auth::user();
+        if ($user?->role === 'student' && ! Student::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->exists()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
             RateLimiter::hit($key, 60);
 
             return back()->withErrors([

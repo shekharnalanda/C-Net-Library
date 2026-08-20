@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePaymentRequest;
 use App\Models\Payment;
+use App\Models\PaymentAdjustment;
 use App\Models\Student;
 use App\Models\StudentMembership;
 use App\Services\AuditService;
 use App\Services\ReceiptService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
@@ -27,9 +30,13 @@ class PaymentController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $alreadyPaid = (float) $membership->payments()
+            $grossPaid = (float) $membership->payments()
                 ->whereIn('payment_status', ['paid', 'partial'])
                 ->sum('amount');
+            $adjusted = (float) PaymentAdjustment::query()
+                ->whereHas('payment', fn ($query) => $query->where('student_membership_id', $membership->id))
+                ->sum('amount');
+            $alreadyPaid = max(0, $grossPaid - $adjusted);
 
             $due = max(0, (float) $membership->final_fee - $alreadyPaid);
             $amount = (float) $request->input('amount');
@@ -95,6 +102,46 @@ class PaymentController extends Controller
             ->with('success', 'Payment received successfully.');
     }
 
+    public function adjust(Request $request, Payment $payment, AuditService $auditService)
+    {
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['refund', 'reversal', 'correction'])],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $adjustment = DB::transaction(function () use ($payment, $data) {
+            $lockedPayment = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            abort_unless(in_array($lockedPayment->payment_status, ['paid', 'partial'], true), 422);
+
+            $alreadyAdjusted = (float) $lockedPayment->adjustments()->sum('amount');
+            $remainingAdjustable = max(0, (float) $lockedPayment->amount - $alreadyAdjusted);
+            $amount = (float) $data['amount'];
+
+            if ($amount > $remainingAdjustable) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Adjustment amount cannot exceed the unadjusted payment amount.',
+                ]);
+            }
+
+            return $lockedPayment->adjustments()->create([
+                'type' => $data['type'],
+                'amount' => $amount,
+                'reason' => $data['reason'],
+                'created_by' => auth()->id(),
+            ]);
+        });
+
+        $auditService->log(
+            action: 'payment.adjustment.created',
+            auditable: $adjustment,
+            newValues: $adjustment->only(['payment_id', 'type', 'amount', 'reason']),
+            request: $request,
+        );
+
+        return back()->with('success', 'Payment adjustment recorded. Original payment remains unchanged.');
+    }
+
     public function receipt(Payment $payment)
     {
         $payment->load([
@@ -102,21 +149,30 @@ class PaymentController extends Controller
             'membership.studySlot',
             'membership.feePlan',
             'receiver',
+            'adjustments.creator',
         ]);
 
-        $previousPaid = (float) Payment::query()
+        $previousGross = (float) Payment::query()
             ->where('student_membership_id', $payment->student_membership_id)
             ->where('id', '<', $payment->id)
             ->whereIn('payment_status', ['paid', 'partial'])
             ->sum('amount');
+        $previousAdjustments = (float) PaymentAdjustment::query()
+            ->whereHas('payment', fn ($query) => $query
+                ->where('student_membership_id', $payment->student_membership_id)
+                ->where('id', '<', $payment->id))
+            ->sum('amount');
+        $previousPaid = max(0, $previousGross - $previousAdjustments);
+        $currentAdjusted = (float) $payment->adjustments->sum('amount');
+        $currentNet = max(0, (float) $payment->amount - $currentAdjusted);
 
         $balanceDue = max(
             0,
-            (float) $payment->membership->final_fee - ($previousPaid + (float) $payment->amount)
+            (float) $payment->membership->final_fee - ($previousPaid + $currentNet)
         );
 
         return response()
-            ->view('admin.payments.receipt', compact('payment', 'previousPaid', 'balanceDue'))
+            ->view('admin.payments.receipt', compact('payment', 'previousPaid', 'balanceDue', 'currentAdjusted', 'currentNet'))
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('X-Robots-Tag', 'noindex, nofollow, noarchive');

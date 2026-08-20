@@ -73,6 +73,8 @@ class ReportsController extends Controller
 
         $membershipQuery = StudentMembership::query()
             ->where('status', 'active')
+            ->whereDate('start_date', '<=', today())
+            ->whereDate('expiry_date', '>=', today())
             ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
 
         $activeMembershipCount = (clone $membershipQuery)->count();
@@ -163,8 +165,8 @@ class ReportsController extends Controller
             'enquiries' => $enquiryCount,
             'crm_conversion_percent' => $enquiryCount > 0 ? round(($convertedEnquiries / $enquiryCount) * 100, 1) : 0,
             'books_available' => (clone $bookCopies)->where('status', 'available')->count(),
-            'books_issued' => (clone $bookIssues)->whereNull('returned_at')->count(),
-            'overdue_books' => (clone $bookIssues)->whereNull('returned_at')->whereDate('due_at', '<', today())->count(),
+            'books_issued' => (clone $bookIssues)->whereIn('status', ['issued', 'overdue'])->count(),
+            'overdue_books' => (clone $bookIssues)->whereIn('status', ['issued', 'overdue'])->whereDate('due_at', '<', today())->count(),
         ];
 
         $incomeCategories = collect([

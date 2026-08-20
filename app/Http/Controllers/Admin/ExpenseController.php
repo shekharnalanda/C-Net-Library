@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Expense;
 use App\Services\AuditService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -76,11 +77,21 @@ class ExpenseController extends Controller
             ]);
         }
 
-        $expense = Expense::create([
-            ...$data,
-            'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
-            'created_by' => auth()->id(),
-        ]);
+        try {
+            $expense = Expense::create([
+                ...$data,
+                'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
+                'created_by' => auth()->id(),
+            ]);
+        } catch (QueryException $exception) {
+            if ($transactionRef !== '' && in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
+                throw ValidationException::withMessages([
+                    'transaction_ref' => 'This expense transaction reference has already been recorded.',
+                ]);
+            }
+
+            throw $exception;
+        }
 
         $audit->log(
             action: 'expense.created',

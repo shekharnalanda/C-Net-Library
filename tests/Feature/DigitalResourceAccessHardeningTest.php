@@ -2,11 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Models\Branch;
 use App\Models\DigitalResource;
+use App\Models\FeePlan;
+use App\Models\Student;
+use App\Models\StudentMembership;
+use App\Models\StudySlot;
 use App\Services\DigitalResourceAccessService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class DigitalResourceAccessHardeningTest extends TestCase
@@ -40,6 +47,49 @@ class DigitalResourceAccessHardeningTest extends TestCase
         $this->assertDatabaseMissing('digital_resource_logs', [
             'digital_resource_id' => $resource->id,
         ]);
+    }
+
+    public function test_expired_membership_is_denied_for_member_resource_even_if_status_is_still_active(): void
+    {
+        $branch = Branch::query()->where('status', true)->firstOrFail();
+        $slot = StudySlot::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
+        $plan = FeePlan::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
+        $student = Student::create([
+            'branch_id' => $branch->id,
+            'student_code' => 'DIG-EXP-'.Str::upper(Str::random(6)),
+            'qr_token' => (string) Str::uuid(),
+            'name' => 'Expired Digital Student',
+            'mobile' => '9000000881',
+            'joining_date' => today()->subMonth(),
+            'status' => 'active',
+        ]);
+        StudentMembership::create([
+            'student_id' => $student->id,
+            'fee_plan_id' => $plan->id,
+            'study_slot_id' => $slot->id,
+            'start_date' => today()->subMonth(),
+            'expiry_date' => today()->subDay(),
+            'base_fee' => 1000,
+            'discount' => 0,
+            'final_fee' => 1000,
+            'status' => 'active',
+        ]);
+        $resource = DigitalResource::create([
+            'title' => 'Members Only Resource',
+            'slug' => 'members-only-expiry-test',
+            'resource_type' => 'link',
+            'external_url' => 'https://example.com/member-resource',
+            'access_type' => 'member',
+            'download_allowed' => false,
+            'status' => true,
+        ]);
+
+        try {
+            app(DigitalResourceAccessService::class)->assertCanAccess($resource, $student);
+            $this->fail('Expected expired membership access denial.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('resource', $exception->errors());
+        }
     }
 
     public function test_access_service_anonymizes_ipv4_addresses(): void

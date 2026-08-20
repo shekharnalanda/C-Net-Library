@@ -21,6 +21,10 @@ class SecurityHeadersTest extends TestCase
 
         $csp = (string) $response->headers->get('Content-Security-Policy');
         $this->assertStringContainsString("default-src 'self'", $csp);
+        $this->assertStringContainsString("object-src 'none'", $csp);
+        $this->assertStringContainsString("media-src 'self'", $csp);
+        $this->assertStringContainsString("worker-src 'self' blob:", $csp);
+        $this->assertStringContainsString("manifest-src 'self'", $csp);
         $this->assertStringContainsString('https://cdn.jsdelivr.net', $csp);
         $this->assertStringContainsString('upgrade-insecure-requests', $csp);
     }

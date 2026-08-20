@@ -27,13 +27,13 @@ class MigrationOrderSafetyTest extends TestCase
             $this->assertFileExists(database_path('migrations/'.$filename));
         }
 
-        $this->assertLessThan(strcmp($migrations['expense_unique'], $migrations['expenses']), 0);
-        $this->assertLessThan(strcmp($migrations['payment_unique'], $migrations['payments']), 0);
-        $this->assertLessThan(strcmp($migrations['expense_payroll_link'], $migrations['payrolls']), 0);
-        $this->assertLessThan(strcmp($migrations['expense_payroll_link'], $migrations['expenses']), 0);
-        $this->assertLessThan(strcmp($migrations['library_ledgers'], $migrations['book_copies']), 0);
-        $this->assertLessThan(strcmp($migrations['library_ledgers'], $migrations['book_issues']), 0);
-        $this->assertLessThan(strcmp($migrations['receipt_integrity'], $migrations['payments']), 0);
+        $this->assertTrue(strcmp($migrations['expenses'], $migrations['expense_unique']) < 0);
+        $this->assertTrue(strcmp($migrations['payments'], $migrations['payment_unique']) < 0);
+        $this->assertTrue(strcmp($migrations['payrolls'], $migrations['expense_payroll_link']) < 0);
+        $this->assertTrue(strcmp($migrations['expenses'], $migrations['expense_payroll_link']) < 0);
+        $this->assertTrue(strcmp($migrations['book_copies'], $migrations['library_ledgers']) < 0);
+        $this->assertTrue(strcmp($migrations['book_issues'], $migrations['library_ledgers']) < 0);
+        $this->assertTrue(strcmp($migrations['payments'], $migrations['receipt_integrity']) < 0);
     }
 
     public function test_runtime_support_rollback_is_intentionally_non_destructive(): void

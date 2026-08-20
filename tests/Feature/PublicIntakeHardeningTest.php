@@ -33,7 +33,7 @@ class PublicIntakeHardeningTest extends TestCase
         $this->assertDatabaseCount('admissions', 0);
     }
 
-    public function test_recent_active_admission_with_same_branch_and_mobile_is_rejected(): void
+    public function test_recent_active_admission_duplicate_does_not_reveal_reference(): void
     {
         $branch = Branch::factory()->create(['status' => true]);
         Admission::create([
@@ -50,7 +50,13 @@ class PublicIntakeHardeningTest extends TestCase
             'mobile' => '9000011001',
         ]);
 
-        $response->assertSessionHasErrors('mobile');
+        $response->assertRedirect(route('admission.create'));
+        $response->assertSessionHas('success');
+        $response->assertSessionMissing('errors');
+        $this->assertStringNotContainsString(
+            'CNL-ADM-2026-EXISTING',
+            (string) session('success')
+        );
         $this->assertDatabaseCount('admissions', 1);
     }
 
@@ -68,7 +74,7 @@ class PublicIntakeHardeningTest extends TestCase
         $this->assertDatabaseCount('enquiries', 0);
     }
 
-    public function test_recent_duplicate_enquiry_is_rejected_with_existing_reference(): void
+    public function test_recent_duplicate_enquiry_does_not_reveal_reference(): void
     {
         $branch = Branch::factory()->create(['status' => true]);
         $existing = Enquiry::create([
@@ -86,8 +92,53 @@ class PublicIntakeHardeningTest extends TestCase
         ]);
 
         $response->assertRedirect(route('enquiry.create'));
-        $response->assertSessionHasErrors('mobile');
+        $response->assertSessionHas('success');
+        $response->assertSessionMissing('errors');
+        $this->assertStringNotContainsString(
+            $existing->enquiry_no,
+            (string) session('success')
+        );
         $this->assertDatabaseCount('enquiries', 1);
-        $this->assertDatabaseHas('enquiries', ['id' => $existing->id]);
+    }
+
+    public function test_honeypot_blocks_public_admission_and_enquiry(): void
+    {
+        $branch = Branch::factory()->create(['status' => true]);
+
+        $this->post(route('admission.store'), [
+            'website' => 'https://spam.example',
+            'branch_id' => $branch->id,
+            'name' => 'Bot Applicant',
+            'mobile' => '9000011004',
+        ])->assertSessionHasErrors('website');
+
+        $this->post(route('enquiry.store'), [
+            'website' => 'https://spam.example',
+            'branch_id' => $branch->id,
+            'name' => 'Bot Lead',
+            'mobile' => '9000011005',
+        ])->assertSessionHasErrors('website');
+
+        $this->assertDatabaseCount('admissions', 0);
+        $this->assertDatabaseCount('enquiries', 0);
+    }
+
+    public function test_public_input_is_normalized_before_storage(): void
+    {
+        $branch = Branch::factory()->create(['status' => true]);
+
+        $this->post(route('enquiry.store'), [
+            'branch_id' => $branch->id,
+            'name' => '  Normalized Lead  ',
+            'mobile' => '90000 11006',
+            'email' => 'USER@EXAMPLE.COM',
+        ])->assertSessionHas('success');
+
+        $this->assertDatabaseHas('enquiries', [
+            'branch_id' => $branch->id,
+            'name' => 'Normalized Lead',
+            'mobile' => '9000011006',
+            'email' => 'user@example.com',
+        ]);
     }
 }

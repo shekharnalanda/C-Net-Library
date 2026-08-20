@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Receipt {{ $payment->receipt_no }} - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f3f4f6;margin:0;color:#111827}.wrap{max-width:760px;margin:32px auto;padding:0 16px}.receipt,.panel{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:28px;box-shadow:0 8px 26px rgba(15,23,42,.06);margin-bottom:18px}.head{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #111827;padding-bottom:18px;margin-bottom:20px}.muted{color:#6b7280}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px dashed #d1d5db}.total{font-weight:700;font-size:18px}.actions{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;background:#111827;color:#fff;text-decoration:none;cursor:pointer}.field{margin-bottom:12px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.history{width:100%;border-collapse:collapse}.history th,.history td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:14px}@media print{body{background:#fff}.wrap{margin:0;max-width:none;padding:0}.receipt{box-shadow:none;border:0}.actions,.panel{display:none}}@media(max-width:600px){.head,.grid{grid-template-columns:1fr;display:grid}.head{gap:8px}}
+        body{font-family:Arial,sans-serif;background:#f3f4f6;margin:0;color:#111827}.wrap{max-width:760px;margin:32px auto;padding:0 16px}.receipt,.panel{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:28px;box-shadow:0 8px 26px rgba(15,23,42,.06);margin-bottom:18px}.head{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #111827;padding-bottom:18px;margin-bottom:20px}.muted{color:#6b7280}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px dashed #d1d5db}.total{font-weight:700;font-size:18px}.actions{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;background:#111827;color:#fff;text-decoration:none;cursor:pointer}.field{margin-bottom:12px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.history{width:100%;border-collapse:collapse}.history th,.history td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:14px}.note{padding:12px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;margin-top:14px}@media print{body{background:#fff}.wrap{margin:0;max-width:none;padding:0}.receipt{box-shadow:none;border:0}.actions,.panel{display:none}}@media(max-width:600px){.head,.grid{grid-template-columns:1fr;display:grid}.head{gap:8px}}
     </style>
 </head>
 <body>
@@ -34,14 +34,10 @@
             <div><strong>Study Slot</strong><br>{{ $payment->membership?->studySlot?->name ?? '—' }}</div>
         </div>
 
-        <div class="row"><span>Total Membership Fee</span><strong>₹{{ number_format((float)$payment->membership?->final_fee, 2) }}</strong></div>
-        <div class="row"><span>Previous Net Paid</span><strong>₹{{ number_format($previousPaid, 2) }}</strong></div>
-        <div class="row"><span>Original Payment</span><strong>₹{{ number_format((float)$payment->amount, 2) }}</strong></div>
-        @if($currentAdjusted > 0)
-            <div class="row"><span>Adjustments Against This Payment</span><strong>-₹{{ number_format($currentAdjusted, 2) }}</strong></div>
-        @endif
-        <div class="row total"><span>Current Net Payment</span><span>₹{{ number_format($currentNet, 2) }}</span></div>
-        <div class="row"><span>Balance Due</span><strong>₹{{ number_format($balanceDue, 2) }}</strong></div>
+        <div class="row"><span>Total Membership Fee at Issue</span><strong>₹{{ number_format($membershipFeeAtIssue, 2) }}</strong></div>
+        <div class="row"><span>Previous Net Paid at Issue</span><strong>₹{{ number_format($previousPaid, 2) }}</strong></div>
+        <div class="row total"><span>Payment Received</span><span>₹{{ number_format((float)$payment->amount, 2) }}</span></div>
+        <div class="row"><span>Balance Due at Receipt Issue</span><strong>₹{{ number_format($balanceDue, 2) }}</strong></div>
         <div class="row"><span>Payment Mode</span><strong>{{ strtoupper(str_replace('_', ' ', $payment->payment_mode)) }}</strong></div>
         @if($payment->transaction_ref)
             <div class="row"><span>Transaction Ref</span><strong>{{ $payment->transaction_ref }}</strong></div>
@@ -52,15 +48,24 @@
             <p><strong>Remarks:</strong> {{ $payment->remarks }}</p>
         @endif
 
+        @if($currentAdjusted > 0)
+            <div class="note">
+                <strong>Post-receipt adjustments:</strong>
+                ₹{{ number_format($currentAdjusted, 2) }} adjusted after this receipt was issued.
+                Current net value of this payment is ₹{{ number_format($currentNet, 2) }}.
+                These later adjustments do not alter the original receipt figures above.
+            </div>
+        @endif
+
         @if($payment->adjustments->isNotEmpty())
-            <h3>Adjustment History</h3>
+            <h3>Adjustment / Reversal History</h3>
             <div style="overflow:auto">
                 <table class="history">
                     <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Reason</th><th>By</th></tr></thead>
                     <tbody>
                     @foreach($payment->adjustments as $adjustment)
                         <tr>
-                            <td>{{ $adjustment->adjustment_date?->format('d M Y') }}</td>
+                            <td>{{ $adjustment->created_at?->format('d M Y H:i') }}</td>
                             <td>{{ ucfirst($adjustment->type) }}</td>
                             <td>₹{{ number_format((float)$adjustment->amount, 2) }}</td>
                             <td>{{ $adjustment->reason }}</td>
@@ -72,13 +77,13 @@
             </div>
         @endif
 
-        <p class="muted" style="margin-top:24px">This is a computer-generated receipt. Original payment records are immutable; corrections are recorded as separate adjustments.</p>
+        <p class="muted" style="margin-top:24px">This is a computer-generated receipt. Original receipt figures are immutable; refunds, reversals and corrections are recorded separately.</p>
     </div>
 
     @if($currentNet > 0)
         <div class="panel">
             <h2 style="margin-top:0">Record Adjustment</h2>
-            <p class="muted">Use this for refunds, reversals or corrections. The original payment is not edited or deleted.</p>
+            <p class="muted">Use this for refunds, reversals or corrections. The original payment and receipt are not edited or deleted.</p>
             <form method="POST" action="{{ route('admin.payments.adjust', $payment) }}">
                 @csrf
                 <div class="grid">

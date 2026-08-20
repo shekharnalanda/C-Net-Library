@@ -131,11 +131,16 @@
                 <h2 style="margin-top:0">Collect Fee</h2>
                 @if($activeMembership)
                     @php
-                        $paid = (float)$activeMembership->payments->whereIn('payment_status',['paid','partial'])->sum('amount');
+                        $grossPaid = (float) $activeMembership->payments->whereIn('payment_status',['paid','partial'])->sum('amount');
+                        $adjusted = (float) $activeMembership->payments->sum(fn ($payment) => (float) $payment->adjustments->sum('amount'));
+                        $paid = max(0, $grossPaid - $adjusted);
                         $due = max(0, (float)$activeMembership->final_fee - $paid);
                     @endphp
                     <div class="field"><div class="label">Total Fee</div><div class="value">₹{{ number_format((float)$activeMembership->final_fee,2) }}</div></div>
-                    <div class="field"><div class="label">Paid</div><div class="value">₹{{ number_format($paid,2) }}</div></div>
+                    <div class="field"><div class="label">Paid (Net)</div><div class="value">₹{{ number_format($paid,2) }}</div></div>
+                    @if($adjusted > 0)
+                        <div class="field"><div class="label">Refunds / Adjustments</div><div class="value">₹{{ number_format($adjusted,2) }}</div></div>
+                    @endif
                     <div class="field"><div class="label">Due</div><div class="value">₹{{ number_format($due,2) }}</div></div>
 
                     @if($due > 0)

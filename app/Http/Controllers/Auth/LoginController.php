@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -16,7 +17,7 @@ class LoginController extends Controller
         return view('auth.login');
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
@@ -52,14 +53,37 @@ class LoginController extends Controller
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
-        if (auth()->user()->role === 'student') {
-            return redirect()->intended(route('student.dashboard'));
+        $fallback = auth()->user()->role === 'student'
+            ? route('student.dashboard')
+            : route('admin.dashboard');
+
+        $intended = $request->session()->pull('url.intended');
+
+        if (is_string($intended)) {
+            $parts = parse_url($intended);
+            $host = $parts['host'] ?? null;
+            $scheme = $parts['scheme'] ?? null;
+            $path = $parts['path'] ?? '/';
+            $query = isset($parts['query']) ? '?'.$parts['query'] : '';
+
+            $isRelative = $host === null
+                && $scheme === null
+                && str_starts_with($intended, '/')
+                && ! str_starts_with($intended, '//');
+
+            $isSameHost = $host !== null
+                && strcasecmp($host, $request->getHost()) === 0
+                && ($scheme === null || strcasecmp($scheme, $request->getScheme()) === 0);
+
+            if ($isRelative || $isSameHost) {
+                return redirect($path.$query);
+            }
         }
 
-        return redirect()->intended(route('admin.dashboard'));
+        return redirect($fallback);
     }
 
-    public function destroy(Request $request)
+    public function destroy(Request $request): RedirectResponse
     {
         Auth::logout();
         $request->session()->invalidate();

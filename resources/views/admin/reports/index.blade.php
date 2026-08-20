@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports & Analytics - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.label{font-size:12px;color:#6b7280;text-transform:uppercase}.metric{font-size:28px;font-weight:700;margin-top:6px}.muted{color:#6b7280}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:18px}.field label{display:block;font-size:12px;color:#6b7280;margin-bottom:5px}.field input{padding:9px;border:1px solid #d1d5db;border-radius:8px}.btn{background:#111827;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;text-decoration:none}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.section{margin-top:18px}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.label{font-size:12px;color:#6b7280;text-transform:uppercase}.metric{font-size:28px;font-weight:700;margin-top:6px}.muted{color:#6b7280}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:18px}.field label{display:block;font-size:12px;color:#6b7280;margin-bottom:5px}.field input,.field select{padding:9px;border:1px solid #d1d5db;border-radius:8px;min-width:170px}.btn{background:#111827;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;text-decoration:none}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.section{margin-top:18px}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
     </style>
 </head>
 <body>
@@ -18,6 +18,7 @@
     <form method="GET" class="card filters">
         <div class="field"><label>From</label><input type="date" name="from" value="{{ $from->toDateString() }}"></div>
         <div class="field"><label>To</label><input type="date" name="to" value="{{ $to->toDateString() }}"></div>
+        <div class="field"><label>Branch</label><select name="branch_id"><option value="">All Branches</option>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected($branchId == $branch->id)>{{ $branch->name }}</option>@endforeach</select></div>
         <button class="btn" type="submit">Apply Filter</button>
     </form>
 

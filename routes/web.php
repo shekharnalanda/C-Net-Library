@@ -122,7 +122,9 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
 
     Route::middleware('permission:communications.manage')->group(function () {
         Route::get('/communications', [CommunicationController::class, 'index'])->name('communications.index');
-        Route::post('/communications/templates', [CommunicationController::class, 'store'])->name('communications.templates.store');
+        Route::post('/communications/templates', [CommunicationController::class, 'store'])
+            ->middleware('global-admin')
+            ->name('communications.templates.store');
     });
 
     Route::middleware('permission:staff.manage')->group(function () {
@@ -133,7 +135,7 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
         Route::post('/staff/{staff}/payroll', [StaffController::class, 'payroll'])->name('staff.payroll');
     });
 
-    Route::middleware('permission:settings.manage')->group(function () {
+    Route::middleware(['permission:settings.manage', 'global-admin'])->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::get('/cms', [CmsController::class, 'index'])->name('cms.index');
@@ -144,7 +146,7 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
         Route::delete('/cms/gallery/{galleryItem}', [CmsController::class, 'destroyGallery'])->name('cms.gallery.destroy');
     });
 
-    Route::middleware('permission:roles.manage')->group(function () {
+    Route::middleware(['permission:roles.manage', 'global-admin'])->group(function () {
         Route::get('/security', [SecurityController::class, 'index'])->name('security.index');
         Route::patch('/security/roles/{role}', [SecurityController::class, 'updateRole'])->name('security.roles.update');
         Route::patch('/security/users/{user}/roles', [SecurityController::class, 'updateUserRoles'])->name('security.users.roles.update');

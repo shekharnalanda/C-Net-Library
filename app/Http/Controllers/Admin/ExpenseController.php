@@ -15,7 +15,9 @@ class ExpenseController extends Controller
     {
         $from = $request->filled('from') ? $request->date('from') : now()->startOfMonth();
         $to = $request->filled('to') ? $request->date('to') : today();
-        $branchId = $request->filled('branch_id') ? $request->integer('branch_id') : null;
+        $branchId = $request->user()->isGlobalAdmin()
+            ? ($request->filled('branch_id') ? $request->integer('branch_id') : null)
+            : (int) $request->user()->branch_id;
 
         $baseQuery = Expense::query()
             ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
@@ -34,9 +36,14 @@ class ExpenseController extends Controller
             ->orderByDesc('total')
             ->get();
 
+        $branches = Branch::query()->where('status', true);
+        if (! $request->user()->isGlobalAdmin()) {
+            $branches->whereKey($request->user()->branch_id);
+        }
+
         return view('admin.expenses.index', [
             'expenses' => $expenses,
-            'branches' => Branch::query()->where('status', true)->orderBy('name')->get(),
+            'branches' => $branches->orderBy('name')->get(),
             'from' => $from,
             'to' => $to,
             'branchId' => $branchId,
@@ -57,6 +64,10 @@ class ExpenseController extends Controller
             'transaction_ref' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        if (! $request->user()->isGlobalAdmin()) {
+            $data['branch_id'] = $request->user()->branch_id;
+        }
 
         $transactionRef = trim((string) ($data['transaction_ref'] ?? ''));
         if ($transactionRef !== '' && Expense::query()->where('transaction_ref', $transactionRef)->exists()) {

@@ -23,6 +23,7 @@ class EnquiryController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
+            'website' => ['nullable', 'string', 'max:0'],
             'branch_id' => [
                 'nullable',
                 Rule::exists('branches', 'id')->where(fn ($query) => $query->where('status', true)),
@@ -35,7 +36,17 @@ class EnquiryController extends Controller
             'message' => ['nullable', 'string', 'max:3000'],
         ]);
 
-        $data['mobile'] = trim((string) $data['mobile']);
+        unset($data['website']);
+        $data['name'] = trim((string) $data['name']);
+        $data['mobile'] = preg_replace('/\s+/', '', trim((string) $data['mobile']));
+        $data['email'] = isset($data['email']) && $data['email'] !== ''
+            ? strtolower(trim((string) $data['email']))
+            : null;
+        $data['source'] = isset($data['source']) && $data['source'] !== '' ? trim((string) $data['source']) : null;
+        $data['interested_plan'] = isset($data['interested_plan']) && $data['interested_plan'] !== ''
+            ? trim((string) $data['interested_plan'])
+            : null;
+        $data['message'] = isset($data['message']) && $data['message'] !== '' ? trim((string) $data['message']) : null;
 
         $existing = Enquiry::query()
             ->where('branch_id', $data['branch_id'] ?? null)
@@ -46,11 +57,7 @@ class EnquiryController extends Controller
             ->first();
 
         if ($existing) {
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'mobile' => "A recent enquiry already exists for this mobile number. Reference: {$existing->enquiry_no}.",
-                ]);
+            return back()->with('success', 'Your enquiry has been received. Our team will follow up if needed.');
         }
 
         $data['enquiry_no'] = $this->generateEnquiryNo();
@@ -58,7 +65,7 @@ class EnquiryController extends Controller
 
         Enquiry::create($data);
 
-        return back()->with('success', 'Your enquiry has been submitted. Reference: '.$data['enquiry_no']);
+        return back()->with('success', 'Your enquiry has been submitted successfully.');
     }
 
     private function generateEnquiryNo(): string

@@ -46,7 +46,28 @@ class DigitalResourceAccessService
             'student_id' => $student?->id,
             'action' => $action,
             'accessed_at' => now(),
-            'ip_address' => $ipAddress,
+            'ip_address' => $this->anonymizeIp($ipAddress),
         ]);
+    }
+
+    private function anonymizeIp(?string $ipAddress): ?string
+    {
+        if (! $ipAddress || filter_var($ipAddress, FILTER_VALIDATE_IP) === false) {
+            return null;
+        }
+
+        if (filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $parts = explode('.', $ipAddress);
+            $parts[3] = '0';
+
+            return implode('.', $parts);
+        }
+
+        $packed = @inet_pton($ipAddress);
+        if ($packed === false) {
+            return null;
+        }
+
+        return inet_ntop(substr($packed, 0, 8).str_repeat("\0", 8)) ?: null;
     }
 }

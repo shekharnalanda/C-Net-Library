@@ -53,6 +53,7 @@ class StudentActivationController extends Controller
             ->firstOrFail();
 
         abort_if(! $student->user || $student->user->role !== 'student', 404);
+        abort_if($student->status !== 'active' || ! $student->user->status, 410, 'This student portal account is inactive.');
         abort_if(! $student->portal_activation_expires_at || $student->portal_activation_expires_at->isPast(), 410, 'Activation link has expired.');
         abort_if($student->portal_activated_at, 410, 'Student portal is already activated.');
 

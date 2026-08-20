@@ -5,18 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Security - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:28px auto;padding:0 18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.btn{background:#111827;color:#fff;border:0;border-radius:9px;padding:9px 12px;cursor:pointer}.muted{color:#6b7280}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.perm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.users{display:grid;gap:12px}.row{border:1px solid #e5e7eb;border-radius:10px;padding:12px}@media(max-width:850px){.grid{grid-template-columns:1fr}.perm{grid-template-columns:1fr}}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:28px auto;padding:0 18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.btn{background:#111827;color:#fff;border:0;border-radius:9px;padding:9px 12px;cursor:pointer}.muted{color:#6b7280}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.perm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.users{display:grid;gap:12px}.row{border:1px solid #e5e7eb;border-radius:10px;padding:12px}.field{margin:10px 0}.field select{width:100%;box-sizing:border-box;padding:9px;border:1px solid #d1d5db;border-radius:8px;margin-top:5px}@media(max-width:850px){.grid{grid-template-columns:1fr}.perm{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
 <div class="wrap">
     <div style="display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:18px">
-        <div><h1 style="margin:0">Roles, Permissions & Audit</h1><div class="muted">Access control and security activity</div></div>
+        <div><h1 style="margin:0">Roles, Permissions & Audit</h1><div class="muted">Access control, branch assignment and security activity</div></div>
         <a href="{{ route('admin.dashboard') }}">Dashboard</a>
     </div>
 
     @if(session('success'))
         <div class="card" style="background:#f0fdf4;border-color:#86efac">{{ session('success') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="card" style="background:#fef2f2;border-color:#fca5a5"><ul style="margin:0;padding-left:18px">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
     @endif
 
     <div class="grid">
@@ -43,12 +46,24 @@
 
         <div>
             <div class="card">
-                <h2 style="margin-top:0">User Roles</h2>
+                <h2 style="margin-top:0">User Roles & Branch</h2>
+                <p class="muted">Super-admin users remain global. Branch-scoped backoffice users must have exactly one operating branch.</p>
                 <div class="users">
                     @foreach($users as $user)
                         <form class="row" method="POST" action="{{ route('admin.security.users.roles.update', $user) }}">
                             @csrf @method('PATCH')
-                            <strong>{{ $user->name }}</strong><div class="muted">{{ $user->email }}</div>
+                            <strong>{{ $user->name }}</strong><div class="muted">{{ $user->email }} · Legacy role: {{ $user->role ?: '—' }}</div>
+                            <div class="field">
+                                <label>Assigned Branch
+                                    <select name="branch_id">
+                                        <option value="">Global / None</option>
+                                        @foreach($branches as $branch)
+                                            <option value="{{ $branch->id }}" @selected((string)old('branch_id', $user->branch_id) === (string)$branch->id)>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                                <div class="muted">Required for branch-admin, reception, accountant, librarian, counselor and staff roles.</div>
+                            </div>
                             <div style="margin:10px 0">
                                 @foreach($roles as $role)
                                     <label style="display:block;margin:5px 0">
@@ -57,7 +72,7 @@
                                     </label>
                                 @endforeach
                             </div>
-                            <button class="btn" type="submit">Update Roles</button>
+                            <button class="btn" type="submit">Update Access</button>
                         </form>
                     @endforeach
                 </div>

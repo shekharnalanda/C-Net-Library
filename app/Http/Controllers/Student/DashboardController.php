@@ -40,7 +40,7 @@ class DashboardController extends Controller
             ->view('student.dashboard', compact('student', 'membership', 'paid', 'due', 'activeSeat', 'studyMinutes'))
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache')
-            ->header('X-Robots-Tag', 'noindex, nofollow, noarchive');
+            ->header('X-Robots-Tag', 'noindex, nofollow,noarchive');
     }
 
     public function idCard(Request $request, QrCodeService $qrCode): Response
@@ -50,7 +50,7 @@ class DashboardController extends Controller
             ->with(['branch', 'activeMembership.studySlot'])
             ->firstOrFail();
 
-        $scanUrl = route('admin.attendance.scan', ['token' => $student->qr_token]);
+        $scanUrl = route('admin.attendance.qr', ['token' => $student->qr_token]);
         $qrDataUri = $qrCode->svgDataUri($scanUrl);
 
         return response()

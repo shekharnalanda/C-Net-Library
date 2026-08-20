@@ -40,7 +40,8 @@ class PaymentController extends Controller
                     ->sum('amount');
                 $alreadyPaid = max(0, $grossPaid - $adjusted);
 
-                $due = max(0, (float) $membership->final_fee - $alreadyPaid);
+                $membershipFee = (float) $membership->final_fee;
+                $due = max(0, $membershipFee - $alreadyPaid);
                 $amount = (float) $request->input('amount');
 
                 if ($due <= 0) {
@@ -69,11 +70,16 @@ class PaymentController extends Controller
                     }
                 }
 
+                $balanceAfterPayment = max(0, $membershipFee - ($alreadyPaid + $amount));
+
                 return Payment::create([
                     'student_id' => $student->id,
                     'student_membership_id' => $membership->id,
                     'receipt_no' => $receiptService->generate(branchId: $student->branch_id),
                     'amount' => $amount,
+                    'receipt_previous_paid' => $alreadyPaid,
+                    'receipt_balance_due' => $balanceAfterPayment,
+                    'receipt_membership_fee' => $membershipFee,
                     'discount' => 0,
                     'late_fee' => 0,
                     'payment_date' => today(),
@@ -163,27 +169,41 @@ class PaymentController extends Controller
             'adjustments.creator',
         ]);
 
-        $previousGross = (float) Payment::query()
-            ->where('student_membership_id', $payment->student_membership_id)
-            ->where('id', '<', $payment->id)
-            ->whereIn('payment_status', ['paid', 'partial'])
-            ->sum('amount');
-        $previousAdjustments = (float) PaymentAdjustment::query()
-            ->whereHas('payment', fn ($query) => $query
+        if ($payment->receipt_previous_paid !== null
+            && $payment->receipt_balance_due !== null
+            && $payment->receipt_membership_fee !== null) {
+            $previousPaid = (float) $payment->receipt_previous_paid;
+            $balanceDue = (float) $payment->receipt_balance_due;
+            $membershipFeeAtIssue = (float) $payment->receipt_membership_fee;
+        } else {
+            // Legacy receipts created before immutable receipt snapshots were introduced.
+            $previousGross = (float) Payment::query()
                 ->where('student_membership_id', $payment->student_membership_id)
-                ->where('id', '<', $payment->id))
-            ->sum('amount');
-        $previousPaid = max(0, $previousGross - $previousAdjustments);
+                ->where('id', '<', $payment->id)
+                ->whereIn('payment_status', ['paid', 'partial'])
+                ->sum('amount');
+            $previousAdjustments = (float) PaymentAdjustment::query()
+                ->whereHas('payment', fn ($query) => $query
+                    ->where('student_membership_id', $payment->student_membership_id)
+                    ->where('id', '<', $payment->id))
+                ->sum('amount');
+            $previousPaid = max(0, $previousGross - $previousAdjustments);
+            $membershipFeeAtIssue = (float) $payment->membership->final_fee;
+            $balanceDue = max(0, $membershipFeeAtIssue - ($previousPaid + (float) $payment->amount));
+        }
+
         $currentAdjusted = (float) $payment->adjustments->sum('amount');
         $currentNet = max(0, (float) $payment->amount - $currentAdjusted);
 
-        $balanceDue = max(
-            0,
-            (float) $payment->membership->final_fee - ($previousPaid + $currentNet)
-        );
-
         return response()
-            ->view('admin.payments.receipt', compact('payment', 'previousPaid', 'balanceDue', 'currentAdjusted', 'currentNet'))
+            ->view('admin.payments.receipt', compact(
+                'payment',
+                'previousPaid',
+                'balanceDue',
+                'currentAdjusted',
+                'currentNet',
+                'membershipFeeAtIssue'
+            ))
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('X-Robots-Tag', 'noindex, nofollow, noarchive');

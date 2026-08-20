@@ -12,7 +12,7 @@
 <div class="wrap">
     <div class="top">
         <div><h1 style="margin:0">Reports & Analytics</h1><div class="muted">Operational snapshot for C-Net Library</div></div>
-        <a class="btn" href="{{ route('admin.dashboard') }}">Back to Dashboard</a>
+        <div><a class="btn" href="{{ route('admin.expenses.index') }}">Cashbook</a> <a class="btn" href="{{ route('admin.dashboard') }}">Back to Dashboard</a></div>
     </div>
 
     <form method="GET" class="card filters">
@@ -25,6 +25,8 @@
         <div class="card"><div class="label">Active Students</div><div class="metric">{{ number_format($metrics['students']) }}</div></div>
         <div class="card"><div class="label">Active Memberships</div><div class="metric">{{ number_format($metrics['active_memberships']) }}</div></div>
         <div class="card"><div class="label">Net Fee Collection</div><div class="metric">₹{{ number_format($metrics['collection'], 2) }}</div><div class="muted">Gross ₹{{ number_format($metrics['gross_collection'], 2) }} · Adjustments ₹{{ number_format($metrics['adjustments'], 2) }}</div></div>
+        <div class="card"><div class="label">Operating Expenses</div><div class="metric">₹{{ number_format($metrics['expenses'], 2) }}</div></div>
+        <div class="card"><div class="label">Closing Cash Position</div><div class="metric">₹{{ number_format($metrics['closing_balance'], 2) }}</div><div class="muted">Net collection − expenses</div></div>
         <div class="card"><div class="label">Current Due</div><div class="metric">₹{{ number_format($metrics['due'], 2) }}</div></div>
         <div class="card"><div class="label">Seat Occupancy</div><div class="metric">{{ $metrics['seat_occupancy_percent'] }}%</div><div class="muted">{{ $metrics['occupied_seats'] }} / {{ $metrics['total_seats'] }} seats</div></div>
         <div class="card"><div class="label">Study Hours</div><div class="metric">{{ number_format($metrics['study_hours'], 1) }}</div><div class="muted">Selected period</div></div>
@@ -36,20 +38,22 @@
     </div>
 
     <div class="card section">
-        <h2 style="margin-top:0">Daily Net Collection</h2>
+        <h2 style="margin-top:0">Daily Cash Position</h2>
         <div style="overflow:auto">
             <table class="table">
-                <thead><tr><th>Date</th><th>Gross</th><th>Adjustments</th><th>Net</th></tr></thead>
+                <thead><tr><th>Date</th><th>Gross</th><th>Adjustments</th><th>Net Collection</th><th>Expenses</th><th>Cash Position</th></tr></thead>
                 <tbody>
                 @forelse($dailyCollections as $row)
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($row->payment_date)->format('d M Y') }}</td>
                         <td>₹{{ number_format((float)$row->gross_total, 2) }}</td>
                         <td>₹{{ number_format((float)$row->adjustment_total, 2) }}</td>
-                        <td><strong>₹{{ number_format((float)$row->total, 2) }}</strong></td>
+                        <td>₹{{ number_format((float)$row->total, 2) }}</td>
+                        <td>₹{{ number_format((float)$row->expense_total, 2) }}</td>
+                        <td><strong>₹{{ number_format((float)$row->cash_balance, 2) }}</strong></td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="muted">No collection or adjustment recorded in this period.</td></tr>
+                    <tr><td colspan="6" class="muted">No finance activity recorded in this period.</td></tr>
                 @endforelse
                 </tbody>
             </table>

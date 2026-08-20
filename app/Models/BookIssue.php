@@ -10,8 +10,8 @@ class BookIssue extends Model
     use HasFactory;
 
     protected $fillable = [
-        'student_id','book_copy_id','issued_at','due_at','returned_at',
-        'fine_amount','fine_paid','status','issued_by','returned_by','remarks',
+        'student_id','book_copy_id','issued_at','due_at','returned_at','return_condition',
+        'fine_amount','fine_paid','loss_charge','status','issued_by','returned_by','remarks',
     ];
 
     protected $casts = [
@@ -20,6 +20,7 @@ class BookIssue extends Model
         'returned_at' => 'date',
         'fine_amount' => 'decimal:2',
         'fine_paid' => 'decimal:2',
+        'loss_charge' => 'decimal:2',
     ];
 
     public function student()

@@ -30,6 +30,7 @@ jobs:
       - name: Prepare Laravel runtime directories
         run: |
           mkdir -p bootstrap/cache
+          mkdir -p storage/app/public
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
 
       - name: Install dependencies

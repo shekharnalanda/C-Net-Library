@@ -11,6 +11,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $fillable = [
+        'branch_id',
         'name',
         'email',
         'password',
@@ -30,6 +31,11 @@ class User extends Authenticatable
             'password' => 'hashed',
             'status' => 'boolean',
         ];
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function roles()
@@ -59,6 +65,16 @@ class User extends Authenticatable
         return $this->roles()
             ->whereHas('permissions', fn ($query) => $query->where('slug', $permission))
             ->exists();
+    }
+
+    public function isGlobalAdmin(): bool
+    {
+        return $this->role === 'super_admin' || $this->roles()->where('slug', 'super-admin')->exists();
+    }
+
+    public function scopedBranchId(): ?int
+    {
+        return $this->isGlobalAdmin() ? null : $this->branch_id;
     }
 
     public function isAdmin(): bool

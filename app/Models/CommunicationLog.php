@@ -14,6 +14,7 @@ class CommunicationLog extends Model
         'student_id',
         'enquiry_id',
         'communication_template_id',
+        'idempotency_key',
         'channel',
         'recipient',
         'subject',

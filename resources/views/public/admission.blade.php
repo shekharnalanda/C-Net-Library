@@ -71,10 +71,11 @@
                                     <option value="">Select Slot</option>
                                     @foreach($studySlots as $slot)
                                         <option value="{{ $slot->id }}" @selected(old('study_slot_id') == $slot->id)>
-                                            {{ $slot->name }}
+                                            {{ $slot->name }}{{ $slot->branch?->name ? ' — '.$slot->branch->name : '' }}
                                         </option>
                                     @endforeach
                                 </select>
+                                <div class="form-text">Choose a slot from the same branch selected above.</div>
                             </div>
 
                             <div class="col-md-12">
@@ -83,10 +84,11 @@
                                     <option value="">Select Fee Plan</option>
                                     @foreach($feePlans as $plan)
                                         <option value="{{ $plan->id }}" @selected(old('fee_plan_id') == $plan->id)>
-                                            {{ $plan->name }} - ₹{{ number_format($plan->monthly_fee, 2) }}
+                                            {{ $plan->name }} - ₹{{ number_format($plan->monthly_fee, 2) }}{{ $plan->branch?->name ? ' — '.$plan->branch->name : '' }}
                                         </option>
                                     @endforeach
                                 </select>
+                                <div class="form-text">Only active plans for the selected branch can be submitted.</div>
                             </div>
 
                             <div class="col-12">

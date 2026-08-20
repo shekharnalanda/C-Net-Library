@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Student;
+use App\Services\AdminBranchScope;
 use App\Services\AttendanceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,10 +13,11 @@ use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, AdminBranchScope $branchScope): View
     {
         $attendances = Attendance::query()
             ->with(['student.branch'])
+            ->whereHas('student', fn ($query) => $branchScope->apply($query, $request->user()))
             ->when($request->filled('date'), fn ($query) => $query->whereDate('attendance_date', $request->date))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->string('search')->toString();
@@ -29,8 +31,16 @@ class AttendanceController extends Controller
             ->paginate(30)
             ->withQueryString();
 
-        $presentToday = Attendance::query()->whereDate('attendance_date', today())->distinct('student_id')->count('student_id');
-        $currentlyInside = Attendance::query()->whereNull('check_out_at')->count();
+        $presentToday = Attendance::query()
+            ->whereHas('student', fn ($query) => $branchScope->apply($query, $request->user()))
+            ->whereDate('attendance_date', today())
+            ->distinct('student_id')
+            ->count('student_id');
+
+        $currentlyInside = Attendance::query()
+            ->whereHas('student', fn ($query) => $branchScope->apply($query, $request->user()))
+            ->whereNull('check_out_at')
+            ->count();
 
         return view('admin.attendance.index', compact('attendances', 'presentToday', 'currentlyInside'));
     }

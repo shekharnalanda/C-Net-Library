@@ -17,6 +17,8 @@ class ReleaseSmokeCommandTest extends TestCase
         $this->assertStringContainsString('memberships:expire-due', $source);
         $this->assertStringContainsString('memberships:activate-scheduled', $source);
         $this->assertStringContainsString("public_path('storage')", $source);
+        $this->assertStringContainsString("storage_path('app/public')", $source);
+        $this->assertStringContainsString("realpath(\$publicStorage)", $source);
         $this->assertStringContainsString("DB::select('SELECT 1')", $source);
     }
 }

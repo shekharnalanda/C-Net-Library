@@ -3,13 +3,16 @@
 namespace App\Services;
 
 use App\Models\Admission;
+use Illuminate\Support\Str;
 
 class ApplicationNumberService
 {
     public function generate(): string
     {
-        $nextId = (int) Admission::max('id') + 1;
+        do {
+            $number = 'CNL-ADM-'.now()->format('Y').'-'.Str::upper(Str::random(8));
+        } while (Admission::query()->where('application_no', $number)->exists());
 
-        return sprintf('CNL-ADM-%s-%05d', now()->format('Y'), $nextId);
+        return $number;
     }
 }

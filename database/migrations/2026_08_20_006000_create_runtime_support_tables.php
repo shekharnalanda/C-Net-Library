@@ -77,11 +77,10 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('failed_jobs');
-        Schema::dropIfExists('job_batches');
-        Schema::dropIfExists('jobs');
-        Schema::dropIfExists('cache_locks');
-        Schema::dropIfExists('cache');
-        Schema::dropIfExists('sessions');
+        // Intentionally non-destructive. The up() method adopts pre-existing
+        // framework runtime tables via hasTable() guards, so this migration
+        // cannot know which tables it actually created. Dropping them during
+        // rollback could delete shared sessions, cache, queued jobs, or failed
+        // job history that existed before this application migration ran.
     }
 };

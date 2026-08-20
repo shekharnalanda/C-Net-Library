@@ -57,6 +57,33 @@ class StudentPortalAuthorizationTest extends TestCase
         $response->assertDontSee($secondStudent->student_code);
     }
 
+    public function test_inactive_linked_student_terminates_existing_portal_session(): void
+    {
+        [$user, $student] = $this->createStudentAccount('inactive-student@example.com', 'CNL-INACTIVE-STUDENT');
+        $student->update(['status' => 'inactive']);
+
+        $this->actingAs($user)
+            ->get(route('student.dashboard'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_inactive_student_cannot_use_activation_link(): void
+    {
+        [, $student] = $this->createStudentAccount('activation-inactive@example.com', 'CNL-ACT-INACTIVE');
+        $plainToken = Str::random(64);
+        $student->update([
+            'status' => 'inactive',
+            'portal_activation_token' => hash('sha256', $plainToken),
+            'portal_activation_expires_at' => now()->addHour(),
+            'portal_activated_at' => null,
+        ]);
+
+        $this->get(route('student.activate', $plainToken))->assertGone();
+    }
+
     public function test_student_portal_pages_are_not_cacheable_and_id_card_does_not_render_qr_secret(): void
     {
         [$user, $student] = $this->createStudentAccount('privacy-student@example.com', 'CNL-PRIVACY-STUDENT');

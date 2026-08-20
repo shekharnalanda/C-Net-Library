@@ -24,4 +24,14 @@ class AdminBranchScope
 
         return $branchId === null ? $query : $query->where($column, $branchId);
     }
+
+    public static function authorize(Request $request, ?int $resourceBranchId): void
+    {
+        $branchId = self::id($request);
+
+        abort_unless(
+            $branchId === null || (int) $resourceBranchId === $branchId,
+            403
+        );
+    }
 }

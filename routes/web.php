@@ -62,7 +62,7 @@ Route::middleware(['auth', 'student'])->prefix('student')->name('student.')->gro
     Route::delete('/saved-jobs/{job}', [SavedJobController::class, 'destroy'])->middleware('throttle:30,1')->name('saved-jobs.destroy');
 });
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
     Route::get('/reports', [ReportsController::class, 'index'])->middleware('permission:reports.view')->name('reports.index');
 

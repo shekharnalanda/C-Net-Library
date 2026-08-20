@@ -23,6 +23,18 @@ class Payroll extends Model
         'net_salary' => 'decimal:2',
     ];
 
-    public function staff() { return $this->belongsTo(Staff::class); }
-    public function processor() { return $this->belongsTo(User::class, 'processed_by'); }
+    public function staff()
+    {
+        return $this->belongsTo(Staff::class);
+    }
+
+    public function processor()
+    {
+        return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    public function expense()
+    {
+        return $this->hasOne(Expense::class);
+    }
 }

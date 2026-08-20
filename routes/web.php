@@ -87,11 +87,9 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
     Route::middleware('permission:students.manage')->group(function () {
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');
         Route::get('/students/{student}', [StudentController::class, 'show'])->name('students.show');
-        Route::post('/students/{student}/rotate-qr', [StudentController::class, 'rotateQr'])
-            ->middleware('throttle:10,1')
-            ->name('students.rotate-qr');
         Route::get('/students/{student}/renew', [MembershipRenewalController::class, 'create'])->name('students.renew.create');
         Route::post('/students/{student}/renew', [MembershipRenewalController::class, 'store'])->name('students.renew.store');
+        Route::post('/students/{student}/rotate-qr', [StudentController::class, 'rotateQr'])->name('students.rotate-qr');
         Route::get('/available-seats', SeatAvailabilityController::class)->name('seats.available');
     });
 
@@ -101,6 +99,7 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
         Route::post('/payments/{payment}/adjustments', [PaymentController::class, 'adjust'])->middleware('throttle:20,1')->name('payments.adjustments.store');
         Route::get('/cashbook', [ExpenseController::class, 'index'])->name('expenses.index');
         Route::post('/cashbook', [ExpenseController::class, 'store'])->middleware('throttle:30,1')->name('expenses.store');
+        Route::post('/cashbook/{expense}/adjustments', [ExpenseController::class, 'adjust'])->middleware('throttle:20,1')->name('expenses.adjustments.store');
     });
 
     Route::middleware('permission:attendance.manage')->group(function () {

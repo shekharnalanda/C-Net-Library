@@ -20,7 +20,9 @@ class SeatAvailabilityController extends Controller
             'allocated_to' => ['nullable', 'date', 'after_or_equal:allocated_from'],
         ]);
 
-        $slot = StudySlot::findOrFail($data['study_slot_id']);
+        $slot = StudySlot::query()->whereKey($data['study_slot_id'])->firstOrFail();
+        abort_unless((int) $slot->branch_id === (int) $data['branch_id'], 422, 'Study slot does not belong to the selected branch.');
+
         $from = $data['allocated_from'] ?? now()->toDateString();
         $to = $data['allocated_to'] ?? now()->addDays(30)->toDateString();
 

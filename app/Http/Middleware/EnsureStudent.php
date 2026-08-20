@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Student;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,13 +18,18 @@ class EnsureStudent
             abort(403, 'Student portal access only.');
         }
 
-        if (! $user->status) {
+        $studentIsActive = $user->status && Student::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->exists();
+
+        if (! $studentIsActive) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             return redirect()->route('login')
-                ->withErrors(['email' => 'This account is inactive.']);
+                ->withErrors(['email' => 'This student portal account is inactive.']);
         }
 
         return $next($request);

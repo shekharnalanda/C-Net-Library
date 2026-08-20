@@ -80,6 +80,8 @@ class DigitalResourceController extends Controller
 
     public function update(Request $request, DigitalResource $resource, AuditService $audit)
     {
+        $this->assertResourceBranch($request, $resource);
+
         $data = $this->validatedData($request);
         if (! $request->user()->isGlobalAdmin()) {
             $data['branch_id'] = $request->user()->branch_id;
@@ -117,8 +119,10 @@ class DigitalResourceController extends Controller
         return back()->with('success', 'Digital resource updated successfully.');
     }
 
-    public function destroy(DigitalResource $resource, AuditService $audit)
+    public function destroy(Request $request, DigitalResource $resource, AuditService $audit)
     {
+        $this->assertResourceBranch($request, $resource);
+
         $old = $resource->toArray();
         $filePath = $resource->file_path;
 
@@ -215,6 +219,15 @@ class DigitalResourceController extends Controller
         }
 
         Storage::disk('local')->delete($normalized);
+    }
+
+    private function assertResourceBranch(Request $request, DigitalResource $resource): void
+    {
+        abort_unless(
+            $request->user()->isGlobalAdmin()
+            || ((int) $resource->branch_id === (int) $request->user()->branch_id),
+            403
+        );
     }
 
     private function uniqueSlug(string $title, ?int $ignoreId = null): string

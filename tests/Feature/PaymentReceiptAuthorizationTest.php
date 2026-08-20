@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\FeePlan;
 use App\Models\Payment;
+use App\Models\Role;
 use App\Models\Student;
 use App\Models\StudentMembership;
 use App\Models\StudySlot;
@@ -33,6 +34,9 @@ class PaymentReceiptAuthorizationTest extends TestCase
             'branch_id' => $ownBranch->id,
             'role' => 'admin',
             'status' => true,
+        ]);
+        $admin->roles()->syncWithoutDetaching([
+            Role::query()->where('slug', 'branch-admin')->firstOrFail()->id,
         ]);
 
         $slot = StudySlot::factory()->create([

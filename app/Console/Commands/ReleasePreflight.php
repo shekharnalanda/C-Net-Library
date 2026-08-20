@@ -57,46 +57,52 @@ class ReleasePreflight extends Command
             $failures[] = 'QUEUE_CONNECTION must resolve to database for the production runtime design.';
         }
 
+        try {
+            DB::connection()->getPdo();
+            $this->line('Database connection: OK');
+        } catch (\Throwable $exception) {
+            $failures[] = 'Database connection failed: '.$exception->getMessage();
+
+            return $this->finish($failures);
+        }
+
         foreach (['sessions', 'cache', 'cache_locks', 'jobs', 'job_batches', 'failed_jobs'] as $table) {
             if (! Schema::hasTable($table)) {
                 $failures[] = "Required runtime table is missing: {$table}.";
             }
         }
 
+        $businessTables = ['payments', 'expenses', 'payrolls'];
+        foreach ($businessTables as $table) {
+            if (! Schema::hasTable($table)) {
+                $failures[] = "Required business table is missing: {$table}. Migration state is incomplete.";
+            }
+        }
+
         $duplicateChecks = [
-            'payments.transaction_ref' => Payment::query()
-                ->whereNotNull('transaction_ref')
-                ->where('transaction_ref', '<>', '')
-                ->select('transaction_ref')
-                ->groupBy('transaction_ref')
-                ->havingRaw('COUNT(*) > 1')
-                ->count(),
-            'expenses.transaction_ref' => Expense::query()
-                ->whereNotNull('transaction_ref')
-                ->where('transaction_ref', '<>', '')
-                ->select('transaction_ref')
-                ->groupBy('transaction_ref')
-                ->havingRaw('COUNT(*) > 1')
-                ->count(),
-            'payrolls.transaction_ref' => Payroll::query()
-                ->whereNotNull('transaction_ref')
-                ->where('transaction_ref', '<>', '')
-                ->select('transaction_ref')
-                ->groupBy('transaction_ref')
-                ->havingRaw('COUNT(*) > 1')
-                ->count(),
-            'library_charge_payments.transaction_ref' => LibraryChargePayment::query()
-                ->whereNotNull('transaction_ref')
-                ->where('transaction_ref', '<>', '')
-                ->select('transaction_ref')
-                ->groupBy('transaction_ref')
-                ->havingRaw('COUNT(*) > 1')
-                ->count(),
+            ['table' => 'payments', 'column' => 'transaction_ref', 'model' => Payment::class],
+            ['table' => 'expenses', 'column' => 'transaction_ref', 'model' => Expense::class],
+            ['table' => 'payrolls', 'column' => 'transaction_ref', 'model' => Payroll::class],
+            ['table' => 'library_charge_payments', 'column' => 'transaction_ref', 'model' => LibraryChargePayment::class],
         ];
 
-        foreach ($duplicateChecks as $field => $count) {
+        foreach ($duplicateChecks as $check) {
+            if (! Schema::hasTable($check['table']) || ! Schema::hasColumn($check['table'], $check['column'])) {
+                $this->warn("Skipping duplicate-reference check for {$check['table']}.{$check['column']} because the table/column is not present yet.");
+                continue;
+            }
+
+            $model = $check['model'];
+            $count = $model::query()
+                ->whereNotNull($check['column'])
+                ->where($check['column'], '<>', '')
+                ->select($check['column'])
+                ->groupBy($check['column'])
+                ->havingRaw('COUNT(*) > 1')
+                ->count();
+
             if ($count > 0) {
-                $failures[] = "Duplicate non-empty transaction references found in {$field}: {$count} duplicated values.";
+                $failures[] = "Duplicate non-empty transaction references found in {$check['table']}.{$check['column']}: {$count} duplicated values.";
             }
         }
 
@@ -109,15 +115,15 @@ class ReleasePreflight extends Command
             if ($missingPayrollExpenses > 0) {
                 $failures[] = "Paid payroll rows without linked cashbook expense: {$missingPayrollExpenses}. Run payroll:audit-reconciliation.";
             }
+        } else {
+            $this->warn('Skipping payroll-to-cashbook linkage check because the payroll linkage migration has not been applied yet.');
         }
 
-        try {
-            DB::connection()->getPdo();
-            $this->line('Database connection: OK');
-        } catch (\Throwable $exception) {
-            $failures[] = 'Database connection failed: '.$exception->getMessage();
-        }
+        return $this->finish($failures);
+    }
 
+    private function finish(array $failures): int
+    {
         if ($failures === []) {
             $this->info('Release preflight passed. This does not replace CI, schedule:list verification, or a verified backup/restore drill.');
 

@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\DigitalResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class DigitalResourceController extends Controller
 {
@@ -45,6 +46,32 @@ class DigitalResourceController extends Controller
 
         if (empty($data['file_path']) && empty($data['external_url'])) {
             return back()->withErrors(['resource' => 'Provide a private file path or external URL.'])->withInput();
+        }
+
+        if (! empty($data['file_path'])) {
+            $normalizedPath = ltrim(str_replace('\\', '/', $data['file_path']), '/');
+
+            if (
+                ! str_starts_with($normalizedPath, 'digital-resources/')
+                || str_contains($normalizedPath, '../')
+                || str_contains($normalizedPath, '/..')
+                || str_contains($normalizedPath, "\0")
+            ) {
+                throw ValidationException::withMessages([
+                    'file_path' => 'Private files must be stored inside the digital-resources directory.',
+                ]);
+            }
+
+            $data['file_path'] = $normalizedPath;
+        }
+
+        if (! empty($data['external_url'])) {
+            $scheme = strtolower((string) parse_url($data['external_url'], PHP_URL_SCHEME));
+            if (! in_array($scheme, ['http', 'https'], true)) {
+                throw ValidationException::withMessages([
+                    'external_url' => 'External resource URLs must use HTTP or HTTPS.',
+                ]);
+            }
         }
 
         $baseSlug = Str::slug($data['title']);

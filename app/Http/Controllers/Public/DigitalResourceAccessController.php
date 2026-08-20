@@ -32,19 +32,33 @@ class DigitalResourceAccessController extends Controller
             abort(403, 'Downloads are not allowed for this resource.');
         }
 
-        $access->log($resource, $action, $student, $request->ip());
-
         if ($resource->external_url) {
+            $scheme = strtolower((string) parse_url($resource->external_url, PHP_URL_SCHEME));
+            abort_unless(in_array($scheme, ['http', 'https'], true), 404);
+
+            $access->log($resource, $action, $student, $request->ip());
+
             return redirect()->away($resource->external_url);
         }
 
         abort_unless($resource->file_path, 404);
-        abort_unless(Storage::disk('local')->exists($resource->file_path), 404);
+
+        $path = ltrim(str_replace('\\', '/', $resource->file_path), '/');
+        abort_unless(
+            str_starts_with($path, 'digital-resources/')
+            && ! str_contains($path, '../')
+            && ! str_contains($path, '/..')
+            && ! str_contains($path, "\0"),
+            404
+        );
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        $access->log($resource, $action, $student, $request->ip());
 
         if ($action === 'download') {
-            return Storage::disk('local')->download($resource->file_path);
+            return Storage::disk('local')->download($path);
         }
 
-        return response()->file(Storage::disk('local')->path($resource->file_path));
+        return response()->file(Storage::disk('local')->path($path));
     }
 }

@@ -1,0 +1,42 @@
+name: Build Production Vendor
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, curl, dom, fileinfo, pdo_mysql, tokenizer
+          coverage: none
+
+      - name: Prepare Laravel runtime directories
+        run: |
+          mkdir -p bootstrap/cache
+          mkdir -p public
+          mkdir -p storage/app/public
+          mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
+
+      - name: Validate Composer files
+        run: composer validate --no-check-publish
+
+      - name: Install production dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+
+      - name: Package vendor directory
+        run: zip -r production-vendor.zip vendor
+
+      - name: Upload vendor artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-vendor
+          path: production-vendor.zip
+          retention-days: 7

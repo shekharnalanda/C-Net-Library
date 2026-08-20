@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\PaymentAdjustment;
 use App\Models\Student;
 use App\Services\QrCodeService;
 use Illuminate\Http\Request;
@@ -26,7 +27,11 @@ class DashboardController extends Controller
             ->firstOrFail();
 
         $membership = $student->activeMembership;
-        $paid = $membership ? (float) $membership->payments->whereIn('payment_status', ['paid', 'partial'])->sum('amount') : 0;
+        $grossPaid = $membership ? (float) $membership->payments->whereIn('payment_status', ['paid', 'partial'])->sum('amount') : 0;
+        $adjusted = $membership ? (float) PaymentAdjustment::query()
+            ->whereHas('payment', fn ($query) => $query->where('student_membership_id', $membership->id))
+            ->sum('amount') : 0;
+        $paid = max(0, $grossPaid - $adjusted);
         $due = $membership ? max(0, (float) $membership->final_fee - $paid) : 0;
         $activeSeat = $student->seatAllocations->firstWhere('status', 'active');
         $studyMinutes = (int) $student->attendances->sum('study_minutes');

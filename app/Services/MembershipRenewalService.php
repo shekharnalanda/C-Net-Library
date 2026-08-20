@@ -119,8 +119,9 @@ class MembershipRenewalService
             }
 
             if (! $startsInFuture && $currentAllocation) {
+                $releaseDate = $requestedStart->copy()->subDay();
                 $currentAllocation->update([
-                    'allocated_to' => today()->toDateString(),
+                    'allocated_to' => $releaseDate->toDateString(),
                     'status' => 'released',
                 ]);
             }

@@ -23,12 +23,8 @@ class ReceiptService
 
         return DB::transaction(function () use ($prefix, $branchId, $year, $series) {
             $query = DB::table('receipt_sequences')
-                ->where('year', $year)
-                ->where(function ($query) use ($branchId) {
-                    $branchId === null
-                        ? $query->whereNull('branch_id')
-                        : $query->where('branch_id', $branchId);
-                });
+                ->where('series_key', $series)
+                ->where('year', $year);
 
             $sequence = $query->lockForUpdate()->first();
 
@@ -36,6 +32,7 @@ class ReceiptService
                 try {
                     DB::table('receipt_sequences')->insert([
                         'branch_id' => $branchId,
+                        'series_key' => $series,
                         'year' => $year,
                         'last_number' => 0,
                         'created_at' => now(),

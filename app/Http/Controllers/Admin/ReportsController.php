@@ -11,6 +11,7 @@ use App\Models\Branch;
 use App\Models\Enquiry;
 use App\Models\Expense;
 use App\Models\ExpenseAdjustment;
+use App\Models\LibraryChargePayment;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Seat;
@@ -48,8 +49,15 @@ class ReportsController extends Controller
             ->whereBetween('created_at', [$from, $to])
             ->when($branchId, fn ($query) => $query->whereHas('payment.student', fn ($student) => $student->where('branch_id', $branchId)));
         $adjustments = (float) (clone $adjustmentQuery)->sum('amount');
+        $membershipIncome = max(0, $grossCollection - $adjustments);
 
-        $collection = max(0, $grossCollection - $adjustments);
+        $libraryIncomeQuery = LibraryChargePayment::query()
+            ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
+            ->when($branchId, fn ($query) => $query->whereHas('bookIssue.student', fn ($student) => $student->where('branch_id', $branchId)));
+        $libraryFineIncome = (float) (clone $libraryIncomeQuery)->where('charge_type', 'fine')->sum('amount');
+        $libraryLossIncome = (float) (clone $libraryIncomeQuery)->where('charge_type', 'loss')->sum('amount');
+        $libraryIncome = $libraryFineIncome + $libraryLossIncome;
+        $totalIncome = $membershipIncome + $libraryIncome;
 
         $expenseQuery = Expense::query()
             ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
@@ -61,7 +69,7 @@ class ReportsController extends Controller
                 ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId)));
         $expenseAdjustments = (float) (clone $expenseAdjustmentQuery)->sum('amount');
         $expenses = max(0, $grossExpenses - $expenseAdjustments);
-        $closingBalance = $collection - $expenses;
+        $closingBalance = $totalIncome - $expenses;
 
         $membershipQuery = StudentMembership::query()
             ->where('status', 'active')
@@ -133,9 +141,14 @@ class ReportsController extends Controller
         $metrics = [
             'students' => (clone $students)->count(),
             'active_memberships' => $activeMembershipCount,
-            'collection' => $collection,
+            'collection' => $membershipIncome,
+            'membership_income' => $membershipIncome,
             'gross_collection' => $grossCollection,
             'adjustments' => $adjustments,
+            'library_income' => $libraryIncome,
+            'library_fine_income' => $libraryFineIncome,
+            'library_loss_income' => $libraryLossIncome,
+            'total_income' => $totalIncome,
             'gross_expenses' => $grossExpenses,
             'expense_adjustments' => $expenseAdjustments,
             'expenses' => $expenses,
@@ -154,6 +167,12 @@ class ReportsController extends Controller
             'overdue_books' => (clone $bookIssues)->whereNull('returned_at')->whereDate('due_at', '<', today())->count(),
         ];
 
+        $incomeCategories = collect([
+            (object) ['category' => 'Membership', 'total' => $membershipIncome],
+            (object) ['category' => 'Library Fine', 'total' => $libraryFineIncome],
+            (object) ['category' => 'Lost Book Recovery', 'total' => $libraryLossIncome],
+        ])->filter(fn ($row) => (float) $row->total > 0)->values();
+
         $grossDaily = (clone $payments)
             ->selectRaw('payment_date, SUM(amount) as total')
             ->groupBy('payment_date')
@@ -163,6 +182,11 @@ class ReportsController extends Controller
             ->selectRaw('DATE(created_at) as adjustment_day, SUM(amount) as total')
             ->groupByRaw('DATE(created_at)')
             ->pluck('total', 'adjustment_day');
+
+        $dailyLibraryIncome = (clone $libraryIncomeQuery)
+            ->selectRaw('payment_date, SUM(amount) as total')
+            ->groupBy('payment_date')
+            ->pluck('total', 'payment_date');
 
         $dailyGrossExpenses = (clone $expenseQuery)
             ->selectRaw('expense_date, SUM(amount) as total')
@@ -178,31 +202,37 @@ class ReportsController extends Controller
         $dailyCollections = collect(array_unique(array_merge(
             $grossDaily->keys()->all(),
             $dailyAdjustments->keys()->all(),
+            $dailyLibraryIncome->keys()->all(),
             $dailyGrossExpenses->keys()->all(),
             $dailyExpenseAdjustments->keys()->all()
         )))
             ->sort()
             ->values()
-            ->map(function ($date) use ($grossDaily, $dailyAdjustments, $dailyGrossExpenses, $dailyExpenseAdjustments) {
+            ->map(function ($date) use ($grossDaily, $dailyAdjustments, $dailyLibraryIncome, $dailyGrossExpenses, $dailyExpenseAdjustments) {
                 $gross = (float) ($grossDaily[$date] ?? 0);
                 $adjustment = (float) ($dailyAdjustments[$date] ?? 0);
+                $membershipNet = max(0, $gross - $adjustment);
+                $library = (float) ($dailyLibraryIncome[$date] ?? 0);
+                $income = $membershipNet + $library;
                 $grossExpense = (float) ($dailyGrossExpenses[$date] ?? 0);
                 $expenseAdjustment = (float) ($dailyExpenseAdjustments[$date] ?? 0);
                 $expense = max(0, $grossExpense - $expenseAdjustment);
-                $net = max(0, $gross - $adjustment);
 
                 return (object) [
                     'payment_date' => $date,
-                    'total' => $net,
+                    'total' => $income,
+                    'membership_total' => $membershipNet,
+                    'library_total' => $library,
                     'gross_total' => $gross,
                     'adjustment_total' => $adjustment,
                     'expense_total' => $expense,
-                    'cash_balance' => $net - $expense,
+                    'cash_balance' => $income - $expense,
                 ];
             });
 
         return view('admin.reports.index', [
             'metrics' => $metrics,
+            'incomeCategories' => $incomeCategories,
             'dailyCollections' => $dailyCollections,
             'from' => $from,
             'to' => $to,

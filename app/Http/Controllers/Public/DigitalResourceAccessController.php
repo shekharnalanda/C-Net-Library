@@ -39,7 +39,13 @@ class DigitalResourceAccessController extends Controller
 
             $access->log($resource, $action, $student, $request->ip());
 
-            return redirect()->away($resource->external_url);
+            return redirect()
+                ->away($resource->external_url)
+                ->withHeaders([
+                    'Referrer-Policy' => 'no-referrer',
+                    'X-Robots-Tag' => 'noindex, nofollow, noarchive',
+                    'Cache-Control' => 'private, no-store',
+                ]);
         }
 
         abort_unless($resource->file_path, 404);

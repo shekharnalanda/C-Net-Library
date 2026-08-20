@@ -9,6 +9,7 @@ use App\Models\BookCopy;
 use App\Models\BookIssue;
 use App\Models\Enquiry;
 use App\Models\Payment;
+use App\Models\PaymentAdjustment;
 use App\Models\Seat;
 use App\Models\SeatAllocation;
 use App\Models\Student;
@@ -28,20 +29,32 @@ class ReportsController extends Controller
             ? Carbon::parse($request->string('to'))->endOfDay()
             : now()->endOfDay();
 
-        $payments = Payment::query()
-            ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()]);
-
-        $collection = (clone $payments)
+        $grossCollection = (float) Payment::query()
+            ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
             ->whereIn('payment_status', ['paid', 'partial'])
             ->sum('amount');
 
+        $adjustments = (float) PaymentAdjustment::query()
+            ->whereBetween('adjustment_date', [$from->toDateString(), $to->toDateString()])
+            ->sum('amount');
+
+        $collection = max(0, $grossCollection - $adjustments);
+
         $activeMemberships = StudentMembership::query()
             ->where('status', 'active')
-            ->withSum(['payments as paid_amount' => fn ($query) => $query->whereIn('payment_status', ['paid', 'partial'])], 'amount')
+            ->with([
+                'payments' => fn ($query) => $query
+                    ->whereIn('payment_status', ['paid', 'partial'])
+                    ->withSum('adjustments', 'amount'),
+            ])
             ->get();
 
         $totalDue = $activeMemberships->sum(function (StudentMembership $membership) {
-            return max(0, (float) $membership->final_fee - (float) ($membership->paid_amount ?? 0));
+            $netPaid = $membership->payments->sum(function (Payment $payment) {
+                return max(0, (float) $payment->amount - (float) ($payment->adjustments_sum_amount ?? 0));
+            });
+
+            return max(0, (float) $membership->final_fee - $netPaid);
         });
 
         $totalSeats = Seat::query()->where('status', true)->count();
@@ -79,7 +92,9 @@ class ReportsController extends Controller
         $metrics = [
             'students' => Student::query()->where('status', 'active')->count(),
             'active_memberships' => $activeMemberships->count(),
-            'collection' => (float) $collection,
+            'collection' => $collection,
+            'gross_collection' => $grossCollection,
+            'adjustments' => $adjustments,
             'due' => (float) $totalDue,
             'seat_occupancy_percent' => $totalSeats > 0 ? round(($occupiedSeats / $totalSeats) * 100, 1) : 0,
             'occupied_seats' => $occupiedSeats,
@@ -94,13 +109,30 @@ class ReportsController extends Controller
             'overdue_books' => BookIssue::query()->whereNull('returned_at')->whereDate('due_at', '<', today())->count(),
         ];
 
-        $dailyCollections = Payment::query()
+        $grossDaily = Payment::query()
             ->selectRaw('payment_date, SUM(amount) as total')
             ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
             ->whereIn('payment_status', ['paid', 'partial'])
             ->groupBy('payment_date')
-            ->orderBy('payment_date')
-            ->get();
+            ->pluck('total', 'payment_date');
+
+        $dailyAdjustments = PaymentAdjustment::query()
+            ->selectRaw('adjustment_date, SUM(amount) as total')
+            ->whereBetween('adjustment_date', [$from->toDateString(), $to->toDateString()])
+            ->groupBy('adjustment_date')
+            ->pluck('total', 'adjustment_date');
+
+        $dailyCollections = collect(array_unique(array_merge($grossDaily->keys()->all(), $dailyAdjustments->keys()->all())))
+            ->sort()
+            ->values()
+            ->map(function ($date) use ($grossDaily, $dailyAdjustments) {
+                return (object) [
+                    'payment_date' => $date,
+                    'total' => max(0, (float) ($grossDaily[$date] ?? 0) - (float) ($dailyAdjustments[$date] ?? 0)),
+                    'gross_total' => (float) ($grossDaily[$date] ?? 0),
+                    'adjustment_total' => (float) ($dailyAdjustments[$date] ?? 0),
+                ];
+            });
 
         return view('admin.reports.index', compact('metrics', 'dailyCollections', 'from', 'to'));
     }

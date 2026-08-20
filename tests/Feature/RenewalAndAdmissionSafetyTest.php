@@ -203,7 +203,7 @@ class RenewalAndAdmissionSafetyTest extends TestCase
             'name' => 'Collision Applicant',
             'mobile' => '9000000012',
             'email' => 'staff-collision@example.com',
-            'status' => 'pending',
+            'status' => 'new',
         ]);
 
         try {

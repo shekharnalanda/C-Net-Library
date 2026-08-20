@@ -9,6 +9,7 @@ use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Models\StaffLeave;
 use App\Models\StaffShift;
+use App\Services\AdminBranchScope;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,14 +18,32 @@ use Illuminate\View\View;
 
 class StaffController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, AdminBranchScope $branchScope): View
     {
-        $staff = Staff::with('branch')->latest()->paginate(25);
+        $staffQuery = $branchScope->apply(Staff::query(), $request->user());
+        $staff = (clone $staffQuery)->with('branch')->latest()->paginate(25);
+        $staffIds = (clone $staffQuery)->pluck('id');
+
         $shifts = StaffShift::where('status', true)->orderBy('name')->get();
-        $branches = Branch::where('status', true)->orderBy('name')->get();
-        $todayAttendance = StaffAttendance::with('staff')->whereDate('attendance_date', today())->latest()->get();
-        $pendingLeaves = StaffLeave::with('staff')->where('status', 'pending')->latest()->get();
-        $recentPayrolls = Payroll::with('staff')->latest()->limit(15)->get();
+        $branches = Branch::where('status', true)
+            ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->whereKey($request->user()->branch_id))
+            ->orderBy('name')
+            ->get();
+        $todayAttendance = StaffAttendance::with('staff')
+            ->whereIn('staff_id', $staffIds)
+            ->whereDate('attendance_date', today())
+            ->latest()
+            ->get();
+        $pendingLeaves = StaffLeave::with('staff')
+            ->whereIn('staff_id', $staffIds)
+            ->where('status', 'pending')
+            ->latest()
+            ->get();
+        $recentPayrolls = Payroll::with('staff')
+            ->whereIn('staff_id', $staffIds)
+            ->latest()
+            ->limit(15)
+            ->get();
 
         return view('admin.staff.index', compact(
             'staff', 'shifts', 'branches', 'todayAttendance', 'pendingLeaves', 'recentPayrolls'
@@ -42,6 +61,10 @@ class StaffController extends Controller
             'joining_date' => ['nullable', 'date'],
             'monthly_salary' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        if (! $request->user()->isGlobalAdmin()) {
+            $data['branch_id'] = $request->user()->branch_id;
+        }
 
         do {
             $code = 'CNL-STF-' . strtoupper(Str::random(6));
@@ -62,6 +85,8 @@ class StaffController extends Controller
 
     public function attendance(Request $request, Staff $staff, AuditService $audit): RedirectResponse
     {
+        $this->assertStaffBranch($request, $staff);
+
         $data = $request->validate([
             'staff_shift_id' => ['nullable', 'exists:staff_shifts,id'],
             'status' => ['required', 'in:present,absent,half_day,leave'],
@@ -87,6 +112,9 @@ class StaffController extends Controller
 
     public function leave(Request $request, StaffLeave $staffLeave, AuditService $audit): RedirectResponse
     {
+        $staffLeave->loadMissing('staff');
+        $this->assertStaffBranch($request, $staffLeave->staff);
+
         $data = $request->validate([
             'status' => ['required', 'in:approved,rejected'],
             'admin_remarks' => ['nullable', 'string', 'max:1000'],
@@ -105,6 +133,8 @@ class StaffController extends Controller
 
     public function payroll(Request $request, Staff $staff, AuditService $audit): RedirectResponse
     {
+        $this->assertStaffBranch($request, $staff);
+
         $data = $request->validate([
             'month' => ['required', 'integer', 'between:1,12'],
             'year' => ['required', 'integer', 'min:2020', 'max:2100'],
@@ -147,5 +177,14 @@ class StaffController extends Controller
         ]));
 
         return back()->with('success', 'Payroll record saved.');
+    }
+
+    private function assertStaffBranch(Request $request, Staff $staff): void
+    {
+        abort_unless(
+            $request->user()->isGlobalAdmin()
+            || (int) $staff->branch_id === (int) $request->user()->branch_id,
+            403
+        );
     }
 }

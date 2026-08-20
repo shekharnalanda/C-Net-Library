@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\Branch;
 use App\Models\Enquiry;
+use App\Models\Student;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Support\AdminBranchScope;
@@ -13,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class EnquiryController extends Controller
@@ -52,19 +54,42 @@ class EnquiryController extends Controller
 
     public function update(Request $request, Enquiry $enquiry, AuditService $audit): RedirectResponse
     {
+        if (in_array($enquiry->status, ['converted', 'lost'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Converted or lost enquiries are terminal records and cannot be reopened or edited.',
+            ]);
+        }
+
         $data = $request->validate([
-            'status' => ['required', 'in:new,contacted,follow_up,qualified,converted,lost'],
+            'status' => ['required', 'in:new,contacted,follow_up,qualified,lost'],
             'assigned_to' => ['nullable', 'exists:users,id'],
             'follow_up_date' => ['nullable', 'date'],
             'follow_up_notes' => ['nullable', 'string', 'max:3000'],
         ]);
 
-        if (! empty($data['assigned_to']) && ! $request->user()->isGlobalAdmin()) {
-            $validAssignee = User::query()
-                ->whereKey($data['assigned_to'])
-                ->where('branch_id', $request->user()->branch_id)
-                ->exists();
-            abort_unless($validAssignee, 403);
+        if (! empty($data['assigned_to'])) {
+            $assignee = User::query()->whereKey($data['assigned_to'])->firstOrFail();
+            $branchId = $enquiry->branch_id;
+
+            if ($branchId !== null && ! $assignee->isGlobalAdmin()) {
+                abort_unless((int) $assignee->branch_id === (int) $branchId, 403);
+            }
+
+            if (! $request->user()->isGlobalAdmin()) {
+                abort_unless((int) $assignee->branch_id === (int) $request->user()->branch_id, 403);
+            }
+        }
+
+        if ($data['status'] === 'follow_up' && empty($data['follow_up_date'])) {
+            throw ValidationException::withMessages([
+                'follow_up_date' => 'A follow-up date is required when the enquiry is in follow-up status.',
+            ]);
+        }
+
+        if ($data['status'] === 'lost' && trim((string) ($data['follow_up_notes'] ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'follow_up_notes' => 'A reason or note is required before marking an enquiry as lost.',
+            ]);
         }
 
         $old = $enquiry->only(['status', 'assigned_to', 'follow_up_date', 'follow_up_notes']);
@@ -80,33 +105,69 @@ class EnquiryController extends Controller
 
     public function convert(Enquiry $enquiry, AuditService $audit): RedirectResponse
     {
-        if ($enquiry->converted_admission_id) {
-            return redirect()->route('admin.admissions.show', $enquiry->converted_admission_id);
-        }
-
         $old = $enquiry->only(['status', 'converted_admission_id']);
 
         $admission = DB::transaction(function () use ($enquiry) {
+            $lockedEnquiry = Enquiry::query()
+                ->whereKey($enquiry->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedEnquiry->converted_admission_id) {
+                return Admission::query()->findOrFail($lockedEnquiry->converted_admission_id);
+            }
+
+            if ($lockedEnquiry->status === 'lost') {
+                throw ValidationException::withMessages([
+                    'enquiry' => 'A lost enquiry cannot be converted. Review and create a new enquiry if the prospect returns.',
+                ]);
+            }
+
+            $duplicateStudent = Student::query()
+                ->where('mobile', $lockedEnquiry->mobile)
+                ->when($lockedEnquiry->branch_id !== null, fn ($query) => $query->where('branch_id', $lockedEnquiry->branch_id))
+                ->where('status', 'active')
+                ->exists();
+
+            if ($duplicateStudent) {
+                throw ValidationException::withMessages([
+                    'enquiry' => 'An active student with this mobile number already exists in this branch.',
+                ]);
+            }
+
+            $duplicateAdmission = Admission::query()
+                ->where('mobile', $lockedEnquiry->mobile)
+                ->when($lockedEnquiry->branch_id !== null, fn ($query) => $query->where('branch_id', $lockedEnquiry->branch_id))
+                ->whereIn('status', ['new', 'under_review', 'approved', 'converted'])
+                ->exists();
+
+            if ($duplicateAdmission) {
+                throw ValidationException::withMessages([
+                    'enquiry' => 'An active admission record with this mobile number already exists in this branch.',
+                ]);
+            }
+
             $applicationNo = $this->generateApplicationNo();
 
             $admission = Admission::create([
-                'branch_id' => $enquiry->branch_id,
+                'branch_id' => $lockedEnquiry->branch_id,
                 'application_no' => $applicationNo,
-                'name' => $enquiry->name,
-                'mobile' => $enquiry->mobile,
-                'email' => $enquiry->email,
+                'name' => $lockedEnquiry->name,
+                'mobile' => $lockedEnquiry->mobile,
+                'email' => $lockedEnquiry->email,
                 'address' => null,
-                'status' => 'pending',
-                'remarks' => trim('Converted from enquiry '.$enquiry->enquiry_no.'. '.$enquiry->follow_up_notes),
+                'status' => 'new',
+                'remarks' => trim('Converted from enquiry '.$lockedEnquiry->enquiry_no.'. '.$lockedEnquiry->follow_up_notes),
             ]);
 
-            $enquiry->update([
+            $lockedEnquiry->update([
                 'status' => 'converted',
                 'converted_admission_id' => $admission->id,
+                'follow_up_date' => null,
             ]);
 
             return $admission;
-        });
+        }, 3);
 
         $enquiry->refresh();
         $audit->log('enquiry.converted_to_admission', $enquiry, $old, [
@@ -122,7 +183,7 @@ class EnquiryController extends Controller
     private function generateApplicationNo(): string
     {
         do {
-            $number = 'CNL-ADM-'.now()->format('Y').'-'.strtoupper(Str::random(6));
+            $number = 'CNL-ADM-'.now()->format('Y').'-'.strtoupper(Str::random(8));
         } while (Admission::query()->where('application_no', $number)->exists());
 
         return $number;

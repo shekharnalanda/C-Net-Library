@@ -61,15 +61,29 @@ class AdmissionApprovalService
 
             $studentCode = $this->generateStudentCode($branchId);
             $portalEmail = $admission->email ?: strtolower($studentCode).'@student.cnetlibrary.local';
-            $user = User::firstOrCreate(
-                ['email' => $portalEmail],
-                [
+            $user = User::query()->where('email', $portalEmail)->first();
+
+            if ($user && $user->role !== 'student') {
+                throw ValidationException::withMessages([
+                    'email' => 'This email is already used by a non-student account. Use a different student email before approving the admission.',
+                ]);
+            }
+
+            if ($user && Student::query()->where('user_id', $user->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'email' => 'This portal account is already linked to a student record.',
+                ]);
+            }
+
+            if (! $user) {
+                $user = User::create([
                     'name' => $admission->name,
+                    'email' => $portalEmail,
                     'password' => Str::random(64),
                     'role' => 'student',
                     'status' => true,
-                ]
-            );
+                ]);
+            }
 
             $activationToken = Str::random(64);
 

@@ -57,6 +57,23 @@ class StudentPortalAuthorizationTest extends TestCase
         $response->assertDontSee($secondStudent->student_code);
     }
 
+    public function test_student_portal_pages_are_not_cacheable_and_id_card_does_not_render_qr_secret(): void
+    {
+        [$user, $student] = $this->createStudentAccount('privacy-student@example.com', 'CNL-PRIVACY-STUDENT');
+
+        $dashboard = $this->actingAs($user)->get(route('student.dashboard'));
+        $dashboard->assertOk();
+        $dashboard->assertHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+        $dashboard->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+
+        $idCard = $this->actingAs($user)->get(route('student.id-card'));
+        $idCard->assertOk();
+        $idCard->assertHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+        $idCard->assertHeader('Referrer-Policy', 'no-referrer');
+        $idCard->assertDontSee($student->qr_token, false);
+        $idCard->assertDontSee(route('admin.attendance.scan', ['token' => $student->qr_token]), false);
+    }
+
     private function createStudentAccount(string $email, string $studentCode): array
     {
         $branch = Branch::query()->where('status', true)->firstOrFail();

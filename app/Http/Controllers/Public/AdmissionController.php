@@ -18,8 +18,8 @@ class AdmissionController extends Controller
     {
         return view('public.admission', [
             'branches' => Branch::query()->where('status', true)->orderBy('name')->get(),
-            'studySlots' => StudySlot::query()->where('status', true)->orderBy('name')->get(),
-            'feePlans' => FeePlan::query()->where('status', true)->orderBy('name')->get(),
+            'studySlots' => StudySlot::query()->with('branch')->where('status', true)->orderBy('name')->get(),
+            'feePlans' => FeePlan::query()->with('branch')->where('status', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -28,6 +28,25 @@ class AdmissionController extends Controller
         ApplicationNumberService $applicationNumbers
     ): RedirectResponse {
         $data = $request->validated();
+        $mobile = trim((string) $data['mobile']);
+
+        $existing = Admission::query()
+            ->where('branch_id', $data['branch_id'])
+            ->where('mobile', $mobile)
+            ->whereIn('status', ['new', 'under_review', 'approved'])
+            ->where('created_at', '>=', now()->subDays(7))
+            ->latest('id')
+            ->first();
+
+        if ($existing) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'mobile' => "An active application already exists for this mobile number. Reference: {$existing->application_no}.",
+                ]);
+        }
+
+        $data['mobile'] = $mobile;
         $data['application_no'] = $applicationNumbers->generate();
         $data['status'] = 'new';
 

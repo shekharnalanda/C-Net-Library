@@ -65,6 +65,8 @@ class Student extends Model
     {
         return $this->hasOne(StudentMembership::class)
             ->where('status', 'active')
+            ->whereDate('start_date', '<=', today())
+            ->whereDate('expiry_date', '>=', today())
             ->latestOfMany();
     }
 

@@ -3,6 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Models\Payment;
+use App\Models\PaymentAdjustment;
+use App\Models\Payroll;
+use App\Models\StaffLeave;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -53,10 +56,29 @@ class EnsureBranchScope
             return $model->student?->branch_id !== null ? (int) $model->student->branch_id : null;
         }
 
+        if ($model instanceof PaymentAdjustment) {
+            return $model->payment?->student?->branch_id !== null
+                ? (int) $model->payment->student->branch_id
+                : null;
+        }
+
+        if ($model instanceof StaffLeave || $model instanceof Payroll) {
+            return $model->staff?->branch_id !== null
+                ? (int) $model->staff->branch_id
+                : null;
+        }
+
         if (method_exists($model, 'student')) {
             $student = $model->getRelationValue('student');
             if ($student?->branch_id !== null) {
                 return (int) $student->branch_id;
+            }
+        }
+
+        if (method_exists($model, 'staff')) {
+            $staff = $model->getRelationValue('staff');
+            if ($staff?->branch_id !== null) {
+                return (int) $staff->branch_id;
             }
         }
 

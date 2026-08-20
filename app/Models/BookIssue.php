@@ -42,4 +42,9 @@ class BookIssue extends Model
     {
         return $this->belongsTo(User::class, 'returned_by');
     }
+
+    public function chargePayments()
+    {
+        return $this->hasMany(LibraryChargePayment::class);
+    }
 }

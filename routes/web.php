@@ -27,6 +27,7 @@ use App\Http\Controllers\Public\DigitalResourceAccessController;
 use App\Http\Controllers\Public\EnquiryController as PublicEnquiryController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\JobController as PublicJobController;
+use App\Http\Controllers\Public\JobRedirectController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\SavedJobController;
 use Illuminate\Support\Facades\Route;
@@ -34,13 +35,18 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/page/{page:slug}', [HomeController::class, 'page'])->name('public.page');
 Route::get('/digital-library', [PublicDigitalLibraryController::class, 'index'])->name('digital-library.index');
-Route::get('/digital-library/resources/{resource}', DigitalResourceAccessController::class)->name('digital-library.access');
+Route::get('/digital-library/resources/{resource}', DigitalResourceAccessController::class)
+    ->middleware('throttle:60,1')
+    ->name('digital-library.access');
 
 Route::get('/admission', [PublicAdmissionController::class, 'create'])->name('admission.create');
 Route::post('/admission', [PublicAdmissionController::class, 'store'])->middleware('throttle:8,1')->name('admission.store');
 Route::get('/enquiry', [PublicEnquiryController::class, 'create'])->name('enquiry.create');
 Route::post('/enquiry', [PublicEnquiryController::class, 'store'])->middleware('throttle:10,1')->name('enquiry.store');
 Route::get('/jobs', [PublicJobController::class, 'index'])->name('jobs.index');
+Route::get('/jobs/{job}/official', JobRedirectController::class)
+    ->middleware('throttle:60,1')
+    ->name('jobs.official');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');

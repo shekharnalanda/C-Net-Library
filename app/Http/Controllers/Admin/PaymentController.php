@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\StudentMembership;
 use App\Services\AuditService;
 use App\Services\ReceiptService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -23,65 +24,75 @@ class PaymentController extends Controller
         ReceiptService $receiptService,
         AuditService $auditService
     ) {
-        $payment = DB::transaction(function () use ($request, $student, $receiptService) {
-            $membership = StudentMembership::query()
-                ->whereKey($request->integer('student_membership_id'))
-                ->where('student_id', $student->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        try {
+            $payment = DB::transaction(function () use ($request, $student, $receiptService) {
+                $membership = StudentMembership::query()
+                    ->whereKey($request->integer('student_membership_id'))
+                    ->where('student_id', $student->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            $grossPaid = (float) $membership->payments()
-                ->whereIn('payment_status', ['paid', 'partial'])
-                ->sum('amount');
-            $adjusted = (float) PaymentAdjustment::query()
-                ->whereHas('payment', fn ($query) => $query->where('student_membership_id', $membership->id))
-                ->sum('amount');
-            $alreadyPaid = max(0, $grossPaid - $adjusted);
-
-            $due = max(0, (float) $membership->final_fee - $alreadyPaid);
-            $amount = (float) $request->input('amount');
-
-            if ($due <= 0) {
-                throw ValidationException::withMessages([
-                    'amount' => 'This membership has no outstanding balance.',
-                ]);
-            }
-
-            if ($amount > $due) {
-                throw ValidationException::withMessages([
-                    'amount' => 'Payment current due amount se zyada nahi ho sakta.',
-                ]);
-            }
-
-            $transactionRef = trim((string) $request->input('transaction_ref'));
-            if ($transactionRef !== '') {
-                $duplicateReference = Payment::query()
-                    ->where('transaction_ref', $transactionRef)
+                $grossPaid = (float) $membership->payments()
                     ->whereIn('payment_status', ['paid', 'partial'])
-                    ->exists();
+                    ->sum('amount');
+                $adjusted = (float) PaymentAdjustment::query()
+                    ->whereHas('payment', fn ($query) => $query->where('student_membership_id', $membership->id))
+                    ->sum('amount');
+                $alreadyPaid = max(0, $grossPaid - $adjusted);
 
-                if ($duplicateReference) {
+                $due = max(0, (float) $membership->final_fee - $alreadyPaid);
+                $amount = (float) $request->input('amount');
+
+                if ($due <= 0) {
                     throw ValidationException::withMessages([
-                        'transaction_ref' => 'This transaction reference has already been recorded.',
+                        'amount' => 'This membership has no outstanding balance.',
                     ]);
                 }
+
+                if ($amount > $due) {
+                    throw ValidationException::withMessages([
+                        'amount' => 'Payment current due amount se zyada nahi ho sakta.',
+                    ]);
+                }
+
+                $transactionRef = trim((string) $request->input('transaction_ref'));
+                if ($transactionRef !== '') {
+                    $duplicateReference = Payment::query()
+                        ->where('transaction_ref', $transactionRef)
+                        ->whereIn('payment_status', ['paid', 'partial'])
+                        ->exists();
+
+                    if ($duplicateReference) {
+                        throw ValidationException::withMessages([
+                            'transaction_ref' => 'This transaction reference has already been recorded.',
+                        ]);
+                    }
+                }
+
+                return Payment::create([
+                    'student_id' => $student->id,
+                    'student_membership_id' => $membership->id,
+                    'receipt_no' => $receiptService->generate(branchId: $student->branch_id),
+                    'amount' => $amount,
+                    'discount' => 0,
+                    'late_fee' => 0,
+                    'payment_date' => today(),
+                    'payment_mode' => $request->input('payment_mode'),
+                    'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
+                    'payment_status' => $amount >= $due ? 'paid' : 'partial',
+                    'received_by' => auth()->id(),
+                    'remarks' => $request->input('remarks'),
+                ]);
+            });
+        } catch (QueryException $exception) {
+            if ($this->isDuplicateTransactionReference($exception)) {
+                throw ValidationException::withMessages([
+                    'transaction_ref' => 'This transaction reference has already been recorded.',
+                ]);
             }
 
-            return Payment::create([
-                'student_id' => $student->id,
-                'student_membership_id' => $membership->id,
-                'receipt_no' => $receiptService->generate(branchId: $student->branch_id),
-                'amount' => $amount,
-                'discount' => 0,
-                'late_fee' => 0,
-                'payment_date' => today(),
-                'payment_mode' => $request->input('payment_mode'),
-                'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
-                'payment_status' => $amount >= $due ? 'paid' : 'partial',
-                'received_by' => auth()->id(),
-                'remarks' => $request->input('remarks'),
-            ]);
-        });
+            throw $exception;
+        }
 
         $auditService->log(
             action: 'payment.received',
@@ -176,5 +187,14 @@ class PaymentController extends Controller
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    }
+
+    private function isDuplicateTransactionReference(QueryException $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'payments_transaction_ref_unique')
+            || str_contains($message, 'payments.transaction_ref')
+            || str_contains($message, 'duplicate entry') && str_contains($message, 'transaction_ref');
     }
 }

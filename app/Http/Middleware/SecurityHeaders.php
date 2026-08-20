@@ -21,7 +21,7 @@ class SecurityHeaders
         $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
         $response->headers->set(
             'Content-Security-Policy',
-            "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline'; frame-src https://www.google.com https://maps.google.com; connect-src 'self'; upgrade-insecure-requests"
+            "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline'; media-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-src https://www.google.com https://maps.google.com; connect-src 'self'; upgrade-insecure-requests"
         );
 
         if ($this->shouldSendHsts($request)) {

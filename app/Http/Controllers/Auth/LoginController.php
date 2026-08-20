@@ -23,7 +23,8 @@ class LoginController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $key = Str::lower($credentials['email']).'|'.$request->ip();
+        $email = Str::lower(trim($credentials['email']));
+        $key = $email.'|'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
@@ -34,24 +35,22 @@ class LoginController extends Controller
         }
 
         $remember = $request->boolean('remember');
+        $attemptCredentials = [
+            'email' => $email,
+            'password' => $credentials['password'],
+            'status' => true,
+        ];
 
-        if (! Auth::attempt($credentials, $remember)) {
+        if (! Auth::attempt($attemptCredentials, $remember)) {
             RateLimiter::hit($key, 60);
 
             return back()->withErrors([
-                'email' => 'Invalid login credentials.',
+                'email' => 'Invalid login credentials or inactive account.',
             ])->onlyInput('email');
         }
 
         RateLimiter::clear($key);
         $request->session()->regenerate();
-
-        if (! auth()->user()->status) {
-            Auth::logout();
-            return back()->withErrors([
-                'email' => 'This account is inactive.',
-            ]);
-        }
 
         if (auth()->user()->role === 'student') {
             return redirect()->intended(route('student.dashboard'));

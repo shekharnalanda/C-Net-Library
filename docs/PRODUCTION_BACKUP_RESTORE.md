@@ -98,7 +98,7 @@ Production must set:
 APP_TIMEZONE=Asia/Kolkata
 ```
 
-Membership start/expiry dates, attendance dates, receipt dates, reservation expiry and the scheduled membership activation command all depend on the Laravel application timezone. The scheduler currently runs `memberships:activate-scheduled` at 00:05 application time, so leaving Laravel on UTC would shift activation into the wrong local-time window.
+Membership start/expiry dates, attendance dates, receipt dates, reservation expiry and the scheduled membership lifecycle commands all depend on the Laravel application timezone. The scheduler expires due memberships at 00:01 and activates due scheduled memberships at 00:05 application time, so leaving Laravel on UTC would shift both jobs into the wrong local-time window.
 
 After changing `.env` or deploying config changes, clear and rebuild Laravel's cached configuration before verification:
 
@@ -118,7 +118,7 @@ php artisan schedule:list
 
 ## Scheduler and queues
 
-Scheduled membership renewals depend on Laravel's scheduler. Production must invoke the scheduler every minute. On BigRock or another cron-based host, configure the equivalent of:
+Scheduled membership lifecycle handling depends on Laravel's scheduler. Production must invoke the scheduler every minute. On BigRock or another cron-based host, configure the equivalent of:
 
 ```text
 * * * * * cd /absolute/path/to/cnet-library && php artisan schedule:run >> /dev/null 2>&1
@@ -126,16 +126,25 @@ Scheduled membership renewals depend on Laravel's scheduler. Production must inv
 
 Use the actual PHP binary and absolute application path supplied by the host. Do not assume the CLI PHP version matches the web PHP version; both must satisfy the application's PHP requirement.
 
-The scheduler currently runs `memberships:activate-scheduled` daily at 00:05 application time. If cron stops, future renewals remain pending/reserved and do not become active automatically. After deployment, verify the command manually with `php artisan memberships:activate-scheduled` and inspect its activated/skipped counts before relying on cron.
+The scheduler runs `memberships:expire-due` daily at 00:01 and `memberships:activate-scheduled` daily at 00:05 application time. If cron stops, expired memberships may remain marked active in storage and future renewals remain pending/reserved. Date-aware application queries reduce stale-access risk, but cron is still required to reconcile stored status and release expired seat allocations.
+
+After deployment, verify both commands manually:
+
+```text
+php artisan memberships:expire-due
+php artisan memberships:activate-scheduled
+```
+
+Inspect their expired/activated/skipped counts before relying on cron.
 
 `QUEUE_CONNECTION=database` requires a queue consumer for any queued jobs introduced or enabled. Prefer a supervised long-running `php artisan queue:work` process when the host supports it. If BigRock does not support persistent workers, use a host-supported cron invocation with bounded execution, such as `php artisan queue:work --stop-when-empty --tries=3`, at an appropriate interval. Do not run both unmanaged worker strategies simultaneously without understanding duplicate process behavior.
 
 Operational checks:
 
-- Run `php artisan schedule:list` after deployment and confirm `memberships:activate-scheduled` is registered for 00:05 application time.
+- Run `php artisan schedule:list` after deployment and confirm `memberships:expire-due` is registered for 00:01 and `memberships:activate-scheduled` for 00:05 application time.
 - Run `php artisan queue:failed` regularly when database queues are enabled.
 - Investigate failed jobs before using `queue:retry`; retries must be safe/idempotent.
-- Review application logs for `Scheduled membership activation completed` and any seat-conflict warnings.
+- Review application logs for `Expired membership cleanup completed`, `Scheduled membership activation completed`, and any seat-conflict warnings.
 - Monitor the `jobs` and `failed_jobs` tables for unexpected growth.
 - Restart long-running queue workers after every deployment so they load the new application code.
 
@@ -159,6 +168,6 @@ Before production deployment, verify all of the following:
 - Finance duplicate-reference preflight has been completed before unique-index migrations.
 - `php artisan payroll:audit-reconciliation` has been reviewed for existing production data.
 - A one-minute Laravel scheduler cron is configured and verified.
-- `php artisan schedule:list` shows scheduled membership activation at 00:05 application time.
+- `php artisan schedule:list` shows membership expiry at 00:01 and scheduled membership activation at 00:05 application time.
 - Queue worker or bounded queue cron is configured before enabling queued features.
 - `jobs` and `failed_jobs` operational monitoring has an owner/process.

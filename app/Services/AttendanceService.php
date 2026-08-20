@@ -14,6 +14,12 @@ class AttendanceService
 
     public function checkIn(Student $student, int $markedBy, string $entryMethod = 'manual', ?string $remarks = null): Attendance
     {
+        if ($student->status !== 'active') {
+            throw ValidationException::withMessages([
+                'student' => 'Inactive students cannot check in.',
+            ]);
+        }
+
         $membership = $student->memberships()
             ->where('status', 'active')
             ->whereDate('start_date', '<=', today())

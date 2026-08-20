@@ -18,7 +18,7 @@ class ReceiptIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_receipt_numbers_are_sequential_per_branch_and_year(): void
+    public function test_receipt_numbers_are_sequential_and_globally_unique_across_branches(): void
     {
         $branchA = Branch::factory()->create(['status' => true]);
         $branchB = Branch::factory()->create(['status' => true]);
@@ -30,10 +30,21 @@ class ReceiptIntegrityTest extends TestCase
         $firstB = $service->generate('CNL', $branchB->id);
 
         $year = now()->format('Y');
+        $seriesA = 'B'.str_pad((string) $branchA->id, 6, '0', STR_PAD_LEFT);
+        $seriesB = 'B'.str_pad((string) $branchB->id, 6, '0', STR_PAD_LEFT);
 
-        $this->assertSame("CNL-{$year}-000001", $firstA);
-        $this->assertSame("CNL-{$year}-000002", $secondA);
-        $this->assertSame("CNL-{$year}-000001", $firstB);
+        $this->assertSame("CNL-{$seriesA}-{$year}-000001", $firstA);
+        $this->assertSame("CNL-{$seriesA}-{$year}-000002", $secondA);
+        $this->assertSame("CNL-{$seriesB}-{$year}-000001", $firstB);
+        $this->assertNotSame($firstA, $firstB);
+    }
+
+    public function test_receipt_prefix_is_normalized_and_global_series_is_explicit(): void
+    {
+        $receipt = app(ReceiptService::class)->generate(' C Net / Library ', null);
+        $year = now()->format('Y');
+
+        $this->assertSame("C-NET-LIBRARY-GLOBAL-{$year}-000001", $receipt);
     }
 
     public function test_receipt_snapshot_is_not_changed_by_later_adjustment(): void
@@ -75,7 +86,7 @@ class ReceiptIntegrityTest extends TestCase
         $payment = Payment::create([
             'student_id' => $student->id,
             'student_membership_id' => $membership->id,
-            'receipt_no' => 'CNL-'.now()->format('Y').'-000001',
+            'receipt_no' => 'TEST-SNAPSHOT-'.Str::upper(Str::random(8)),
             'amount' => 600,
             'receipt_previous_paid' => 0,
             'receipt_balance_due' => 400,

@@ -35,9 +35,9 @@ Route::get('/digital-library', [PublicDigitalLibraryController::class, 'index'])
 Route::get('/digital-library/resources/{resource}', DigitalResourceAccessController::class)->name('digital-library.access');
 
 Route::get('/admission', [PublicAdmissionController::class, 'create'])->name('admission.create');
-Route::post('/admission', [PublicAdmissionController::class, 'store'])->name('admission.store');
+Route::post('/admission', [PublicAdmissionController::class, 'store'])->middleware('throttle:8,1')->name('admission.store');
 Route::get('/enquiry', [PublicEnquiryController::class, 'create'])->name('enquiry.create');
-Route::post('/enquiry', [PublicEnquiryController::class, 'store'])->name('enquiry.store');
+Route::post('/enquiry', [PublicEnquiryController::class, 'store'])->middleware('throttle:10,1')->name('enquiry.store');
 Route::get('/jobs', [PublicJobController::class, 'index'])->name('jobs.index');
 
 Route::middleware('guest')->group(function () {
@@ -91,7 +91,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/students/{student}/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
         Route::post('/students/{student}/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
         Route::get('/attendance/scan', [QrAttendanceController::class, 'scan'])->name('attendance.scan');
-        Route::post('/attendance/scan/{student}', [QrAttendanceController::class, 'mark'])->name('attendance.scan.mark');
+        Route::post('/attendance/scan/{student}', [QrAttendanceController::class, 'mark'])->middleware('throttle:30,1')->name('attendance.scan.mark');
     });
 
     Route::middleware('permission:library.manage')->group(function () {

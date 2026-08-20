@@ -25,18 +25,27 @@ class AdmissionApprovalService
 
     public function approve(Admission $admission, array $data): Student
     {
-        if ($admission->status === 'converted') {
-            throw ValidationException::withMessages([
-                'admission' => 'This admission has already been converted to a student.',
-            ]);
-        }
-
         return DB::transaction(function () use ($admission, $data) {
+            $lockedAdmission = Admission::query()
+                ->whereKey($admission->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedAdmission->status === 'converted') {
+                throw ValidationException::withMessages([
+                    'admission' => 'This admission has already been converted to a student.',
+                ]);
+            }
+
             $feePlan = FeePlan::findOrFail($data['fee_plan_id']);
             $slot = StudySlot::findOrFail($data['study_slot_id']);
-            $seat = Seat::with('studyHall')->findOrFail($data['seat_id']);
+            $seat = Seat::query()
+                ->with('studyHall')
+                ->whereKey($data['seat_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
 
-            $branchId = $admission->branch_id ?? $feePlan->branch_id;
+            $branchId = $lockedAdmission->branch_id ?? $feePlan->branch_id;
 
             if ((int) $feePlan->branch_id !== (int) $branchId) {
                 throw ValidationException::withMessages(['fee_plan_id' => 'Selected fee plan does not belong to the admission branch.']);
@@ -60,7 +69,7 @@ class AdmissionApprovalService
             );
 
             $studentCode = $this->generateStudentCode($branchId);
-            $portalEmail = $admission->email ?: strtolower($studentCode).'@student.cnetlibrary.local';
+            $portalEmail = $lockedAdmission->email ?: strtolower($studentCode).'@student.cnetlibrary.local';
             $user = User::query()->where('email', $portalEmail)->first();
 
             if ($user && $user->role !== 'student') {
@@ -77,7 +86,7 @@ class AdmissionApprovalService
 
             if (! $user) {
                 $user = User::create([
-                    'name' => $admission->name,
+                    'name' => $lockedAdmission->name,
                     'email' => $portalEmail,
                     'password' => Str::random(64),
                     'role' => 'student',
@@ -94,13 +103,13 @@ class AdmissionApprovalService
                 'qr_token' => (string) Str::uuid(),
                 'portal_activation_token' => hash('sha256', $activationToken),
                 'portal_activation_expires_at' => now()->addDays(7),
-                'name' => $admission->name,
-                'father_name' => $admission->father_name,
-                'dob' => $admission->dob,
-                'gender' => $admission->gender,
-                'mobile' => $admission->mobile,
-                'email' => $admission->email,
-                'address' => $admission->address,
+                'name' => $lockedAdmission->name,
+                'father_name' => $lockedAdmission->father_name,
+                'dob' => $lockedAdmission->dob,
+                'gender' => $lockedAdmission->gender,
+                'mobile' => $lockedAdmission->mobile,
+                'email' => $lockedAdmission->email,
+                'address' => $lockedAdmission->address,
                 'joining_date' => $startDate->toDateString(),
                 'status' => 'active',
             ]);
@@ -138,11 +147,11 @@ class AdmissionApprovalService
                 'remarks' => $data['remarks'] ?? null,
             ]);
 
-            $admission->update([
+            $lockedAdmission->update([
                 'fee_plan_id' => $feePlan->id,
                 'study_slot_id' => $slot->id,
                 'status' => 'converted',
-                'remarks' => $data['remarks'] ?? $admission->remarks,
+                'remarks' => $data['remarks'] ?? $lockedAdmission->remarks,
             ]);
 
             return $student;

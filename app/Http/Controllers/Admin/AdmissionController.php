@@ -26,8 +26,9 @@ class AdmissionController extends Controller
         return view('admin.admissions.index', compact('admissions'));
     }
 
-    public function show(Admission $admission): View
+    public function show(Request $request, Admission $admission): View
     {
+        AdminBranchScope::authorize($request, $admission->branch_id);
         $admission->load(['branch', 'studySlot', 'feePlan']);
 
         $studySlots = StudySlot::query()
@@ -51,6 +52,8 @@ class AdmissionController extends Controller
         AdmissionApprovalService $approvalService,
         AuditService $auditService
     ): RedirectResponse {
+        AdminBranchScope::authorize($request, $admission->branch_id);
+
         $oldValues = $admission->only(['status', 'fee_plan_id', 'study_slot_id', 'remarks']);
         $student = $approvalService->approve($admission, $request->validated());
         $admission->refresh();

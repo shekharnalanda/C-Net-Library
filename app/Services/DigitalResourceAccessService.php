@@ -23,6 +23,10 @@ class DigitalResourceAccessService
             throw ValidationException::withMessages(['resource' => 'Student login is required for this resource.']);
         }
 
+        if ($student->status !== 'active') {
+            throw ValidationException::withMessages(['resource' => 'An active student account is required.']);
+        }
+
         $membership = $student->memberships()
             ->where('status', 'active')
             ->whereDate('start_date', '<=', today())

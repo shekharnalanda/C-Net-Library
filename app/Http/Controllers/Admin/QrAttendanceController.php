@@ -29,8 +29,6 @@ class QrAttendanceController extends Controller
         if ($student) {
             $challenge = $this->createChallenge($request, $student, $token);
             $request->session()->put('attendance_scan_challenge', $challenge);
-        } else {
-            $request->session()->put('attendance_scan_invalid', true);
         }
 
         return redirect()->route('admin.attendance.scan');

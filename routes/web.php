@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CommunicationController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DigitalResourceController;
 use App\Http\Controllers\Admin\EnquiryController as AdminEnquiryController;
+use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\JobController as AdminJobController;
 use App\Http\Controllers\Admin\LibraryController;
 use App\Http\Controllers\Admin\MembershipRenewalController;
@@ -89,6 +90,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/students/{student}/payments', [PaymentController::class, 'store'])->name('students.payments.store');
         Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
         Route::post('/payments/{payment}/adjustments', [PaymentController::class, 'adjust'])->middleware('throttle:20,1')->name('payments.adjustments.store');
+        Route::get('/cashbook', [ExpenseController::class, 'index'])->name('expenses.index');
+        Route::post('/cashbook', [ExpenseController::class, 'store'])->middleware('throttle:30,1')->name('expenses.store');
     });
 
     Route::middleware('permission:attendance.manage')->group(function () {

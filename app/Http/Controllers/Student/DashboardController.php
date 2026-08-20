@@ -7,11 +7,11 @@ use App\Models\PaymentAdjustment;
 use App\Models\Student;
 use App\Services\QrCodeService;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $student = Student::query()
             ->where('user_id', $request->user()->id)
@@ -36,10 +36,14 @@ class DashboardController extends Controller
         $activeSeat = $student->seatAllocations->firstWhere('status', 'active');
         $studyMinutes = (int) $student->attendances->sum('study_minutes');
 
-        return view('student.dashboard', compact('student', 'membership', 'paid', 'due', 'activeSeat', 'studyMinutes'));
+        return response()
+            ->view('student.dashboard', compact('student', 'membership', 'paid', 'due', 'activeSeat', 'studyMinutes'))
+            ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('X-Robots-Tag', 'noindex, nofollow, noarchive');
     }
 
-    public function idCard(Request $request, QrCodeService $qrCode): View
+    public function idCard(Request $request, QrCodeService $qrCode): Response
     {
         $student = Student::query()
             ->where('user_id', $request->user()->id)
@@ -49,6 +53,11 @@ class DashboardController extends Controller
         $scanUrl = route('admin.attendance.scan', ['token' => $student->qr_token]);
         $qrDataUri = $qrCode->svgDataUri($scanUrl);
 
-        return view('student.id-card', compact('student', 'scanUrl', 'qrDataUri'));
+        return response()
+            ->view('student.id-card', compact('student', 'qrDataUri'))
+            ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('X-Robots-Tag', 'noindex, nofollow, noarchive')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 }

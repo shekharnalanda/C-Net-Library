@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Job;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class JobController extends Controller
 {
@@ -51,6 +52,13 @@ class JobController extends Controller
             'is_featured' => ['nullable', 'boolean'],
             'status' => ['nullable', 'boolean'],
         ]);
+
+        $scheme = strtolower((string) parse_url($data['official_url'], PHP_URL_SCHEME));
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            throw ValidationException::withMessages([
+                'official_url' => 'Official job URLs must use HTTP or HTTPS.',
+            ]);
+        }
 
         $data['is_featured'] = $request->boolean('is_featured');
         $data['status'] = $request->has('status') ? $request->boolean('status') : true;

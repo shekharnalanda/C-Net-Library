@@ -119,6 +119,7 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
         Route::get('/library', [LibraryController::class, 'index'])->name('library.index');
         Route::post('/library/issue', [LibraryController::class, 'issue'])->name('library.issue');
         Route::post('/library/issues/{bookIssue}/return', [LibraryController::class, 'return'])->name('library.return');
+        Route::post('/library/issues/{bookIssue}/lost', [LibraryController::class, 'lost'])->name('library.lost');
     });
 
     Route::middleware('permission:digital-library.manage')->group(function () {

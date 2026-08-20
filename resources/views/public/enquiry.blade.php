@@ -21,6 +21,9 @@
 
         <form method="POST" action="{{ route('enquiry.store') }}">
             @csrf
+            <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden">
+                <label>Website<input type="text" name="website" value="" tabindex="-1" autocomplete="off"></label>
+            </div>
             <div class="grid">
                 <div class="field"><label>Name<input name="name" value="{{ old('name') }}" required></label></div>
                 <div class="field"><label>Mobile<input name="mobile" value="{{ old('mobile') }}" required></label></div>

@@ -59,10 +59,20 @@
                     <thead><tr><th>Date</th><th>Channel</th><th>Recipient</th><th>Template</th><th>Status</th></tr></thead>
                     <tbody>
                     @forelse($logs as $log)
+                        @php
+                            $recipient = (string) $log->recipient;
+                            if (str_contains($recipient, '@')) {
+                                [$local, $domain] = array_pad(explode('@', $recipient, 2), 2, '');
+                                $maskedRecipient = mb_substr($local, 0, 1).str_repeat('*', max(2, mb_strlen($local) - 1)).'@'.$domain;
+                            } else {
+                                $digits = preg_replace('/\D+/', '', $recipient) ?? '';
+                                $maskedRecipient = mb_strlen($digits) > 4 ? str_repeat('*', max(4, mb_strlen($digits) - 4)).mb_substr($digits, -4) : '****';
+                            }
+                        @endphp
                         <tr>
                             <td>{{ $log->created_at?->format('d M Y H:i') }}</td>
                             <td>{{ strtoupper($log->channel) }}</td>
-                            <td>{{ $log->recipient }}</td>
+                            <td>{{ $maskedRecipient }}</td>
                             <td>{{ $log->template?->name ?? 'Manual' }}</td>
                             <td>{{ ucfirst($log->status) }}</td>
                         </tr>

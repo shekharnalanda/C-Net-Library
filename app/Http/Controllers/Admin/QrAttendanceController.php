@@ -19,6 +19,7 @@ class QrAttendanceController extends Controller
             $student = Student::query()
                 ->with(['branch', 'activeMembership.studySlot'])
                 ->where('qr_token', $request->string('token'))
+                ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branchId()))
                 ->first();
         }
 

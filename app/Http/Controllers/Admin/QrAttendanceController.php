@@ -22,10 +22,12 @@ class QrAttendanceController extends Controller
             'token' => ['required', 'string', 'max:255'],
         ]);
 
+        $branchId = $request->user()->scopedBranchId();
+
         $student = Student::query()
             ->with(['branch', 'activeMembership.studySlot'])
             ->where('qr_token', $data['token'])
-            ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branchId()))
+            ->when($branchId !== null, fn ($query) => $query->where('branch_id', $branchId))
             ->first();
 
         return $this->scannerResponse($student, $student ? $data['token'] : null, true);

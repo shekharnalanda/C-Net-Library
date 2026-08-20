@@ -9,7 +9,9 @@ use App\Models\BookReservation;
 use App\Models\Branch;
 use App\Models\LibraryChargePayment;
 use App\Models\Student;
+use App\Models\User;
 use App\Services\LibraryCirculationService;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -19,9 +21,15 @@ class LibraryReservationAndChargeIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(DatabaseSeeder::class);
+    }
+
     public function test_reserved_copy_can_only_be_issued_to_reservation_owner(): void
     {
-        [$branch, $owner, $other, $copy] = $this->fixtures();
+        [, $owner, $other, $copy] = $this->fixtures();
 
         BookReservation::create([
             'book_copy_id' => $copy->id,
@@ -99,7 +107,8 @@ class LibraryReservationAndChargeIntegrityTest extends TestCase
 
     public function test_loss_charge_must_be_settled_before_recovery(): void
     {
-        [$branch, $student, , $copy] = $this->fixtures();
+        [, $student, , $copy] = $this->fixtures();
+        $admin = User::query()->where('role', 'super_admin')->firstOrFail();
         $issue = BookIssue::create([
             'student_id' => $student->id,
             'book_copy_id' => $copy->id,
@@ -110,7 +119,14 @@ class LibraryReservationAndChargeIntegrityTest extends TestCase
         ]);
         $copy->update(['status' => 'lost']);
 
-        $this->assertSame(0, LibraryChargePayment::query()->where('book_issue_id', $issue->id)->count());
+        $this->actingAs($admin)
+            ->post(route('admin.library.recover', $issue), [
+                'condition' => 'good',
+                'remarks' => 'Found before loss charge settlement',
+            ])
+            ->assertStatus(422);
+
+        $this->assertSame('lost', $issue->fresh()->status);
         $this->assertSame('lost', $copy->fresh()->status);
 
         LibraryChargePayment::create([
@@ -119,9 +135,19 @@ class LibraryReservationAndChargeIntegrityTest extends TestCase
             'amount' => 500,
             'payment_date' => today(),
             'payment_mode' => 'cash',
+            'received_by' => $admin->id,
         ]);
 
-        $this->assertSame(500.0, (float) LibraryChargePayment::query()->where('book_issue_id', $issue->id)->sum('amount'));
+        $this->actingAs($admin)
+            ->post(route('admin.library.recover', $issue), [
+                'condition' => 'good',
+                'remarks' => 'Book recovered after full settlement',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('returned', $issue->fresh()->status);
+        $this->assertSame('available', $copy->fresh()->status);
+        $this->assertSame('good', $copy->fresh()->condition);
     }
 
     private function fixtures(): array

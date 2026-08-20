@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -59,17 +60,27 @@ class RolePermissionSeeder extends Seeder
 
         $superAdminRole = Role::where('slug', 'super-admin')->first();
         $branchAdminRole = Role::where('slug', 'branch-admin')->first();
+        $defaultBranchId = Branch::query()
+            ->where('status', true)
+            ->orderBy('id')
+            ->value('id');
 
         if ($superAdminRole) {
-            User::where('role', 'super_admin')->each(
-                fn (User $user) => $user->roles()->syncWithoutDetaching([$superAdminRole->id])
-            );
+            User::where('role', 'super_admin')->each(function (User $user) use ($superAdminRole) {
+                $user->roles()->syncWithoutDetaching([$superAdminRole->id]);
+                if ($user->branch_id !== null) {
+                    $user->update(['branch_id' => null]);
+                }
+            });
         }
 
         if ($branchAdminRole) {
-            User::where('role', 'admin')->each(
-                fn (User $user) => $user->roles()->syncWithoutDetaching([$branchAdminRole->id])
-            );
+            User::where('role', 'admin')->each(function (User $user) use ($branchAdminRole, $defaultBranchId) {
+                $user->roles()->syncWithoutDetaching([$branchAdminRole->id]);
+                if ($user->branch_id === null && $defaultBranchId) {
+                    $user->update(['branch_id' => $defaultBranchId]);
+                }
+            });
         }
 
         foreach (['reception', 'accountant', 'librarian'] as $legacyRole) {
@@ -78,9 +89,12 @@ class RolePermissionSeeder extends Seeder
                 continue;
             }
 
-            User::where('role', $legacyRole)->each(
-                fn (User $user) => $user->roles()->syncWithoutDetaching([$pivotRole->id])
-            );
+            User::where('role', $legacyRole)->each(function (User $user) use ($pivotRole, $defaultBranchId) {
+                $user->roles()->syncWithoutDetaching([$pivotRole->id]);
+                if ($user->branch_id === null && $defaultBranchId) {
+                    $user->update(['branch_id' => $defaultBranchId]);
+                }
+            });
         }
     }
 }

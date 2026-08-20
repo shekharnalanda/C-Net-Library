@@ -82,7 +82,13 @@ class CmsController extends Controller
         $data = $request->validate([
             'title' => ['nullable', 'string', 'max:180'],
             'alt_text' => ['nullable', 'string', 'max:255'],
-            'image' => ['required', 'image', 'max:5120'],
+            'image' => [
+                'required',
+                'file',
+                'max:5120',
+                'mimes:jpg,jpeg,png,webp,gif',
+                'mimetypes:image/jpeg,image/png,image/webp,image/gif',
+            ],
         ]);
 
         $path = $request->file('image')->store('gallery', 'public');

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\DigitalResource;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -30,9 +32,95 @@ class DigitalResourceController extends Controller
         return view('admin.digital-resources.index', compact('resources', 'branches'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AuditService $audit)
     {
-        $data = $request->validate([
+        $data = $this->validatedData($request);
+
+        if (! $request->hasFile('resource_file') && empty($data['external_url'])) {
+            return back()->withErrors(['resource' => 'Upload a file or provide an external URL.'])->withInput();
+        }
+
+        $this->validateSourceChoice($request, $data);
+
+        $filePath = $this->storeUploadedFile($request);
+        $slug = $this->uniqueSlug($data['title']);
+
+        $resource = DigitalResource::create([
+            'branch_id' => $data['branch_id'] ?? null,
+            'title' => $data['title'],
+            'slug' => $slug,
+            'resource_type' => $data['resource_type'],
+            'category' => $data['category'] ?? null,
+            'description' => $data['description'] ?? null,
+            'file_path' => $filePath,
+            'external_url' => $data['external_url'] ?? null,
+            'access_type' => $data['access_type'],
+            'download_allowed' => $request->boolean('download_allowed'),
+            'status' => true,
+            'uploaded_by' => auth()->id(),
+        ]);
+
+        $audit->log('digital-resource.created', $resource, [], $resource->only([
+            'title', 'resource_type', 'file_path', 'external_url', 'access_type', 'download_allowed', 'status',
+        ]));
+
+        return back()->with('success', 'Digital resource added successfully.');
+    }
+
+    public function update(Request $request, DigitalResource $resource, AuditService $audit)
+    {
+        $data = $this->validatedData($request);
+        $this->validateSourceChoice($request, $data, $resource);
+
+        $old = $resource->toArray();
+        $oldFilePath = $resource->file_path;
+        $newFilePath = $this->storeUploadedFile($request);
+
+        $resource->update([
+            'branch_id' => $data['branch_id'] ?? null,
+            'title' => $data['title'],
+            'slug' => $this->uniqueSlug($data['title'], $resource->id),
+            'resource_type' => $data['resource_type'],
+            'category' => $data['category'] ?? null,
+            'description' => $data['description'] ?? null,
+            'file_path' => $newFilePath ?: ($data['external_url'] ?? null ? null : $oldFilePath),
+            'external_url' => $data['external_url'] ?? null,
+            'access_type' => $data['access_type'],
+            'download_allowed' => $request->boolean('download_allowed'),
+            'status' => $request->boolean('status'),
+        ]);
+
+        if ($newFilePath && $oldFilePath && $oldFilePath !== $newFilePath) {
+            $this->deletePrivateFile($oldFilePath);
+        }
+
+        if (! empty($data['external_url']) && $oldFilePath) {
+            $this->deletePrivateFile($oldFilePath);
+        }
+
+        $audit->log('digital-resource.updated', $resource, $old, $resource->fresh()->toArray());
+
+        return back()->with('success', 'Digital resource updated successfully.');
+    }
+
+    public function destroy(DigitalResource $resource, AuditService $audit)
+    {
+        $old = $resource->toArray();
+        $filePath = $resource->file_path;
+
+        $audit->log('digital-resource.deleted', $resource, $old, []);
+        $resource->delete();
+
+        if ($filePath) {
+            $this->deletePrivateFile($filePath);
+        }
+
+        return back()->with('success', 'Digital resource deleted successfully.');
+    }
+
+    private function validatedData(Request $request): array
+    {
+        return $request->validate([
             'branch_id' => ['nullable', 'exists:branches,id'],
             'title' => ['required', 'string', 'max:255'],
             'resource_type' => ['required', 'in:pdf,ebook,notes,question_paper,video,link'],
@@ -48,14 +136,16 @@ class DigitalResourceController extends Controller
             'external_url' => ['nullable', 'url', 'max:1000'],
             'access_type' => ['required', 'in:public,members,premium'],
             'download_allowed' => ['nullable', 'boolean'],
+            'status' => ['nullable', 'boolean'],
         ]);
+    }
 
-        if (! $request->hasFile('resource_file') && empty($data['external_url'])) {
-            return back()->withErrors(['resource' => 'Upload a file or provide an external URL.'])->withInput();
-        }
-
+    private function validateSourceChoice(Request $request, array $data, ?DigitalResource $resource = null): void
+    {
         if ($request->hasFile('resource_file') && ! empty($data['external_url'])) {
-            return back()->withErrors(['resource' => 'Choose either a file upload or an external URL, not both.'])->withInput();
+            throw ValidationException::withMessages([
+                'resource' => 'Choose either a file upload or an external URL, not both.',
+            ]);
         }
 
         if (! empty($data['external_url'])) {
@@ -73,40 +163,59 @@ class DigitalResourceController extends Controller
             ]);
         }
 
-        if ($data['resource_type'] !== 'link' && ! $request->hasFile('resource_file') && ! empty($data['external_url'])) {
-            // External videos/documents are allowed, but are always served through the secure access endpoint.
+        $hasExistingFile = $resource?->file_path && empty($data['external_url']);
+        $hasExistingUrl = $resource?->external_url && ! $request->hasFile('resource_file');
+
+        if (! $request->hasFile('resource_file') && empty($data['external_url']) && ! $hasExistingFile && ! $hasExistingUrl) {
+            throw ValidationException::withMessages([
+                'resource' => 'Upload a file or provide an external URL.',
+            ]);
         }
 
-        $filePath = null;
-        if ($request->hasFile('resource_file')) {
-            $file = $request->file('resource_file');
-            $extension = strtolower($file->getClientOriginalExtension());
-            $fileName = Str::uuid().($extension ? '.'.$extension : '');
-            $filePath = $file->storeAs('digital-resources', $fileName, 'local');
+        if ($data['resource_type'] === 'link' && empty($data['external_url']) && ! $hasExistingUrl) {
+            throw ValidationException::withMessages([
+                'external_url' => 'Link resources require an external URL.',
+            ]);
+        }
+    }
+
+    private function storeUploadedFile(Request $request): ?string
+    {
+        if (! $request->hasFile('resource_file')) {
+            return null;
         }
 
-        $baseSlug = Str::slug($data['title']);
+        $file = $request->file('resource_file');
+        $extension = strtolower($file->getClientOriginalExtension());
+        $fileName = Str::uuid().($extension ? '.'.$extension : '');
+
+        return $file->storeAs('digital-resources', $fileName, 'local');
+    }
+
+    private function deletePrivateFile(string $path): void
+    {
+        $normalized = ltrim(str_replace('\\', '/', $path), '/');
+
+        if (! str_starts_with($normalized, 'digital-resources/') || str_contains($normalized, '../')) {
+            return;
+        }
+
+        Storage::disk('local')->delete($normalized);
+    }
+
+    private function uniqueSlug(string $title, ?int $ignoreId = null): string
+    {
+        $baseSlug = Str::slug($title) ?: 'resource';
         $slug = $baseSlug;
         $counter = 2;
-        while (DigitalResource::where('slug', $slug)->exists()) {
+
+        while (DigitalResource::query()
+            ->where('slug', $slug)
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->exists()) {
             $slug = $baseSlug.'-'.$counter++;
         }
 
-        DigitalResource::create([
-            'branch_id' => $data['branch_id'] ?? null,
-            'title' => $data['title'],
-            'slug' => $slug,
-            'resource_type' => $data['resource_type'],
-            'category' => $data['category'] ?? null,
-            'description' => $data['description'] ?? null,
-            'file_path' => $filePath,
-            'external_url' => $data['external_url'] ?? null,
-            'access_type' => $data['access_type'],
-            'download_allowed' => $request->boolean('download_allowed'),
-            'status' => true,
-            'uploaded_by' => auth()->id(),
-        ]);
-
-        return back()->with('success', 'Digital resource added successfully.');
+        return $slug;
     }
 }

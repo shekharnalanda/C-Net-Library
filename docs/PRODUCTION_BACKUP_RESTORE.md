@@ -72,6 +72,24 @@ Historical salary expenses created manually before payroll-to-cashbook linking w
 
 Apply the same duplicate-reference preflight discipline to payment, expense, payroll and library-charge transaction-reference unique migrations. Do not delete financial rows merely to make an index migration pass; correct or annotate duplicates through an approved accounting process and retain the audit trail.
 
+## Safe existing-database upgrade sequence
+
+For an existing deployment, do not jump straight to `php artisan migrate --force` when the release contains financial unique indexes or reconciliation changes. Use this order:
+
+1. Deploy the new code to a production-like/staging copy of the existing database first.
+2. Run `php artisan release:preflight`. The command is schema-aware: it skips checks for tables/columns that do not exist yet instead of issuing invalid SQL, while still reporting incomplete core migration state.
+3. Run `php artisan payroll:audit-reconciliation` if the payroll tables are present.
+4. Review duplicate non-empty transaction references in payments, expenses, payrolls and library charge payments before their unique indexes are applied.
+5. Resolve duplicate financial references through an approved accounting reconciliation process. Do not delete ledger rows just to satisfy an index.
+6. Take the verified MySQL and storage backup.
+7. Put production into maintenance mode when required by the migration set.
+8. Run `php artisan migrate --force`.
+9. Run `php artisan migrate:status` and confirm every expected migration is applied exactly once. If an older deployment used renamed migration filenames, reconcile the `migrations` table before rerunning equivalent schema changes.
+10. Run `php artisan release:preflight` again against the fully migrated schema.
+11. Run `php artisan route:list`, `php artisan schedule:list`, and the application smoke checks before reopening traffic.
+
+If any migration fails, preserve the database and logs for diagnosis. Prefer a forward repair after review rather than an automatic production rollback.
+
 ## Application timezone and cached configuration
 
 Production must set:
@@ -133,7 +151,7 @@ Before production deployment, verify all of the following:
 - `SESSION_SECURE_COOKIE=true`.
 - `SESSION_DRIVER=database`, `CACHE_STORE=database`, and `QUEUE_CONNECTION=database` match the intended production runtime design.
 - `php artisan optimize:clear` and `php artisan config:cache` have been run after final environment/config changes.
-- `php artisan release:preflight` passes on the production-like/staging environment.
+- `php artisan release:preflight` passes on the production-like/staging environment before and after migrations as applicable.
 - Database backup completed and restore procedure is known.
 - Private digital resources are included in file backup.
 - Writable Laravel storage/cache directories are configured.

@@ -26,7 +26,7 @@
                     @csrf
                     <div class="field"><label>Name<input name="name" required value="{{ old('name') }}"></label></div>
                     <div class="field"><label>Role<input name="role" required value="{{ old('role','staff') }}"></label></div>
-                    <div class="field"><label>Branch<select name="branch_id"><option value="">Global / Not Assigned</option>@foreach($branches as $branch)<option value="{{ $branch->id }}">{{ $branch->name }}</option>@endforeach</select></label></div>
+                    <div class="field"><label>Branch<select name="branch_id" required>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected(old('branch_id', auth()->user()->branchId()) == $branch->id)>{{ $branch->name }}</option>@endforeach</select></label></div>
                     <div class="field"><label>Mobile<input name="mobile" value="{{ old('mobile') }}"></label></div>
                     <div class="field"><label>Email<input type="email" name="email" value="{{ old('email') }}"></label></div>
                     <div class="field"><label>Joining Date<input type="date" name="joining_date" value="{{ old('joining_date') }}"></label></div>

@@ -43,8 +43,11 @@ Route::get('/jobs', [PublicJobController::class, 'index'])->name('jobs.index');
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
-    Route::get('/student/activate/{token}', [StudentActivationController::class, 'show'])->name('student.activate');
-    Route::post('/student/activate/{token}', [StudentActivationController::class, 'store'])->name('student.activate.store');
+
+    Route::middleware('throttle:10,1')->group(function () {
+        Route::get('/student/activate/{token}', [StudentActivationController::class, 'show'])->name('student.activate');
+        Route::post('/student/activate/{token}', [StudentActivationController::class, 'store'])->name('student.activate.store');
+    });
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');

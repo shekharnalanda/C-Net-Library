@@ -2,10 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Models\FeePlan;
-use App\Models\StudySlot;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class StoreAdmissionRequest extends FormRequest
 {
@@ -16,50 +14,33 @@ class StoreAdmissionRequest extends FormRequest
 
     public function rules(): array
     {
+        $branchId = $this->input('branch_id');
+
         return [
-            'branch_id' => ['required', 'exists:branches,id'],
+            'website' => ['nullable', 'string', 'max:0'],
+            'branch_id' => [
+                'required',
+                Rule::exists('branches', 'id')->where(fn ($query) => $query->where('status', true)),
+            ],
             'name' => ['required', 'string', 'max:255'],
             'father_name' => ['nullable', 'string', 'max:255'],
-            'dob' => ['nullable', 'date', 'before:today'],
-            'gender' => ['nullable', 'string', 'max:30'],
+            'dob' => ['nullable', 'date', 'before_or_equal:today'],
+            'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
             'mobile' => ['required', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
-            'study_slot_id' => ['nullable', 'exists:study_slots,id'],
-            'fee_plan_id' => ['nullable', 'exists:fee_plans,id'],
+            'study_slot_id' => [
+                'nullable',
+                Rule::exists('study_slots', 'id')->where(fn ($query) => $query
+                    ->where('branch_id', $branchId)
+                    ->where('status', true)),
+            ],
+            'fee_plan_id' => [
+                'nullable',
+                Rule::exists('fee_plans', 'id')->where(fn ($query) => $query
+                    ->where('branch_id', $branchId)
+                    ->where('status', true)),
+            ],
         ];
-    }
-
-    protected function passedValidation(): void
-    {
-        $branchId = (int) $this->input('branch_id');
-
-        if ($this->filled('study_slot_id')) {
-            $validSlot = StudySlot::query()
-                ->whereKey($this->integer('study_slot_id'))
-                ->where('branch_id', $branchId)
-                ->where('status', true)
-                ->exists();
-
-            if (! $validSlot) {
-                throw ValidationException::withMessages([
-                    'study_slot_id' => 'Selected study slot is not available for this branch.',
-                ]);
-            }
-        }
-
-        if ($this->filled('fee_plan_id')) {
-            $validPlan = FeePlan::query()
-                ->whereKey($this->integer('fee_plan_id'))
-                ->where('branch_id', $branchId)
-                ->where('status', true)
-                ->exists();
-
-            if (! $validPlan) {
-                throw ValidationException::withMessages([
-                    'fee_plan_id' => 'Selected fee plan is not available for this branch.',
-                ]);
-            }
-        }
     }
 }

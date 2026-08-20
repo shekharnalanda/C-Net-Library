@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\Expense;
 use App\Models\ExpenseAdjustment;
+use App\Models\LibraryChargePayment;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Seat;
@@ -32,7 +33,14 @@ class DashboardController extends Controller
             ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('payment.student', fn ($student) => $student->where('branch_id', $user->branch_id)))
             ->sum('amount');
 
-        $todayNetCollection = max(0, $todayGross - $todayAdjustments);
+        $todayMembershipIncome = max(0, $todayGross - $todayAdjustments);
+
+        $todayLibraryIncome = (float) LibraryChargePayment::query()
+            ->whereDate('payment_date', today())
+            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('bookIssue.student', fn ($student) => $student->where('branch_id', $user->branch_id)))
+            ->sum('amount');
+
+        $todayTotalIncome = $todayMembershipIncome + $todayLibraryIncome;
 
         $todayExpenseQuery = $branchScope->apply(Expense::query(), $user)
             ->whereDate('expense_date', today());
@@ -50,13 +58,16 @@ class DashboardController extends Controller
             'total_seats' => $branchScope->apply(Seat::query(), $user)->where('status', true)->count(),
             'today_gross_collection' => $todayGross,
             'today_adjustments' => $todayAdjustments,
-            'today_collection' => $todayNetCollection,
+            'today_collection' => $todayMembershipIncome,
+            'today_membership_income' => $todayMembershipIncome,
+            'today_library_income' => $todayLibraryIncome,
+            'today_total_income' => $todayTotalIncome,
             'today_gross_expenses' => $todayGrossExpenses,
             'today_expense_adjustments' => $todayExpenseAdjustments,
             'today_expenses' => $todayNetExpenses,
-            'today_cash_position' => $todayNetCollection - $todayNetExpenses,
+            'today_cash_position' => $todayTotalIncome - $todayNetExpenses,
             'pending_admissions' => $branchScope->apply(Admission::query(), $user)
-                ->whereIn('status', ['new', 'under_review', 'pending'])
+                ->whereIn('status', ['new', 'under_review'])
                 ->count(),
             'renewals_due' => StudentMembership::query()
                 ->where('status', 'active')

@@ -2,6 +2,8 @@
 /node_modules
 /public/build
 /public/hot
+/public/storage
+/bootstrap/cache/*.php
 /storage/*.key
 /storage/logs/*.log
 /storage/framework/cache/*

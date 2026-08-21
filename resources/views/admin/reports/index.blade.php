@@ -5,22 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports & Analytics - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.label{font-size:12px;color:#6b7280;text-transform:uppercase}.metric{font-size:28px;font-weight:700;margin-top:6px}.muted{color:#6b7280}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:18px}.field label{display:block;font-size:12px;color:#6b7280;margin-bottom:5px}.field input,.field select{padding:9px;border:1px solid #d1d5db;border-radius:8px;min-width:170px}.btn{background:#111827;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;text-decoration:none}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.section{margin-top:18px}.income-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.label{font-size:12px;color:#6b7280;text-transform:uppercase}.metric{font-size:28px;font-weight:700;margin-top:6px}.muted{color:#6b7280}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field label{display:block;font-size:12px;color:#6b7280;margin-bottom:5px}.field input,.field select{padding:9px;border:1px solid #d1d5db;border-radius:8px;min-width:170px}.btn{background:#111827;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-block}.btn.alt{background:#fff;color:#111827;border:1px solid #d1d5db}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px}.section{margin-top:18px}.income-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.quick{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.alert{padding:12px 14px;border-radius:10px;margin-bottom:16px}.alert.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}.scope{font-size:13px;color:#475569;margin-top:5px}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
     </style>
 </head>
 <body>
 <div class="wrap">
     <div class="top">
-        <div><h1 style="margin:0">Reports & Analytics</h1><div class="muted">Operational and cash reconciliation snapshot for C-Net Library</div></div>
-        <div><a class="btn" href="{{ route('admin.expenses.index') }}">Cashbook</a> <a class="btn" href="{{ route('admin.dashboard') }}">Back to Dashboard</a></div>
+        <div>
+            <h1 style="margin:0">Reports & Analytics</h1>
+            <div class="muted">Operational and cash reconciliation snapshot for C-Net Library</div>
+            <div class="scope">Period: {{ $from->format('d M Y') }} – {{ $to->format('d M Y') }}</div>
+        </div>
+        <div><a class="btn" href="{{ route('admin.expenses.index') }}">Cashbook</a> <a class="btn alt" href="{{ route('admin.dashboard') }}">Dashboard</a></div>
     </div>
+
+    @if($errors->any())
+        <div class="alert error"><ul style="margin:0;padding-left:18px">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+    @endif
 
     <form method="GET" class="card filters">
         <div class="field"><label>From</label><input type="date" name="from" value="{{ $from->toDateString() }}"></div>
         <div class="field"><label>To</label><input type="date" name="to" value="{{ $to->toDateString() }}"></div>
-        <div class="field"><label>Branch</label><select name="branch_id"><option value="">All Branches</option>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected($branchId == $branch->id)>{{ $branch->name }}</option>@endforeach</select></div>
+        @if($isGlobalAdmin)
+            <div class="field"><label>Branch</label><select name="branch_id"><option value="">All Branches</option>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected($branchId == $branch->id)>{{ $branch->name }}</option>@endforeach</select></div>
+        @else
+            @foreach($branches as $branch)
+                <input type="hidden" name="branch_id" value="{{ $branch->id }}">
+                <div class="field"><label>Branch</label><div style="padding:10px 0;font-weight:700">{{ $branch->name }}</div></div>
+            @endforeach
+        @endif
         <button class="btn" type="submit">Apply Filter</button>
     </form>
+
+    <div class="quick">
+        <a class="btn alt" href="{{ route('admin.reports.index', ['from' => today()->toDateString(), 'to' => today()->toDateString()] + ($branchId ? ['branch_id' => $branchId] : [])) }}">Today</a>
+        <a class="btn alt" href="{{ route('admin.reports.index', ['from' => today()->startOfWeek()->toDateString(), 'to' => today()->toDateString()] + ($branchId ? ['branch_id' => $branchId] : [])) }}">This Week</a>
+        <a class="btn alt" href="{{ route('admin.reports.index', ['from' => today()->startOfMonth()->toDateString(), 'to' => today()->toDateString()] + ($branchId ? ['branch_id' => $branchId] : [])) }}">This Month</a>
+    </div>
 
     <div class="grid">
         <div class="card"><div class="label">Active Students</div><div class="metric">{{ number_format($metrics['students']) }}</div></div>

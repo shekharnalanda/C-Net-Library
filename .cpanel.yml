@@ -8,6 +8,8 @@ deployment:
     - /bin/mkdir -p "$APPPATH/storage/framework/sessions"
     - /bin/mkdir -p "$APPPATH/storage/framework/views"
     - /bin/mkdir -p "$APPPATH/storage/logs"
+    - test -f "$APPPATH/composer.lock" || (echo "ERROR: composer.lock is missing; refusing production deployment." && exit 1)
+    - test -f "$APPPATH/vendor/autoload.php" || (echo "ERROR: vendor/autoload.php is missing. Install the exact production dependencies from composer.lock before deploying this commit." && exit 1)
     - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan config:clear
     - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan migrate --force
     - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan release:preflight

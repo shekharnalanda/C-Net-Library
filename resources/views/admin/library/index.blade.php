@@ -5,18 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Physical Library - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1200px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin-top:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px;vertical-align:top}.btn{display:inline-block;background:#111827;color:#fff;border:0;border-radius:8px;padding:9px 12px;text-decoration:none;cursor:pointer}.btn.green{background:#047857}.btn.blue{background:#2563eb}.btn.warn{background:#b45309}.btn.red{background:#b91c1c}input,select,textarea{padding:9px;border:1px solid #d1d5db;border-radius:8px}.muted{color:#6b7280}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.actions{display:flex;gap:8px;flex-wrap:wrap}.inline-form{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.inline-form input,.inline-form select{max-width:150px}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;font-size:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1240px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.nav{display:flex;gap:8px;flex-wrap:wrap}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin-top:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px;vertical-align:top}.btn{display:inline-block;background:#111827;color:#fff;border:0;border-radius:8px;padding:9px 12px;text-decoration:none;cursor:pointer}.btn.green{background:#047857}.btn.blue{background:#2563eb}.btn.warn{background:#b45309}.btn.red{background:#b91c1c}.btn.light{background:#fff;color:#111827;border:1px solid #d1d5db}input,select,textarea{padding:9px;border:1px solid #d1d5db;border-radius:8px}.muted{color:#6b7280}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.actions{display:flex;gap:8px;flex-wrap:wrap}.inline-form{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.inline-form input,.inline-form select{max-width:150px}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;font-size:12px}.pill.overdue{background:#fef2f2;color:#991b1b}.searchbar{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}.section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.status-available{color:#047857;font-weight:700}.status-issued{color:#1d4ed8;font-weight:700}.status-reserved{color:#b45309;font-weight:700}.status-lost{color:#b91c1c;font-weight:700}@media(max-width:800px){.grid,.searchbar{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.inline-form input,.inline-form select{max-width:none;width:100%}}
     </style>
 </head>
 <body>
 <div class="wrap">
     <div class="top">
         <div><h1 style="margin:0">Physical Library</h1><div class="muted">Books, reservations, issue/return, losses and charge collection</div></div>
-        <a class="btn" href="{{ route('admin.dashboard') }}">Dashboard</a>
+        <div class="nav"><a class="btn light" href="{{ route('admin.students.index') }}">Students</a><a class="btn light" href="{{ route('admin.reports.index') }}">Reports</a><a class="btn" href="{{ route('admin.dashboard') }}">Dashboard</a></div>
     </div>
 
     @if(session('success'))<div class="card" style="background:#f0fdf4;border-color:#86efac">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="card" style="background:#fef2f2;border-color:#fca5a5"><ul style="margin:0;padding-left:18px">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+
+    <div class="card">
+        <form method="GET" class="searchbar">
+            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search title, author, accession no. or barcode">
+            <button class="btn" type="submit">Search Catalog</button>
+            @if(request('search'))<a class="btn light" href="{{ route('admin.library.index') }}">Clear</a>@endif
+        </form>
+    </div>
 
     <div class="grid">
         <div class="card">
@@ -44,8 +52,8 @@
     </div>
 
     <div class="card">
-        <h2 style="margin-top:0">Circulation & Charges</h2>
-        <div style="overflow:auto">
+        <div class="section-head"><div><h2 style="margin:0">Circulation & Charges</h2><div class="muted">Open issues appear first; returned and lost records remain visible for audit.</div></div></div>
+        <div style="overflow:auto;margin-top:12px">
             <table class="table">
                 <thead><tr><th>Book</th><th>Student</th><th>Dates / Status</th><th>Outstanding</th><th>Actions</th></tr></thead>
                 <tbody>
@@ -56,11 +64,12 @@
                         $fineDue = max(0,(float)$issue->fine_amount-$fineCollected);
                         $lossDue = max(0,(float)$issue->loss_charge-$lossCollected);
                         $open = in_array($issue->status,['issued','overdue'],true);
+                        $isLate = $open && $issue->due_at && $issue->due_at->isPast();
                     @endphp
                     <tr>
                         <td>{{ $issue->bookCopy?->book?->title }}<br><span class="muted">{{ $issue->bookCopy?->accession_no }}</span></td>
-                        <td>{{ $issue->student?->name }}<br><span class="muted">{{ $issue->student?->student_code }}</span></td>
-                        <td>Issued {{ $issue->issued_at?->format('d M Y') }}<br>Due {{ $issue->due_at?->format('d M Y') }}<br><span class="pill">{{ ucfirst($issue->status) }}</span></td>
+                        <td><a href="{{ route('admin.students.show',$issue->student) }}">{{ $issue->student?->name }}</a><br><span class="muted">{{ $issue->student?->student_code }}</span></td>
+                        <td>Issued {{ $issue->issued_at?->format('d M Y') }}<br>Due {{ $issue->due_at?->format('d M Y') }}<br><span class="pill {{ $isLate ? 'overdue' : '' }}">{{ $isLate ? 'OVERDUE' : strtoupper($issue->status) }}</span></td>
                         <td>
                             @if($fineDue>0)<div>Fine ₹{{ number_format($fineDue,2) }}</div>@endif
                             @if($lossDue>0)<div>Loss ₹{{ number_format($lossDue,2) }}</div>@endif
@@ -97,25 +106,30 @@
     </div>
 
     <div class="card">
-        <h2 style="margin-top:0">Book Copies & Reservations</h2>
-        <div style="overflow:auto">
+        <div class="section-head"><div><h2 style="margin:0">Book Copies & Reservations</h2><div class="muted">Current catalog page and active reservation details.</div></div></div>
+        <div style="overflow:auto;margin-top:12px">
             <table class="table">
                 <thead><tr><th>Accession</th><th>Book</th><th>Branch</th><th>Condition</th><th>Status</th><th>Reservation</th></tr></thead>
                 <tbody>
-                @foreach($copies as $copy)
+                @forelse($copies as $copy)
                     @php($reservation=$copy->reservations->first())
                     <tr>
-                        <td>{{ $copy->accession_no }}</td><td>{{ $copy->book?->title }}<br><span class="muted">{{ $copy->book?->author ?: '—' }}</span></td><td>{{ $copy->branch?->name }}</td><td>{{ ucfirst($copy->condition) }}</td><td>{{ ucfirst($copy->status) }}</td>
+                        <td>{{ $copy->accession_no }}@if($copy->barcode)<br><span class="muted">{{ $copy->barcode }}</span>@endif</td>
+                        <td>{{ $copy->book?->title }}<br><span class="muted">{{ $copy->book?->author ?: '—' }}</span></td>
+                        <td>{{ $copy->branch?->name }}</td><td>{{ ucfirst($copy->condition) }}</td>
+                        <td><span class="status-{{ $copy->status }}">{{ ucfirst($copy->status) }}</span></td>
                         <td>
                             @if($reservation)
                                 {{ $reservation->student?->student_code }} — {{ $reservation->student?->name }}<br><span class="muted">Until {{ $reservation->expires_at?->format('d M Y h:i A') }}</span>
-                                <form method="POST" action="{{ route('admin.library.reservations.cancel',$reservation) }}" style="margin-top:6px">@csrf<button class="btn red" type="submit">Cancel</button></form>
+                                <form method="POST" action="{{ route('admin.library.reservations.cancel',$reservation) }}" style="margin-top:6px">@csrf<button class="btn red" type="submit">Cancel Reservation</button></form>
                             @else
                                 <span class="muted">—</span>
                             @endif
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr><td colspan="6" class="muted">No book copies matched this search.</td></tr>
+                @endforelse
                 </tbody>
             </table>
         </div>

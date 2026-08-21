@@ -40,8 +40,11 @@ class HomeController extends Controller
         // Active allocations already represent occupied seat-slot capacity for today.
         $occupiedSeatSlots = SeatAllocation::query()
             ->where('status', 'active')
-            ->whereDate('start_date', '<=', today())
-            ->whereDate('end_date', '>=', today())
+            ->whereDate('allocated_from', '<=', today())
+            ->where(function ($query) {
+                $query->whereNull('allocated_to')
+                    ->orWhereDate('allocated_to', '>=', today());
+            })
             ->whereHas('seat', fn ($query) => $query->where('status', true))
             ->whereHas('studySlot', fn ($query) => $query->where('status', true))
             ->distinct()

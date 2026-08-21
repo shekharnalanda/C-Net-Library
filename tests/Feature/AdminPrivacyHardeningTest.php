@@ -71,4 +71,35 @@ class AdminPrivacyHardeningTest extends TestCase
         $response->assertDontSee('student@example.com');
         $response->assertSee('s******@example.com');
     }
+
+    public function test_admin_portal_responses_are_private_no_store_and_noindex(): void
+    {
+        $branch = Branch::factory()->create(['status' => true]);
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'branch_id' => $branch->id,
+            'status' => true,
+        ]);
+
+        $permission = Permission::create([
+            'name' => 'Dashboard View',
+            'slug' => 'dashboard.view',
+            'group' => 'Dashboard',
+        ]);
+        $role = Role::create([
+            'name' => 'Dashboard Admin',
+            'slug' => 'dashboard-admin',
+            'is_system' => false,
+        ]);
+        $role->permissions()->attach($permission->id);
+        $admin->roles()->attach($role->id);
+
+        $response = $this->actingAs($admin)->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-cache', (string) $response->headers->get('Cache-Control'));
+        $response->assertHeader('Pragma', 'no-cache');
+        $response->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    }
 }

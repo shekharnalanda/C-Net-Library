@@ -33,7 +33,21 @@ class EnsureBranchScope
                 continue;
             }
 
-            $modelBranchId = $this->resolveBranchId($parameter);
+            // A route-bound model that explicitly carries branch_id must belong to
+            // the current branch. A null branch is global/unassigned data and must
+            // not become writable/readable to a branch account just because null
+            // previously resolved as "no scope information".
+            if (array_key_exists('branch_id', $parameter->getAttributes())) {
+                $modelBranchId = $parameter->getAttribute('branch_id');
+                abort_unless(
+                    $modelBranchId !== null && (int) $modelBranchId === (int) $branchId,
+                    403
+                );
+
+                continue;
+            }
+
+            $modelBranchId = $this->resolveRelatedBranchId($parameter);
             if ($modelBranchId !== null) {
                 abort_unless((int) $modelBranchId === (int) $branchId, 403);
             }
@@ -44,14 +58,8 @@ class EnsureBranchScope
         return $next($request);
     }
 
-    private function resolveBranchId(Model $model): ?int
+    private function resolveRelatedBranchId(Model $model): ?int
     {
-        if (array_key_exists('branch_id', $model->getAttributes())) {
-            return $model->getAttribute('branch_id') !== null
-                ? (int) $model->getAttribute('branch_id')
-                : null;
-        }
-
         if ($model instanceof Payment) {
             return $model->student?->branch_id !== null ? (int) $model->student->branch_id : null;
         }

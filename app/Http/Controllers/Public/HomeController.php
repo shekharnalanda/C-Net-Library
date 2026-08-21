@@ -12,16 +12,13 @@ use App\Models\Seat;
 use App\Models\SeatAllocation;
 use App\Models\StudySlot;
 use App\Models\Testimonial;
-use App\Services\SeatAllocationService;
 use App\Services\SettingsService;
 use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    public function __construct(
-        private readonly SettingsService $settings,
-        private readonly SeatAllocationService $seatAllocationService,
-    ) {
+    public function __construct(private readonly SettingsService $settings)
+    {
     }
 
     public function index(): View
@@ -35,27 +32,23 @@ class HomeController extends Controller
             ->limit(8)
             ->get();
 
-        $seats = Seat::query()->where('status', true)->get(['id']);
-        $slots = StudySlot::query()->where('status', true)->get(['id', 'name', 'start_time', 'end_time']);
-        $totalSeats = $seats->count();
-        $totalSeatSlots = $totalSeats * $slots->count();
+        $totalSeats = Seat::query()->where('status', true)->count();
+        $activeSlots = StudySlot::query()->where('status', true)->count();
+        $totalSeatSlots = $totalSeats * $activeSlots;
 
-        $availableSeatSlots = 0;
-        foreach ($slots as $slot) {
-            foreach ($seats as $seat) {
-                if ($this->seatAllocationService->isAvailable(
-                    $seat->id,
-                    today(),
-                    today(),
-                    $slot->start_time,
-                    $slot->end_time,
-                )) {
-                    $availableSeatSlots++;
-                }
-            }
-        }
+        // Avoid checking every seat/slot pair individually on each public homepage request.
+        // Active allocations already represent occupied seat-slot capacity for today.
+        $occupiedSeatSlots = SeatAllocation::query()
+            ->where('status', 'active')
+            ->whereDate('start_date', '<=', today())
+            ->whereDate('end_date', '>=', today())
+            ->whereHas('seat', fn ($query) => $query->where('status', true))
+            ->whereHas('studySlot', fn ($query) => $query->where('status', true))
+            ->distinct()
+            ->count('id');
 
-        $occupiedSeatSlots = max(0, $totalSeatSlots - $availableSeatSlots);
+        $occupiedSeatSlots = min($totalSeatSlots, $occupiedSeatSlots);
+        $availableSeatSlots = max(0, $totalSeatSlots - $occupiedSeatSlots);
 
         $jobs = Job::query()
             ->where('status', true)

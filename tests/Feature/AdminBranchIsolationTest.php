@@ -94,6 +94,31 @@ class AdminBranchIsolationTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_branch_admin_cannot_mutate_global_or_unassigned_route_record(): void
+    {
+        [$branchA] = $this->branches();
+        $admin = $this->branchAdmin($branchA);
+
+        $enquiry = Enquiry::create([
+            'branch_id' => null,
+            'enquiry_no' => 'ENQ-GLOBAL-LOCKED',
+            'name' => 'Unassigned Lead',
+            'mobile' => '9000000005',
+            'source' => 'website',
+            'status' => 'new',
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.enquiries.update', $enquiry), [
+            'status' => 'contacted',
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('enquiries', [
+            'id' => $enquiry->id,
+            'status' => 'new',
+            'branch_id' => null,
+        ]);
+    }
+
     public function test_branch_admin_cannot_forge_another_branch_id(): void
     {
         [$branchA, $branchB] = $this->branches();

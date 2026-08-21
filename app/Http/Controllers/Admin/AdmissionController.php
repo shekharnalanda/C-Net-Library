@@ -18,12 +18,33 @@ class AdmissionController extends Controller
 {
     public function index(Request $request): View
     {
-        $admissions = AdminBranchScope::apply(Admission::query(), $request)
-            ->with(['branch', 'studySlot', 'feePlan'])
-            ->latest()
-            ->paginate(20);
+        $baseQuery = AdminBranchScope::apply(Admission::query(), $request);
 
-        return view('admin.admissions.index', compact('admissions'));
+        $summary = [
+            'total' => (clone $baseQuery)->count(),
+            'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
+            'approved' => (clone $baseQuery)->where('status', 'approved')->count(),
+            'rejected' => (clone $baseQuery)->where('status', 'rejected')->count(),
+        ];
+
+        $admissions = $baseQuery
+            ->with(['branch', 'studySlot', 'feePlan'])
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = trim($request->string('search')->toString());
+
+                $query->where(function ($q) use ($search) {
+                    $q->where('application_no', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('mobile', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('admin.admissions.index', compact('admissions', 'summary'));
     }
 
     public function show(Request $request, Admission $admission): View

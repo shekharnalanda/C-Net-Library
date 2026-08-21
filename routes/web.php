@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StudentController;
+use App\Http\Controllers\Auth\FirstAdminSetupController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\StudentActivationController;
 use App\Http\Controllers\Public\AdmissionController as PublicAdmissionController;
@@ -51,6 +52,11 @@ Route::get('/jobs/{job}/official', JobRedirectController::class)
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+
+    Route::middleware('throttle:6,1')->group(function () {
+        Route::get('/setup-admin', [FirstAdminSetupController::class, 'create'])->name('setup-admin.create');
+        Route::post('/setup-admin', [FirstAdminSetupController::class, 'store'])->name('setup-admin.store');
+    });
 
     Route::middleware('throttle:10,1')->group(function () {
         Route::get('/student/activate/{token}', [StudentActivationController::class, 'show'])->name('student.activate');

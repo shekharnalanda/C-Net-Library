@@ -25,7 +25,19 @@ class ExpenseController extends Controller
 
         $baseQuery = Expense::query()
             ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
-            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
+            ->when($request->filled('category'), fn ($query) => $query->where('category', $request->string('category')->toString()))
+            ->when($request->filled('payment_mode'), fn ($query) => $query->where('payment_mode', $request->string('payment_mode')->toString()))
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = trim($request->string('search')->toString());
+
+                $query->where(function ($q) use ($search) {
+                    $q->where('category', 'like', "%{$search}%")
+                        ->orWhere('payee', 'like', "%{$search}%")
+                        ->orWhere('transaction_ref', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            });
 
         $expenses = (clone $baseQuery)
             ->with(['branch', 'creator', 'adjustments.creator', 'payroll.staff'])
@@ -36,9 +48,21 @@ class ExpenseController extends Controller
 
         $grossExpenses = (float) (clone $baseQuery)->sum('amount');
         $adjustments = (float) ExpenseAdjustment::query()
-            ->whereHas('expense', fn ($query) => $query
-                ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
-                ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId)))
+            ->whereHas('expense', function ($query) use ($from, $to, $branchId, $request) {
+                $query->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+                    ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId))
+                    ->when($request->filled('category'), fn ($expense) => $expense->where('category', $request->string('category')->toString()))
+                    ->when($request->filled('payment_mode'), fn ($expense) => $expense->where('payment_mode', $request->string('payment_mode')->toString()))
+                    ->when($request->filled('search'), function ($expense) use ($request) {
+                        $search = trim($request->string('search')->toString());
+                        $expense->where(function ($q) use ($search) {
+                            $q->where('category', 'like', "%{$search}%")
+                                ->orWhere('payee', 'like', "%{$search}%")
+                                ->orWhere('transaction_ref', 'like', "%{$search}%")
+                                ->orWhere('description', 'like', "%{$search}%");
+                        });
+                    });
+            })
             ->sum('amount');
 
         $categoryTotals = (clone $baseQuery)
@@ -46,6 +70,13 @@ class ExpenseController extends Controller
             ->groupBy('category')
             ->orderByDesc('total')
             ->get();
+
+        $categories = Expense::query()
+            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
 
         $branches = Branch::query()->where('status', true);
         if (! $request->user()->isGlobalAdmin()) {
@@ -55,6 +86,7 @@ class ExpenseController extends Controller
         return view('admin.expenses.index', [
             'expenses' => $expenses,
             'branches' => $branches->orderBy('name')->get(),
+            'categories' => $categories,
             'from' => $from,
             'to' => $to,
             'branchId' => $branchId,
@@ -62,6 +94,7 @@ class ExpenseController extends Controller
             'expenseAdjustments' => $adjustments,
             'totalExpenses' => max(0, $grossExpenses - $adjustments),
             'categoryTotals' => $categoryTotals,
+            'entryCount' => (clone $baseQuery)->count(),
         ]);
     }
 

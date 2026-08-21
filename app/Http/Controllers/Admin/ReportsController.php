@@ -20,20 +20,43 @@ use App\Models\Student;
 use App\Models\StudentMembership;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class ReportsController extends Controller
 {
     public function index(Request $request)
     {
-        $from = $request->filled('from')
-            ? Carbon::parse($request->string('from'))->startOfDay()
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+        ]);
+
+        $from = isset($validated['from'])
+            ? Carbon::parse($validated['from'])->startOfDay()
             : now()->startOfMonth();
 
-        $to = $request->filled('to')
-            ? Carbon::parse($request->string('to'))->endOfDay()
+        $to = isset($validated['to'])
+            ? Carbon::parse($validated['to'])->endOfDay()
             : now()->endOfDay();
 
-        $branchId = $request->filled('branch_id') ? $request->integer('branch_id') : null;
+        if ($from->gt($to)) {
+            throw ValidationException::withMessages([
+                'to' => 'The report end date must be on or after the start date.',
+            ]);
+        }
+
+        if ($from->diffInDays($to) > 366) {
+            throw ValidationException::withMessages([
+                'to' => 'Please select a report period of 366 days or less.',
+            ]);
+        }
+
+        $user = $request->user();
+        $branchId = $user->isGlobalAdmin()
+            ? (isset($validated['branch_id']) ? (int) $validated['branch_id'] : null)
+            : (int) $user->branch_id;
+
         if ($branchId) {
             Branch::query()->whereKey($branchId)->where('status', true)->firstOrFail();
         }
@@ -123,7 +146,7 @@ class ReportsController extends Controller
             ->whereBetween('created_at', [$from, $to])
             ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
         $admissionCount = (clone $admissions)->count();
-        $convertedAdmissions = (clone $admissions)->where('status', 'converted')->count();
+        $convertedAdmissions = (clone $admissions)->whereIn('status', ['approved', 'converted'])->count();
 
         $enquiries = Enquiry::query()
             ->whereBetween('created_at', [$from, $to])
@@ -232,6 +255,12 @@ class ReportsController extends Controller
                 ];
             });
 
+        $branches = Branch::query()
+            ->where('status', true)
+            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereKey($user->branch_id))
+            ->orderBy('name')
+            ->get();
+
         return view('admin.reports.index', [
             'metrics' => $metrics,
             'incomeCategories' => $incomeCategories,
@@ -239,7 +268,8 @@ class ReportsController extends Controller
             'from' => $from,
             'to' => $to,
             'branchId' => $branchId,
-            'branches' => Branch::query()->where('status', true)->orderBy('name')->get(),
+            'branches' => $branches,
+            'isGlobalAdmin' => $user->isGlobalAdmin(),
         ]);
     }
 }

@@ -14,9 +14,16 @@ class StudentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = AdminBranchScope::apply(Student::query(), $request);
+        $base = AdminBranchScope::apply(Student::query(), $request);
 
-        $students = $query
+        $summary = [
+            'total' => (clone $base)->count(),
+            'active' => (clone $base)->where('status', 'active')->count(),
+            'inactive' => (clone $base)->where('status', 'inactive')->count(),
+            'blocked' => (clone $base)->where('status', 'blocked')->count(),
+        ];
+
+        $students = $base
             ->with([
                 'branch',
                 'activeMembership.studySlot',
@@ -24,11 +31,12 @@ class StudentController extends Controller
                 'seatAllocations.seat.studyHall',
             ])
             ->when($request->filled('search'), function ($query) use ($request) {
-                $search = $request->string('search')->toString();
+                $search = trim($request->string('search')->toString());
 
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('mobile', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('student_code', 'like', "%{$search}%");
                 });
             })
@@ -37,7 +45,7 @@ class StudentController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.students.index', compact('students'));
+        return view('admin.students.index', compact('students', 'summary'));
     }
 
     public function show(Request $request, Student $student)

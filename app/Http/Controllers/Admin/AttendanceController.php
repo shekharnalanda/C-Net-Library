@@ -5,48 +5,76 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Student;
-use App\Services\AdminBranchScope;
 use App\Services\AttendanceService;
+use App\Support\AdminBranchScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
-    public function index(Request $request, AdminBranchScope $branchScope): View
+    public function index(Request $request): View
     {
-        $attendances = Attendance::query()
+        $selectedDate = $request->filled('date')
+            ? $request->date('date')->toDateString()
+            : today()->toDateString();
+
+        $baseQuery = Attendance::query()
+            ->whereHas('student', function ($query) use ($request) {
+                AdminBranchScope::apply($query, $request);
+            });
+
+        $attendances = (clone $baseQuery)
             ->with(['student.branch'])
-            ->whereHas('student', fn ($query) => $branchScope->apply($query, $request->user()))
-            ->when($request->filled('date'), fn ($query) => $query->whereDate('attendance_date', $request->date))
+            ->whereDate('attendance_date', $selectedDate)
             ->when($request->filled('search'), function ($query) use ($request) {
-                $search = $request->string('search')->toString();
+                $search = trim($request->string('search')->toString());
+
                 $query->whereHas('student', function ($studentQuery) use ($search) {
-                    $studentQuery->where('name', 'like', "%{$search}%")
-                        ->orWhere('student_code', 'like', "%{$search}%")
-                        ->orWhere('mobile', 'like', "%{$search}%");
+                    $studentQuery->where(function ($student) use ($search) {
+                        $student->where('name', 'like', "%{$search}%")
+                            ->orWhere('student_code', 'like', "%{$search}%")
+                            ->orWhere('mobile', 'like', "%{$search}%");
+                    });
                 });
             })
             ->latest('check_in_at')
             ->paginate(30)
             ->withQueryString();
 
-        $presentToday = Attendance::query()
-            ->whereHas('student', fn ($query) => $branchScope->apply($query, $request->user()))
-            ->whereDate('attendance_date', today())
+        $dayQuery = (clone $baseQuery)->whereDate('attendance_date', $selectedDate);
+
+        $presentCount = (clone $dayQuery)
             ->distinct('student_id')
             ->count('student_id');
 
         $currentlyInside = Attendance::query()
-            ->whereHas('student', fn ($query) => $branchScope->apply($query, $request->user()))
+            ->whereHas('student', function ($query) use ($request) {
+                AdminBranchScope::apply($query, $request);
+            })
             ->whereNull('check_out_at')
             ->count();
 
-        return view('admin.attendance.index', compact('attendances', 'presentToday', 'currentlyInside'));
+        $completedSessions = (clone $dayQuery)
+            ->whereNotNull('check_out_at')
+            ->count();
+
+        $studyMinutes = (int) (clone $dayQuery)->sum('study_minutes');
+
+        return view('admin.attendance.index', compact(
+            'attendances',
+            'presentCount',
+            'currentlyInside',
+            'completedSessions',
+            'studyMinutes',
+            'selectedDate',
+        ));
     }
 
     public function checkIn(Request $request, Student $student, AttendanceService $service): RedirectResponse
     {
+        AdminBranchScope::authorize($request, $student->branch_id);
+
         $data = $request->validate([
             'entry_method' => ['nullable', 'in:manual,qr,member_id'],
             'remarks' => ['nullable', 'string', 'max:1000'],
@@ -54,7 +82,7 @@ class AttendanceController extends Controller
 
         $service->checkIn(
             $student,
-            auth()->id(),
+            (int) auth()->id(),
             $data['entry_method'] ?? 'manual',
             $data['remarks'] ?? null,
         );
@@ -64,11 +92,13 @@ class AttendanceController extends Controller
 
     public function checkOut(Request $request, Student $student, AttendanceService $service): RedirectResponse
     {
+        AdminBranchScope::authorize($request, $student->branch_id);
+
         $data = $request->validate([
             'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $service->checkOut($student, auth()->id(), $data['remarks'] ?? null);
+        $service->checkOut($student, (int) auth()->id(), $data['remarks'] ?? null);
 
         return back()->with('success', 'Student checked out successfully.');
     }

@@ -20,14 +20,47 @@ class SecurityController extends Controller
     {
         $roles = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('group')->orderBy('name')->get();
-        $users = User::with(['roles', 'branch'])->orderBy('name')->get();
+
+        $users = User::with(['roles', 'branch'])
+            ->when($request->filled('user_search'), function ($query) use ($request) {
+                $search = trim((string) $request->input('user_search'));
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->filled('branch_id'), fn ($query) => $query->where('branch_id', $request->integer('branch_id')))
+            ->orderBy('name')
+            ->get();
+
         $branches = Branch::query()->where('status', true)->orderBy('name')->get();
+
         $logs = AuditLog::with('user')
+            ->when($request->filled('audit_search'), function ($query) use ($request) {
+                $search = trim((string) $request->input('audit_search'));
+                $query->where(function ($q) use ($search) {
+                    $q->where('action', 'like', "%{$search}%")
+                        ->orWhere('auditable_type', 'like', "%{$search}%")
+                        ->orWhere('ip_address', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn ($userQuery) => $userQuery
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%"));
+                });
+            })
             ->latest()
             ->limit(100)
             ->get();
 
-        return view('admin.security.index', compact('roles', 'permissions', 'users', 'branches', 'logs'));
+        $securityStats = [
+            'users' => User::query()->count(),
+            'backoffice_users' => User::query()->where('role', '!=', 'student')->count(),
+            'global_users' => User::query()->whereNull('branch_id')->where('role', '!=', 'student')->count(),
+            'roles' => $roles->count(),
+            'permissions' => $permissions->count(),
+            'audit_events' => AuditLog::query()->count(),
+        ];
+
+        return view('admin.security.index', compact('roles', 'permissions', 'users', 'branches', 'logs', 'securityStats'));
     }
 
     public function updateRole(Request $request, Role $role, AuditService $audit): RedirectResponse

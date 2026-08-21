@@ -4,10 +4,10 @@ Target: `https://cnetlibrary.mciedu.com`
 
 ## 1. Hosting prerequisites
 
-- PHP 8.2 or newer
+- PHP 8.3 recommended (the current cPanel deployment uses `ea-php83`; application minimum remains PHP 8.2)
 - MySQL 8 compatible database
-- Composer 2
-- Required PHP extensions for Laravel: BCMath, Ctype, cURL, DOM/XML, Fileinfo, JSON, Mbstring, OpenSSL, PDO MySQL, Tokenizer
+- Composer 2, or a production `vendor/` directory built from the committed `composer.lock`
+- Required PHP extensions for Laravel/application runtime: BCMath, Ctype, cURL, DOM/XML, Fileinfo, Iconv, JSON, Mbstring, OpenSSL, PDO MySQL, Tokenizer
 - HTTPS enabled for `cnetlibrary.mciedu.com`
 - Web server document root must point to the Laravel `public/` directory, not the project root
 
@@ -18,28 +18,28 @@ If BigRock cannot change the document root, deploy the Laravel project outside `
 1. Confirm the intended commit SHA/tag.
 2. Confirm `composer.lock` exists in the release commit and `composer validate --no-check-publish` passes.
 3. Confirm the main GitHub Actions CI workflow passes for the exact release commit.
-4. Put the application in maintenance mode when the change includes migrations or sensitive writes:
-   `php artisan down --retry=60`
-5. Create a database backup before migrations.
-6. Preserve the existing production `.env`; never copy `.env.example` over it.
-7. Confirm production has `APP_ENV=production`, `APP_DEBUG=false`, HTTPS `APP_URL`, and the correct database credentials.
+4. Create a database backup before migrations.
+5. Preserve the existing production `.env`; never copy `.env.example` over it.
+6. Confirm production has `APP_ENV=production`, `APP_DEBUG=false`, HTTPS `APP_URL`, and the correct database credentials.
+7. Confirm `vendor/autoload.php` exists and `vendor/` was generated from the current committed `composer.lock`.
+
+The cPanel deployment intentionally fails early when `composer.lock` or `vendor/autoload.php` is missing. This prevents migrations from starting with an incomplete runtime.
 
 Do not deploy a commit without `composer.lock`. CI intentionally fails when the lockfile is missing.
 
-## 3. Generating the Composer lockfile
+## 3. Production dependencies
 
-The repository contains a manual GitHub Actions workflow dedicated to generating the lockfile on a network-enabled GitHub runner.
+Production must run the exact dependency graph recorded in the committed `composer.lock`. Never use `composer update` on the production server.
 
-1. Open GitHub Actions for the repository.
-2. Select **Generate Composer Lockfile**.
-3. Run the workflow against `main`.
-4. Confirm the Composer update/validation step succeeds.
-5. Download the `composer-lock` artifact from that workflow run.
-6. Review the generated `composer.lock`, especially Laravel/framework and other direct dependency versions.
-7. Commit the exact generated `composer.lock` to `main`.
-8. Run the main **CI** workflow again and require it to pass before production deployment.
+Preferred method when Composer is available on the host:
 
-The lock-generation workflow is a maintenance tool only. Production and normal CI must install from the committed lockfile; they must not run `composer update` as a fallback.
+`composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction`
+
+If Composer is unavailable on the hosting account, use the manual GitHub Actions workflow **Build Production Vendor**. It builds PHP 8.3 production dependencies from the committed lockfile and uploads a `production-vendor` artifact. Extract that artifact into the project so that `vendor/autoload.php` exists before using cPanel **Deploy HEAD Commit**.
+
+Do not commit `vendor/` or `production-vendor.zip` to Git. The repository `.gitignore` intentionally excludes `vendor/`.
+
+Whenever `composer.json` or `composer.lock` changes, rebuild/reinstall production dependencies before deploying the corresponding application commit.
 
 ## 4. Database backup
 
@@ -54,28 +54,30 @@ For a major release, retain at least:
 - the latest known-good backup
 - periodic off-host backups according to the organization's retention policy
 
-## 5. Deploy application code
+## 5. cPanel deployment order
 
-From the production project directory:
+The repository `.cpanel.yml` performs these steps:
 
-1. Fetch/check out the intended release.
-2. Verify the deployed commit matches the CI-approved commit.
-3. Install exact production dependencies:
-   `composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction`
-4. Run migrations:
-   `php artisan migrate --force`
-5. Create the public storage link if not already present:
-   `php artisan storage:link`
-6. Cache production configuration and routes:
-   `php artisan optimize`
+1. Create required Laravel runtime directories.
+2. Refuse deployment if `composer.lock` or `vendor/autoload.php` is missing.
+3. Clear cached configuration.
+4. Run `php artisan migrate --force`.
+5. Run `php artisan release:preflight`.
+6. Ensure the public storage link exists when the host supports symlinks.
+7. Run `php artisan optimize`.
+8. Run `php artisan release:smoke`.
 
-Do not run `composer update`, `migrate:fresh`, `db:wipe`, or destructive seed commands in production.
+Automatic `db:seed --force` is deliberately not part of routine production deployment. Production CMS/settings/master data must not be silently reset by a code deployment.
+
+For higher-risk schema changes, enable maintenance mode and take a verified backup before clicking Deploy HEAD Commit. cPanel's deployment task itself does not create a database backup.
 
 ## 6. Seed data
 
-`php artisan db:seed --force` should only be run when the release explicitly requires idempotent master/default seed data and the seeders have been reviewed for production safety.
+`php artisan db:seed --force` should only be run when the release explicitly requires reviewed master/default seed data. It is not a routine deployment step.
 
-The demo admin credentials from development seed data must never remain valid in production. Create/change production administrator credentials securely after initial setup.
+Review every seeder before production use. Seeders that use `updateOrCreate` can overwrite administrator-customized values when their update payload contains defaults.
+
+Production administrator credentials must come from secure production configuration. Never introduce demo/default passwords.
 
 ## 7. Permissions
 
@@ -88,17 +90,30 @@ Application source files and `.env` should not be broadly writable by the web pr
 
 ## 8. Queue and scheduler
 
-The current application uses `QUEUE_CONNECTION=database` by default. A persistent queue worker is required for queued communication work once providers are connected.
+The application uses `QUEUE_CONNECTION=database`. A persistent queue worker is preferred for queued communication work once providers are connected.
 
 Preferred worker command:
 `php artisan queue:work --sleep=3 --tries=3 --max-time=3600`
 
 For Laravel scheduled jobs, configure one cron entry:
-`* * * * * cd /path/to/cnet-library && php artisan schedule:run >> /dev/null 2>&1`
+`* * * * * cd /home4/mcied45x/repositories/C-Net-Library && /usr/local/bin/ea-php83 artisan schedule:run >> /dev/null 2>&1`
 
 If the hosting plan cannot run persistent workers, use an appropriate cron-based queue strategy and document the operational limitation.
 
-## 9. Post-deploy smoke check
+## 9. Release gates
+
+Before production release, require all of the following:
+
+- GitHub Actions CI is green for the exact release commit.
+- `composer.lock` is committed and validated.
+- Production `vendor/` matches that lockfile.
+- Database backup exists for releases containing schema/data changes.
+- `php artisan release:preflight` passes on production.
+- cPanel deployment finishes with `php artisan release:smoke` passing.
+
+`release:preflight` checks production environment/security configuration, required PHP/runtime conditions, database/runtime tables, transaction-reference integrity and payroll/cashbook reconciliation. `release:smoke` checks the application key, writable paths, storage link, database round-trip, critical routes and scheduler registration.
+
+## 10. Browser smoke check
 
 Verify over HTTPS:
 
@@ -115,29 +130,28 @@ Verify over HTTPS:
 - admin QR attendance scanner
 - gallery/public storage image loading
 
-Also verify `php artisan route:list` and review the Laravel production log for new errors.
+Review the Laravel production log for new errors after the deployment.
 
-## 10. Rollback
+## 11. Rollback
 
 If the release fails before irreversible data changes:
 
-1. Put the application in maintenance mode.
+1. Put the application in maintenance mode when possible.
 2. Restore the previous known-good code release.
-3. Run `composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction` for that release.
+3. Install/re-extract the production dependencies matching that release's `composer.lock`.
 4. Restore the pre-deploy database backup if the failed release changed schema/data incompatibly.
 5. Run `php artisan optimize`.
-6. Bring the application up:
-   `php artisan up`
-7. Repeat the smoke check.
+6. Bring the application up with `php artisan up` if maintenance mode was enabled.
+7. Repeat preflight/smoke/browser checks.
 
 Laravel migrations do not automatically guarantee a safe production rollback. Treat the database backup as the authoritative rollback path for destructive or incompatible schema changes.
 
-## 11. Security release checklist
+## 12. Security release checklist
 
 - `APP_DEBUG=false`
 - unique production `APP_KEY`
 - HTTPS only
-- secure session cookie enabled
+- secure, encrypted, HttpOnly session cookie
 - no demo/default admin password
 - `.env` inaccessible over HTTP
 - DB credentials are least-privilege
@@ -147,18 +161,17 @@ Laravel migrations do not automatically guarantee a safe production rollback. Tr
 - audit logging operational
 - mail/SMS/WhatsApp credentials stored only in environment/secrets
 
-## 12. CI gate
+## 13. CI gate
 
-Before production release, the GitHub Actions **CI** workflow must pass for the exact release commit:
+The GitHub Actions **CI** workflow targets PHP 8.3 to match the current cPanel runtime. It must pass for the exact release commit and checks:
 
-- committed `composer.lock` presence check
+- committed `composer.lock` presence
 - Composer manifest/lockfile validation
-- dependency install from `composer.lock`
-- Laravel environment/bootstrap
-- migrations on a clean SQLite database
-- route registration
+- dependency installation from `composer.lock`
+- clean Laravel bootstrap
+- migrations on SQLite
+- route and scheduler registration
+- release smoke checks
 - PHPUnit feature/integration tests
 
-The CI workflow also supports manual `workflow_dispatch` runs for release verification.
-
-Do not treat an empty or unavailable connector status as a passing build. Confirm the green workflow run in GitHub Actions before deployment.
+Do not treat an unavailable workflow status as a passing build. Confirm the green workflow run in GitHub Actions before production deployment.

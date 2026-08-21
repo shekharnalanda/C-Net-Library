@@ -5,18 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cashbook - C-Net Library</title>
     <style>
-        body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1180px;margin:30px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:18px}.grid{display:grid;grid-template-columns:1fr 2fr;gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.field{margin-bottom:12px}input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px}.btn{display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 13px;border-radius:9px;border:0;cursor:pointer}.btn.alt{background:#fff;color:#111827;border:1px solid #d1d5db}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px;vertical-align:top}.muted{color:#6b7280}.metric{font-size:28px;font-weight:700}.filters{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:14px}.categories{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}.category{background:#f8fafc;border-radius:10px;padding:12px}.adjust{margin-top:8px;padding-top:8px;border-top:1px dashed #d1d5db}.adjust form{display:grid;grid-template-columns:110px 110px 1fr auto;gap:6px;align-items:end}@media(max-width:850px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.adjust form{grid-template-columns:1fr}}
+        *{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#1f2937}.wrap{max-width:1280px;margin:28px auto;padding:0 18px}.top{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:18px}.toplinks{display:flex;gap:8px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:340px 1fr;gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.field{margin-bottom:12px}input,select,textarea{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:9px;margin-top:5px;background:#fff}.btn{display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 13px;border-radius:9px;border:0;cursor:pointer}.btn.alt{background:#fff;color:#111827;border:1px solid #d1d5db}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:14px;vertical-align:top}.muted{color:#6b7280}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.metric-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,23,42,.04)}.metric-label{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#64748b}.metric{font-size:26px;font-weight:800;margin-top:6px}.filters{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:8px;align-items:end;margin-bottom:14px}.categories{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}.category{background:#f8fafc;border-radius:10px;padding:12px}.adjust{margin-top:8px;padding-top:8px;border-top:1px dashed #d1d5db}.adjust form{display:grid;grid-template-columns:110px 110px 1fr auto;gap:6px;align-items:end}.ref{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#475569}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;font-size:12px}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{margin:0;font-size:18px}@media(max-width:1050px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.top{align-items:flex-start;flex-direction:column}.metrics,.filters{grid-template-columns:1fr}.adjust form{grid-template-columns:1fr}.table th,.table td{white-space:nowrap}}
     </style>
 </head>
 <body>
 <div class="wrap">
     <div class="top">
-        <div><h1 style="margin:0">Cashbook & Expenses</h1><div class="muted">Append-only operating expense ledger with adjustment trail.</div></div>
-        <div><a class="btn" href="{{ route('admin.reports.index') }}">Reports</a> <a class="btn" href="{{ route('admin.dashboard') }}">Dashboard</a></div>
+        <div><h1 style="margin:0">Cashbook & Expenses</h1><div class="muted">Daily finance desk with append-only expense adjustments and audit trail.</div></div>
+        <div class="toplinks"><a class="btn alt" href="{{ route('admin.students.index') }}">Students</a><a class="btn alt" href="{{ route('admin.reports.index') }}">Reports</a><a class="btn" href="{{ route('admin.dashboard') }}">Dashboard</a></div>
     </div>
 
     @if(session('success'))<div class="card" style="margin-bottom:18px;border-color:#86efac;background:#f0fdf4">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="card" style="margin-bottom:18px;border-color:#fca5a5;background:#fef2f2"><ul style="margin:0;padding-left:18px">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+
+    <div class="metrics">
+        <div class="metric-card"><div class="metric-label">Net Expenses</div><div class="metric">₹{{ number_format($totalExpenses,2) }}</div><div class="muted">Selected period</div></div>
+        <div class="metric-card"><div class="metric-label">Gross Expenses</div><div class="metric">₹{{ number_format($grossExpenses,2) }}</div><div class="muted">Before adjustments</div></div>
+        <div class="metric-card"><div class="metric-label">Adjustments</div><div class="metric">₹{{ number_format($expenseAdjustments,2) }}</div><div class="muted">Reversal / refund / correction</div></div>
+        <div class="metric-card"><div class="metric-label">Entries</div><div class="metric">{{ number_format($entryCount) }}</div><div class="muted">Matching current filters</div></div>
+    </div>
 
     <div class="grid">
         <div class="card">
@@ -26,10 +33,10 @@
                 <div class="field"><label>Date<input type="date" name="expense_date" value="{{ old('expense_date', today()->toDateString()) }}" required></label></div>
                 <div class="field"><label>Branch<select name="branch_id"><option value="">Global / Main</option>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected(old('branch_id') == $branch->id)>{{ $branch->name }}</option>@endforeach</select></label></div>
                 <div class="field"><label>Category<input name="category" value="{{ old('category') }}" placeholder="Rent, Electricity, Internet..." required></label></div>
-                <div class="field"><label>Payee<input name="payee" value="{{ old('payee') }}"></label></div>
+                <div class="field"><label>Payee<input name="payee" value="{{ old('payee') }}" placeholder="Vendor / person"></label></div>
                 <div class="field"><label>Amount<input type="number" name="amount" min="0.01" step="0.01" value="{{ old('amount') }}" required></label></div>
                 <div class="field"><label>Payment Mode<select name="payment_mode" required>@foreach(['cash','upi','card','bank_transfer','other'] as $mode)<option value="{{ $mode }}" @selected(old('payment_mode','cash') === $mode)>{{ strtoupper(str_replace('_',' ',$mode)) }}</option>@endforeach</select></label></div>
-                <div class="field"><label>Transaction Ref<input name="transaction_ref" value="{{ old('transaction_ref') }}"></label></div>
+                <div class="field"><label>Transaction Ref<input name="transaction_ref" value="{{ old('transaction_ref') }}" placeholder="UPI / bank / card reference"></label></div>
                 <div class="field"><label>Description<textarea name="description" rows="3">{{ old('description') }}</textarea></label></div>
                 <button class="btn" type="submit">Record Expense</button>
             </form>
@@ -37,26 +44,31 @@
 
         <div>
             <div class="card" style="margin-bottom:18px">
-                <div class="muted">Net expenses in selected period</div><div class="metric">₹{{ number_format($totalExpenses,2) }}</div>
-                <div class="muted">Gross ₹{{ number_format($grossExpenses,2) }} · Adjustments ₹{{ number_format($expenseAdjustments,2) }}</div>
+                <div class="section-title"><h2>Expense Ledger</h2><div class="muted">{{ $from->format('d M Y') }} – {{ $to->format('d M Y') }}</div></div>
+                <form method="GET" class="filters">
+                    <label>Search<input type="text" name="search" value="{{ request('search') }}" placeholder="Payee, ref, description"></label>
+                    <label>From<input type="date" name="from" value="{{ $from->toDateString() }}"></label>
+                    <label>To<input type="date" name="to" value="{{ $to->toDateString() }}"></label>
+                    <label>Branch<select name="branch_id"><option value="">All Branches</option>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected($branchId == $branch->id)>{{ $branch->name }}</option>@endforeach</select></label>
+                    <label>Category<select name="category"><option value="">All Categories</option>@foreach($categories as $category)<option value="{{ $category }}" @selected(request('category') === $category)>{{ $category }}</option>@endforeach</select></label>
+                    <label>Mode<select name="payment_mode"><option value="">All Modes</option>@foreach(['cash','upi','card','bank_transfer','other'] as $mode)<option value="{{ $mode }}" @selected(request('payment_mode') === $mode)>{{ strtoupper(str_replace('_',' ',$mode)) }}</option>@endforeach</select></label>
+                    <button class="btn" type="submit">Apply Filters</button>
+                    <a class="btn alt" href="{{ route('admin.expenses.index') }}">Reset</a>
+                </form>
+
                 <div class="categories">
                     @forelse($categoryTotals as $row)
                         <div class="category"><div class="muted">{{ $row->category }} (gross)</div><strong>₹{{ number_format((float)$row->total,2) }}</strong></div>
                     @empty
-                        <div class="muted">No category totals yet.</div>
+                        <div class="muted">No category totals for current filters.</div>
                     @endforelse
                 </div>
             </div>
+
             <div class="card">
-                <form method="GET" class="filters">
-                    <label>From<input type="date" name="from" value="{{ $from->toDateString() }}"></label>
-                    <label>To<input type="date" name="to" value="{{ $to->toDateString() }}"></label>
-                    <label>Branch<select name="branch_id"><option value="">All Branches</option>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected($branchId == $branch->id)>{{ $branch->name }}</option>@endforeach</select></label>
-                    <button class="btn" type="submit">Filter</button>
-                </form>
                 <div style="overflow:auto">
                     <table class="table">
-                        <thead><tr><th>Date</th><th>Branch</th><th>Category</th><th>Payee</th><th>Mode</th><th>Gross / Net</th><th>Recorded By</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Branch</th><th>Expense</th><th>Payee</th><th>Payment</th><th>Gross / Net</th><th>Recorded By</th></tr></thead>
                         <tbody>
                         @forelse($expenses as $expense)
                             @php($adjusted = (float) $expense->adjustments->sum('amount'))
@@ -64,11 +76,11 @@
                             <tr>
                                 <td>{{ $expense->expense_date?->format('d M Y') }}</td>
                                 <td>{{ $expense->branch?->name ?? 'Global' }}</td>
-                                <td><strong>{{ $expense->category }}</strong>@if($expense->payroll)<div class="muted">Auto-posted payroll {{ sprintf('%02d/%d', $expense->payroll->month, $expense->payroll->year) }}</div>@endif @if($expense->description)<div class="muted">{{ $expense->description }}</div>@endif</td>
+                                <td><strong>{{ $expense->category }}</strong>@if($expense->payroll)<div class="muted">Payroll {{ sprintf('%02d/%d', $expense->payroll->month, $expense->payroll->year) }}</div>@endif @if($expense->description)<div class="muted">{{ $expense->description }}</div>@endif</td>
                                 <td>{{ $expense->payee ?: '—' }}</td>
-                                <td>{{ strtoupper(str_replace('_',' ',$expense->payment_mode)) }}</td>
+                                <td><span class="pill">{{ strtoupper(str_replace('_',' ',$expense->payment_mode)) }}</span>@if($expense->transaction_ref)<div class="ref" style="margin-top:6px">{{ $expense->transaction_ref }}</div>@endif</td>
                                 <td>
-                                    ₹{{ number_format((float)$expense->amount,2) }}
+                                    <strong>₹{{ number_format((float)$expense->amount,2) }}</strong>
                                     @if($adjusted > 0)<div class="muted">Adjusted -₹{{ number_format($adjusted,2) }} · Net ₹{{ number_format($net,2) }}</div>@endif
                                     @if($net > 0)
                                         <div class="adjust">
@@ -85,7 +97,7 @@
                                 <td>{{ $expense->creator?->name ?? '—' }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="muted">No expenses recorded for this period.</td></tr>
+                            <tr><td colspan="7" class="muted">No expenses recorded for current filters.</td></tr>
                         @endforelse
                         </tbody>
                     </table>

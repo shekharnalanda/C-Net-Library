@@ -10,6 +10,7 @@ deployment:
     - /bin/mkdir -p "$APPPATH/storage/logs"
     - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan config:clear
     - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan migrate --force
-    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan db:seed --force
+    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan release:preflight
     - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan storage:link || true
     - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan optimize
+    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan release:smoke

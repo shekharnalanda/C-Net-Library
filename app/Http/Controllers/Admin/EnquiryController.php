@@ -22,33 +22,65 @@ class EnquiryController extends Controller
     public function index(Request $request): View
     {
         $branchId = AdminBranchScope::id($request);
-        $query = AdminBranchScope::apply(Enquiry::query(), $request);
+        $baseQuery = AdminBranchScope::apply(Enquiry::query(), $request);
 
-        $enquiries = $query
+        $summary = [
+            'total' => (clone $baseQuery)->count(),
+            'new' => (clone $baseQuery)->where('status', 'new')->count(),
+            'follow_up' => (clone $baseQuery)->where('status', 'follow_up')->count(),
+            'qualified' => (clone $baseQuery)->where('status', 'qualified')->count(),
+            'converted' => (clone $baseQuery)->where('status', 'converted')->count(),
+            'overdue_follow_up' => (clone $baseQuery)
+                ->whereNotIn('status', ['converted', 'lost'])
+                ->whereNotNull('follow_up_date')
+                ->whereDate('follow_up_date', '<', today())
+                ->count(),
+            'due_today' => (clone $baseQuery)
+                ->whereNotIn('status', ['converted', 'lost'])
+                ->whereDate('follow_up_date', today())
+                ->count(),
+        ];
+
+        $enquiries = (clone $baseQuery)
             ->with(['branch', 'assignee', 'convertedAdmission'])
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
+            ->when($request->filled('assigned_to'), fn ($query) => $query->where('assigned_to', $request->integer('assigned_to')))
+            ->when($request->filled('follow_up'), function ($query) use ($request) {
+                match ((string) $request->string('follow_up')) {
+                    'overdue' => $query->whereNotIn('status', ['converted', 'lost'])->whereNotNull('follow_up_date')->whereDate('follow_up_date', '<', today()),
+                    'today' => $query->whereNotIn('status', ['converted', 'lost'])->whereDate('follow_up_date', today()),
+                    'upcoming' => $query->whereNotIn('status', ['converted', 'lost'])->whereDate('follow_up_date', '>', today()),
+                    'unassigned' => $query->whereNull('assigned_to'),
+                    default => $query,
+                };
+            })
             ->when($request->filled('q'), function ($query) use ($request) {
                 $term = '%'.$request->string('q').'%';
                 $query->where(function ($sub) use ($term) {
                     $sub->where('name', 'like', $term)
                         ->orWhere('mobile', 'like', $term)
+                        ->orWhere('email', 'like', $term)
                         ->orWhere('enquiry_no', 'like', $term);
                 });
             })
+            ->orderByRaw("CASE WHEN status NOT IN ('converted','lost') AND follow_up_date IS NOT NULL AND follow_up_date < ? THEN 0 WHEN status NOT IN ('converted','lost') AND follow_up_date = ? THEN 1 ELSE 2 END", [today()->toDateString(), today()->toDateString()])
             ->latest()
             ->paginate(25)
             ->withQueryString();
 
+        $staff = User::query()
+            ->whereIn('role', ['super_admin', 'branch_admin', 'counselor', 'admin'])
+            ->when($branchId !== null, fn ($query) => $query->where('branch_id', $branchId))
+            ->orderBy('name')
+            ->get();
+
         return view('admin.enquiries.index', [
             'enquiries' => $enquiries,
+            'summary' => $summary,
             'branches' => $branchId === null
                 ? Branch::query()->where('status', true)->orderBy('name')->get()
                 : Branch::query()->whereKey($branchId)->get(),
-            'staff' => User::query()
-                ->whereIn('role', ['super_admin', 'branch_admin', 'counselor', 'admin'])
-                ->when($branchId !== null, fn ($query) => $query->where('branch_id', $branchId))
-                ->orderBy('name')
-                ->get(),
+            'staff' => $staff,
         ]);
     }
 
@@ -108,10 +140,7 @@ class EnquiryController extends Controller
         $old = $enquiry->only(['status', 'converted_admission_id']);
 
         $admission = DB::transaction(function () use ($enquiry) {
-            $lockedEnquiry = Enquiry::query()
-                ->whereKey($enquiry->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $lockedEnquiry = Enquiry::query()->whereKey($enquiry->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedEnquiry->converted_admission_id) {
                 return Admission::query()->findOrFail($lockedEnquiry->converted_admission_id);
@@ -130,9 +159,7 @@ class EnquiryController extends Controller
                 ->exists();
 
             if ($duplicateStudent) {
-                throw ValidationException::withMessages([
-                    'enquiry' => 'An active student with this mobile number already exists in this branch.',
-                ]);
+                throw ValidationException::withMessages(['enquiry' => 'An active student with this mobile number already exists in this branch.']);
             }
 
             $duplicateAdmission = Admission::query()
@@ -142,16 +169,12 @@ class EnquiryController extends Controller
                 ->exists();
 
             if ($duplicateAdmission) {
-                throw ValidationException::withMessages([
-                    'enquiry' => 'An active admission record with this mobile number already exists in this branch.',
-                ]);
+                throw ValidationException::withMessages(['enquiry' => 'An active admission record with this mobile number already exists in this branch.']);
             }
-
-            $applicationNo = $this->generateApplicationNo();
 
             $admission = Admission::create([
                 'branch_id' => $lockedEnquiry->branch_id,
-                'application_no' => $applicationNo,
+                'application_no' => $this->generateApplicationNo(),
                 'name' => $lockedEnquiry->name,
                 'mobile' => $lockedEnquiry->mobile,
                 'email' => $lockedEnquiry->email,
@@ -160,11 +183,7 @@ class EnquiryController extends Controller
                 'remarks' => trim('Converted from enquiry '.$lockedEnquiry->enquiry_no.'. '.$lockedEnquiry->follow_up_notes),
             ]);
 
-            $lockedEnquiry->update([
-                'status' => 'converted',
-                'converted_admission_id' => $admission->id,
-                'follow_up_date' => null,
-            ]);
+            $lockedEnquiry->update(['status' => 'converted', 'converted_admission_id' => $admission->id, 'follow_up_date' => null]);
 
             return $admission;
         }, 3);

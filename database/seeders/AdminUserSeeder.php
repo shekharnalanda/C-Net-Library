@@ -19,7 +19,7 @@ class AdminUserSeeder extends Seeder
             return;
         }
 
-        User::updateOrCreate(
+        $user = User::firstOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
@@ -28,5 +28,13 @@ class AdminUserSeeder extends Seeder
                 'status' => true,
             ]
         );
+
+        if (! $user->wasRecentlyCreated) {
+            $user->update([
+                'name' => $name,
+                'role' => 'super_admin',
+                'status' => true,
+            ]);
+        }
     }
 }

@@ -17,8 +17,8 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
-          extensions: mbstring, pdo_sqlite, sqlite3
+          php-version: '8.3'
+          extensions: mbstring, bcmath, curl, dom, fileinfo, iconv, openssl, pdo_sqlite, sqlite3, tokenizer
           coverage: none
 
       - name: Require Composer lockfile
@@ -46,12 +46,16 @@ jobs:
 
       - name: Run migrations
         env:
+          APP_ENV: testing
+          APP_DEBUG: true
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
         run: php artisan migrate --force
 
       - name: Verify routes and scheduler
         env:
+          APP_ENV: testing
+          APP_DEBUG: true
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
         run: |
@@ -60,12 +64,16 @@ jobs:
 
       - name: Run release smoke checks
         env:
+          APP_ENV: testing
+          APP_DEBUG: true
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
         run: php artisan release:smoke
 
       - name: Run tests
         env:
+          APP_ENV: testing
+          APP_DEBUG: true
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
         run: php artisan test

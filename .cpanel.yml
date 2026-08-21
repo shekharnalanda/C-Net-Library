@@ -1,18 +1,18 @@
 ---
 deployment:
   tasks:
-    - export APPPATH=/home4/mcied45x/repositories/C-Net-Library
-    - /bin/mkdir -p "$APPPATH/bootstrap/cache"
-    - /bin/mkdir -p "$APPPATH/storage/app/public"
-    - /bin/mkdir -p "$APPPATH/storage/framework/cache/data"
-    - /bin/mkdir -p "$APPPATH/storage/framework/sessions"
-    - /bin/mkdir -p "$APPPATH/storage/framework/views"
-    - /bin/mkdir -p "$APPPATH/storage/logs"
-    - test -f "$APPPATH/composer.lock" || (echo "ERROR: composer.lock is missing; refusing production deployment." && exit 1)
-    - test -f "$APPPATH/vendor/autoload.php" || (echo "ERROR: vendor/autoload.php is missing. Install the exact production dependencies from composer.lock before deploying this commit." && exit 1)
-    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan config:clear
-    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan migrate --force
-    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan release:preflight
-    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan storage:link || true
-    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan optimize
-    - cd "$APPPATH" && /usr/local/bin/ea-php83 artisan release:smoke
+    - 'export APPPATH=/home4/mcied45x/repositories/C-Net-Library'
+    - '/bin/mkdir -p "$APPPATH/bootstrap/cache"'
+    - '/bin/mkdir -p "$APPPATH/storage/app/public"'
+    - '/bin/mkdir -p "$APPPATH/storage/framework/cache/data"'
+    - '/bin/mkdir -p "$APPPATH/storage/framework/sessions"'
+    - '/bin/mkdir -p "$APPPATH/storage/framework/views"'
+    - '/bin/mkdir -p "$APPPATH/storage/logs"'
+    - 'test -f "$APPPATH/composer.lock" || (echo "ERROR: composer.lock is missing; refusing production deployment." && exit 1)'
+    - 'test -f "$APPPATH/vendor/autoload.php" || (echo "ERROR: vendor/autoload.php is missing. Install the exact production dependencies from composer.lock before deploying this commit." && exit 1)'
+    - 'cd "$APPPATH" && /usr/local/bin/ea-php83 artisan config:clear'
+    - 'cd "$APPPATH" && /usr/local/bin/ea-php83 artisan migrate --force'
+    - 'cd "$APPPATH" && /usr/local/bin/ea-php83 artisan release:preflight'
+    - 'cd "$APPPATH" && /usr/local/bin/ea-php83 artisan storage:link || true'
+    - 'cd "$APPPATH" && /usr/local/bin/ea-php83 artisan optimize'
+    - 'cd "$APPPATH" && /usr/local/bin/ea-php83 artisan release:smoke'

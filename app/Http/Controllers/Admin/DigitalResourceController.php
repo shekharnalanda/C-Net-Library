@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\DigitalResource;
+use App\Models\DigitalResourceLog;
 use App\Services\AdminBranchScope;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
@@ -16,14 +17,38 @@ class DigitalResourceController extends Controller
 {
     public function index(Request $request, AdminBranchScope $branchScope)
     {
-        $resources = $branchScope->apply(DigitalResource::query(), $request->user())
+        $baseQuery = $branchScope->apply(DigitalResource::query(), $request->user());
+
+        $summary = [
+            'total' => (clone $baseQuery)->count(),
+            'active' => (clone $baseQuery)->where('status', true)->count(),
+            'public' => (clone $baseQuery)->where('access_type', 'public')->count(),
+            'members' => (clone $baseQuery)->where('access_type', 'members')->count(),
+            'premium' => (clone $baseQuery)->where('access_type', 'premium')->count(),
+        ];
+
+        $resourceIds = (clone $baseQuery)->pluck('id');
+        $summary['views'] = DigitalResourceLog::query()->whereIn('digital_resource_id', $resourceIds)->where('action', 'view')->count();
+        $summary['downloads'] = DigitalResourceLog::query()->whereIn('digital_resource_id', $resourceIds)->where('action', 'download')->count();
+
+        $resources = (clone $baseQuery)
             ->with('branch')
-            ->withCount('logs')
-            ->when($request->search, fn ($q, $search) => $q->where(function ($query) use ($search) {
-                $query->where('title', 'like', "%{$search}%")
-                    ->orWhere('category', 'like', "%{$search}%")
-                    ->orWhere('resource_type', 'like', "%{$search}%");
-            }))
+            ->withCount([
+                'logs',
+                'logs as views_count' => fn ($query) => $query->where('action', 'view'),
+                'logs as downloads_count' => fn ($query) => $query->where('action', 'download'),
+            ])
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = trim((string) $request->string('search'));
+                $q->where(function ($query) use ($search) {
+                    $query->where('title', 'like', "%{$search}%")
+                        ->orWhere('category', 'like', "%{$search}%")
+                        ->orWhere('resource_type', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->filled('type'), fn ($query) => $query->where('resource_type', $request->string('type')))
+            ->when($request->filled('access'), fn ($query) => $query->where('access_type', $request->string('access')))
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status') === 'active'))
             ->latest()
             ->paginate(20)
             ->withQueryString();
@@ -36,6 +61,7 @@ class DigitalResourceController extends Controller
         return view('admin.digital-resources.index', [
             'resources' => $resources,
             'branches' => $branches->orderBy('name')->get(),
+            'summary' => $summary,
         ]);
     }
 

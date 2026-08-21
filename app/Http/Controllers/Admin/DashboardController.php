@@ -53,9 +53,13 @@ class DashboardController extends Controller
 
         $todayNetExpenses = max(0, $todayGrossExpenses - $todayExpenseAdjustments);
 
+        $seatQuery = Seat::query()
+            ->where('status', true)
+            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('studyHall', fn ($hall) => $hall->where('branch_id', $user->branch_id)));
+
         $data = [
             'active_students' => $branchScope->apply(Student::query(), $user)->where('status', 'active')->count(),
-            'total_seats' => $branchScope->apply(Seat::query(), $user)->where('status', true)->count(),
+            'total_seats' => $seatQuery->count(),
             'today_gross_collection' => $todayGross,
             'today_adjustments' => $todayAdjustments,
             'today_collection' => $todayMembershipIncome,

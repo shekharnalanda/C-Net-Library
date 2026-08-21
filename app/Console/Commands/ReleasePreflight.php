@@ -24,6 +24,20 @@ class ReleasePreflight extends Command
             $failures[] = 'composer.lock is missing.';
         }
 
+        if (! file_exists(base_path('vendor/autoload.php'))) {
+            $failures[] = 'vendor/autoload.php is missing. Install exact production dependencies from composer.lock before deployment.';
+        }
+
+        if (! extension_loaded('pdo_mysql')) {
+            $failures[] = 'PHP extension pdo_mysql is required.';
+        }
+
+        foreach (['mbstring', 'openssl', 'fileinfo', 'tokenizer', 'ctype', 'iconv'] as $extension) {
+            if (! extension_loaded($extension)) {
+                $failures[] = "Required PHP extension is missing: {$extension}.";
+            }
+        }
+
         if (config('app.timezone') !== 'Asia/Kolkata') {
             $failures[] = 'APP timezone must be Asia/Kolkata for date-based memberships, attendance and scheduler behavior.';
         }
@@ -34,6 +48,10 @@ class ReleasePreflight extends Command
 
         if ((bool) config('app.debug')) {
             $failures[] = 'APP_DEBUG must be false in production.';
+        }
+
+        if (! config('app.key')) {
+            $failures[] = 'APP_KEY is missing.';
         }
 
         $appUrl = (string) config('app.url');
@@ -67,6 +85,12 @@ class ReleasePreflight extends Command
 
         if (config('queue.default') !== 'database') {
             $failures[] = 'QUEUE_CONNECTION must resolve to database for the production runtime design.';
+        }
+
+        foreach ([storage_path(), storage_path('framework'), storage_path('logs'), base_path('bootstrap/cache')] as $path) {
+            if (! is_dir($path) || ! is_writable($path)) {
+                $failures[] = "Required writable path is unavailable: {$path}.";
+            }
         }
 
         try {

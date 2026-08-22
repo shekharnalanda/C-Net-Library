@@ -212,18 +212,23 @@ class DemoLibraryDataSeeder extends Seeder
                 foreach (range(0, 2) as $dayOffset) {
                     $date = today()->subDays($dayOffset);
 
-                    Attendance::updateOrCreate(
-                        ['student_id' => $student->id, 'attendance_date' => $date->toDateString()],
-                        [
-                            'branch_id' => $branch->id,
-                            'check_in_at' => $date->copy()->setTime(8 + $index, 0),
-                            'check_out_at' => $date->copy()->setTime(11 + $index, 0),
-                            'study_minutes' => 180,
-                            'entry_method' => 'manual',
-                            'marked_by' => null,
-                            'remarks' => self::MARKER,
-                        ]
-                    );
+                    $attendance = Attendance::query()
+                        ->where('student_id', $student->id)
+                        ->whereDate('attendance_date', $date->toDateString())
+                        ->first() ?? new Attendance([
+                            'student_id' => $student->id,
+                            'attendance_date' => $date->toDateString(),
+                        ]);
+
+                    $attendance->fill([
+                        'branch_id' => $branch->id,
+                        'check_in_at' => $date->copy()->setTime(8 + $index, 0),
+                        'check_out_at' => $date->copy()->setTime(11 + $index, 0),
+                        'study_minutes' => 180,
+                        'entry_method' => 'manual',
+                        'marked_by' => null,
+                        'remarks' => self::MARKER,
+                    ])->save();
                 }
 
                 $copy = BookCopy::updateOrCreate(

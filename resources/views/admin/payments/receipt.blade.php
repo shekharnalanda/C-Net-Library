@@ -84,7 +84,7 @@
         <div class="panel">
             <h2 style="margin-top:0">Record Adjustment</h2>
             <p class="muted">Use this for refunds, reversals or corrections. The original payment and receipt are not edited or deleted.</p>
-            <form method="POST" action="{{ route('admin.payments.adjust', $payment) }}">
+            <form method="POST" action="{{ route('admin.payments.adjustments.store', $payment) }}">
                 @csrf
                 <div class="grid">
                     <div class="field"><label>Type<select name="type" required><option value="refund">Refund</option><option value="reversal">Reversal</option><option value="correction">Correction</option></select></label></div>

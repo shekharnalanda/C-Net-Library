@@ -10,8 +10,10 @@ use App\Models\Seat;
 use App\Models\Student;
 use App\Models\StudyHall;
 use App\Models\StudySlot;
+use App\Models\User;
 use App\Services\AdmissionApprovalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -32,7 +34,7 @@ class AdmissionCrmLifecycleTest extends TestCase
         ]);
 
         $controller = app(\App\Http\Controllers\Admin\EnquiryController::class);
-        $response = $controller->convert($enquiry, app(\App\Services\AuditService::class));
+        $response = $controller->convert($this->adminRequest(), $enquiry, app(\App\Services\AuditService::class));
 
         $enquiry->refresh();
         $this->assertSame('converted', $enquiry->status);
@@ -59,7 +61,7 @@ class AdmissionCrmLifecycleTest extends TestCase
 
         $this->expectException(ValidationException::class);
         app(\App\Http\Controllers\Admin\EnquiryController::class)
-            ->convert($enquiry, app(\App\Services\AuditService::class));
+            ->convert($this->adminRequest(), $enquiry, app(\App\Services\AuditService::class));
     }
 
     public function test_duplicate_active_student_blocks_enquiry_conversion(): void
@@ -84,13 +86,26 @@ class AdmissionCrmLifecycleTest extends TestCase
 
         try {
             app(\App\Http\Controllers\Admin\EnquiryController::class)
-                ->convert($enquiry, app(\App\Services\AuditService::class));
+                ->convert($this->adminRequest(), $enquiry, app(\App\Services\AuditService::class));
             $this->fail('Expected duplicate student validation error.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('enquiry', $exception->errors());
         }
 
         $this->assertDatabaseMissing('admissions', ['mobile' => '9000010003']);
+    }
+
+    private function adminRequest(): Request
+    {
+        $request = Request::create('/admin/enquiries/convert', 'POST');
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+            'status' => true,
+        ]);
+
+        $request->setUserResolver(fn () => $user);
+
+        return $request;
     }
 
     public function test_rejected_admission_cannot_be_approved(): void

@@ -17,7 +17,7 @@ class CommunicationController extends Controller
 
         $logs = CommunicationLog::query()
             ->with(['student', 'enquiry', 'template', 'creator'])
-            ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branchId()))
+            ->when(! $request->user()->isGlobalAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branch_id))
             ->when($request->filled('channel'), fn ($query) => $query->where('channel', $request->string('channel')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->latest()

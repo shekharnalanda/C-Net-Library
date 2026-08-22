@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\FeePlan;
 use App\Models\Payment;
 use App\Models\Student;
 use App\Models\StudentMembership;
+use App\Models\StudySlot;
 use App\Models\User;
 use App\Services\ApplicationNumberService;
 use Database\Seeders\DatabaseSeeder;
@@ -48,8 +50,12 @@ class IdentifierRaceHardeningTest extends TestCase
             'joining_date' => today(),
             'status' => 'active',
         ]);
+        $slot = StudySlot::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
+        $plan = FeePlan::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
         $membership = StudentMembership::create([
             'student_id' => $student->id,
+            'fee_plan_id' => $plan->id,
+            'study_slot_id' => $slot->id,
             'start_date' => today(),
             'expiry_date' => today()->addMonth(),
             'base_fee' => 1000,

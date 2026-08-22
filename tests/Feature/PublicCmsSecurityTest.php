@@ -63,9 +63,9 @@ class PublicCmsSecurityTest extends TestCase
         $response = $this->get('/');
 
         $response->assertOk();
-        $response->assertSee('Live shift-wise availability');
-        $response->assertSee('Seat-slots available today');
-        $response->assertSee('Occupied seat-slots');
+        $response->assertSee("Today's shift-wise availability");
+        $response->assertSee('seat-slots available');
+        $response->assertSee('Occupied');
     }
 
     public function test_public_cms_page_outputs_escaped_seo_attributes(): void

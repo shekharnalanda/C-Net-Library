@@ -81,7 +81,7 @@ class PerformanceRegressionTest extends TestCase
 
         $admin = User::factory()->create([
             'branch_id' => $branch->id,
-            'role' => 'admin',
+            'role' => 'super_admin',
             'status' => true,
         ]);
 

@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -39,17 +41,35 @@ class FirstAdminSetupController extends Controller
             ],
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => strtolower(trim($validated['email'])),
-            'password' => Hash::make($validated['password']),
-            'role' => 'super_admin',
-            'status' => true,
-            'branch_id' => null,
-        ]);
+        try {
+            $user = Cache::lock('cnet:first-admin-setup', 15)->block(5, function () use ($validated) {
+                if ($this->adminExists()) {
+                    return null;
+                }
 
-        if ($role = Role::query()->where('slug', 'super-admin')->first()) {
-            $user->roles()->syncWithoutDetaching([$role->id]);
+                $user = User::create([
+                    'name' => $validated['name'],
+                    'email' => strtolower(trim($validated['email'])),
+                    'password' => Hash::make($validated['password']),
+                    'role' => 'super_admin',
+                    'status' => true,
+                    'branch_id' => null,
+                ]);
+
+                if ($role = Role::query()->where('slug', 'super-admin')->first()) {
+                    $user->roles()->syncWithoutDetaching([$role->id]);
+                }
+
+                return $user;
+            });
+        } catch (LockTimeoutException) {
+            return back()
+                ->withErrors(['setup' => 'Administrator setup is already being processed. Please try again.'])
+                ->onlyInput('name', 'email');
+        }
+
+        if (! $user) {
+            return redirect()->route('login');
         }
 
         Auth::login($user);

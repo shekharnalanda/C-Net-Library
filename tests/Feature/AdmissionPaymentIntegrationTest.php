@@ -157,7 +157,7 @@ class AdmissionPaymentIntegrationTest extends TestCase
     public function test_premium_resource_requires_premium_named_plan(): void
     {
         Storage::fake('local');
-        Storage::disk('local')->put('resources/premium.txt', 'Premium resource');
+        Storage::disk('local')->put('digital-resources/premium.txt', 'Premium resource');
 
         $branch = Branch::query()->where('status', true)->firstOrFail();
         $slot = StudySlot::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
@@ -166,7 +166,7 @@ class AdmissionPaymentIntegrationTest extends TestCase
             'title' => 'Premium Resource',
             'slug' => 'premium-resource',
             'resource_type' => 'notes',
-            'file_path' => 'resources/premium.txt',
+            'file_path' => 'digital-resources/premium.txt',
             'access_type' => 'premium',
             'download_allowed' => true,
             'status' => true,

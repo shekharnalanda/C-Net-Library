@@ -3,15 +3,45 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Seat;
 use App\Models\StudySlot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class SeatAvailabilityController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request): JsonResponse|View
     {
+        $user = $request->user();
+
+        $branches = Branch::query()
+            ->where('status', true)
+            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereKey($user->branch_id))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $slots = StudySlot::query()
+            ->where('status', true)
+            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->where('branch_id', $user->branch_id))
+            ->orderBy('branch_id')
+            ->orderBy('start_time')
+            ->orderBy('name')
+            ->get(['id', 'branch_id', 'name', 'start_time', 'end_time', 'is_24x7', 'is_flexible']);
+
+        if (! $request->filled('branch_id') || ! $request->filled('study_slot_id')) {
+            return view('admin.seats.available', [
+                'branches' => $branches,
+                'slots' => $slots,
+                'seats' => null,
+                'selectedBranch' => null,
+                'selectedSlot' => null,
+                'from' => $request->input('allocated_from', now()->toDateString()),
+                'to' => $request->input('allocated_to', now()->addDays(30)->toDateString()),
+            ]);
+        }
+
         $data = $request->validate([
             'branch_id' => ['required', 'exists:branches,id'],
             'study_slot_id' => ['required', 'exists:study_slots,id'],
@@ -19,7 +49,11 @@ class SeatAvailabilityController extends Controller
             'allocated_to' => ['nullable', 'date', 'after_or_equal:allocated_from'],
         ]);
 
-        $slot = StudySlot::query()->whereKey($data['study_slot_id'])->firstOrFail();
+        if (! $user->isGlobalAdmin()) {
+            abort_unless((int) $user->branch_id === (int) $data['branch_id'], 403);
+        }
+
+        $slot = StudySlot::query()->whereKey($data['study_slot_id'])->where('status', true)->firstOrFail();
         abort_unless((int) $slot->branch_id === (int) $data['branch_id'], 422, 'Study slot does not belong to the selected branch.');
 
         $from = $data['allocated_from'] ?? now()->toDateString();
@@ -58,6 +92,18 @@ class SeatAvailabilityController extends Controller
                 'hall' => $seat->studyHall?->name,
             ]);
 
-        return response()->json($seats);
+        if ($request->expectsJson()) {
+            return response()->json($seats);
+        }
+
+        return view('admin.seats.available', [
+            'branches' => $branches,
+            'slots' => $slots,
+            'seats' => $seats,
+            'selectedBranch' => $branches->firstWhere('id', (int) $data['branch_id']),
+            'selectedSlot' => $slot,
+            'from' => $from,
+            'to' => $to,
+        ]);
     }
 }

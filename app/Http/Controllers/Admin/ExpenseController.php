@@ -24,7 +24,8 @@ class ExpenseController extends Controller
             : (int) $request->user()->branch_id;
 
         $baseQuery = Expense::query()
-            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('expense_date', '>=', $from->toDateString())
+            ->whereDate('expense_date', '<=', $to->toDateString())
             ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
             ->when($request->filled('category'), fn ($query) => $query->where('category', $request->string('category')->toString()))
             ->when($request->filled('payment_mode'), fn ($query) => $query->where('payment_mode', $request->string('payment_mode')->toString()))
@@ -49,7 +50,8 @@ class ExpenseController extends Controller
         $grossExpenses = (float) (clone $baseQuery)->sum('amount');
         $adjustments = (float) ExpenseAdjustment::query()
             ->whereHas('expense', function ($query) use ($from, $to, $branchId, $request) {
-                $query->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+                $query->whereDate('expense_date', '>=', $from->toDateString())
+            ->whereDate('expense_date', '<=', $to->toDateString())
                     ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId))
                     ->when($request->filled('category'), fn ($expense) => $expense->where('category', $request->string('category')->toString()))
                     ->when($request->filled('payment_mode'), fn ($expense) => $expense->where('payment_mode', $request->string('payment_mode')->toString()))

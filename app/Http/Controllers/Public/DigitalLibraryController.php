@@ -38,7 +38,7 @@ class DigitalLibraryController extends Controller
 
         $allowedAccessTypes = ['public'];
         if ($membership) {
-            $allowedAccessTypes[] = 'member';
+            $allowedAccessTypes[] = 'members';
             if ($isPremium) {
                 $allowedAccessTypes[] = 'premium';
             }
@@ -46,7 +46,19 @@ class DigitalLibraryController extends Controller
 
         $baseQuery = DigitalResource::query()
             ->where('status', true)
-            ->whereIn('access_type', $allowedAccessTypes);
+            ->whereIn('access_type', $allowedAccessTypes)
+            ->when($student, function ($query) use ($student) {
+                $query->where(function ($scope) use ($student) {
+                    $scope->where('access_type', 'public')
+                        ->orWhereNull('branch_id')
+                        ->orWhere('branch_id', $student->branch_id);
+                });
+            }, function ($query) {
+                $query->where(function ($scope) {
+                    $scope->where('access_type', 'public')
+                        ->orWhereNull('branch_id');
+                });
+            });
 
         $resources = (clone $baseQuery)
             ->when($request->filled('type'), fn ($q) => $q->where('resource_type', $request->string('type')))
@@ -59,7 +71,7 @@ class DigitalLibraryController extends Controller
                         ->orWhere('description', 'like', $term);
                 });
             })
-            ->orderByRaw("CASE access_type WHEN 'premium' THEN 0 WHEN 'member' THEN 1 ELSE 2 END")
+            ->orderByRaw("CASE access_type WHEN 'premium' THEN 0 WHEN 'members' THEN 1 ELSE 2 END")
             ->latest()
             ->paginate(24)
             ->withQueryString();

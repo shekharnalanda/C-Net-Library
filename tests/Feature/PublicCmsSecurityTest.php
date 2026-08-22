@@ -63,7 +63,7 @@ class PublicCmsSecurityTest extends TestCase
         $response = $this->get('/');
 
         $response->assertOk();
-        $response->assertSeeText("Today's shift-wise availability");
+        $response->assertSee("Today's shift-wise availability", false);
         $response->assertSee('seat-slots available');
         $response->assertSee('Occupied');
     }

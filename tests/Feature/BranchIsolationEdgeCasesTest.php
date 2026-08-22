@@ -97,7 +97,13 @@ class BranchIsolationEdgeCasesTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.communications.index'));
 
         $response->assertOk();
-        $response->assertSee('branch-a@example.com');
+        $response->assertViewHas('logs', function ($logs) use ($branchA, $branchB) {
+            $branchIds = $logs->getCollection()->pluck('branch_id')->map(fn ($id) => (int) $id);
+
+            return $branchIds->contains((int) $branchA->id)
+                && ! $branchIds->contains((int) $branchB->id);
+        });
+        $response->assertDontSee('branch-a@example.com');
         $response->assertDontSee('branch-b@example.com');
     }
 

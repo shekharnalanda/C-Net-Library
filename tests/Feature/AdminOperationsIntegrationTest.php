@@ -141,7 +141,7 @@ class AdminOperationsIntegrationTest extends TestCase
             'branch_id' => $branch->id,
             'name' => 'CRM Student',
             'mobile' => '9033333333',
-            'status' => 'pending',
+            'status' => 'new',
         ]);
     }
 

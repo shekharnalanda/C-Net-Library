@@ -10,7 +10,6 @@ use App\Models\StudentMembership;
 use App\Models\StudySlot;
 use App\Models\FeePlan;
 use App\Models\User;
-use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -21,7 +20,11 @@ class BranchFinanceAnalyticsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(DatabaseSeeder::class);
+        Branch::factory()->create(['status' => true]);
+        User::factory()->create([
+            'role' => 'super_admin',
+            'status' => true,
+        ]);
     }
 
     public function test_reports_filter_finance_and_students_by_branch(): void

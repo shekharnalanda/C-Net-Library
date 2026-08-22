@@ -37,8 +37,8 @@ class AdminBranchModuleIsolationTest extends TestCase
         $studentA = Student::factory()->create(['branch_id' => $branchA->id, 'name' => 'Student A', 'status' => 'active']);
         $studentB = Student::factory()->create(['branch_id' => $branchB->id, 'name' => 'Student B', 'status' => 'active']);
 
-        Attendance::factory()->create(['student_id' => $studentA->id, 'attendance_date' => today()]);
-        Attendance::factory()->create(['student_id' => $studentB->id, 'attendance_date' => today()]);
+        Attendance::factory()->create(['student_id' => $studentA->id, 'branch_id' => $branchA->id, 'attendance_date' => today()]);
+        Attendance::factory()->create(['student_id' => $studentB->id, 'branch_id' => $branchB->id, 'attendance_date' => today()]);
 
         $category = BookCategory::factory()->create();
         $book = Book::factory()->create(['book_category_id' => $category->id]);

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Branch;
 use App\Models\DigitalResource;
+use App\Models\Enquiry;
 use App\Models\Role;
 use App\Models\Student;
 use App\Models\User;

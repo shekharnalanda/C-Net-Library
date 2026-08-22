@@ -86,6 +86,8 @@ class EnquiryController extends Controller
 
     public function update(Request $request, Enquiry $enquiry, AuditService $audit): RedirectResponse
     {
+        AdminBranchScope::authorize($request, $enquiry->branch_id);
+
         if (in_array($enquiry->status, ['converted', 'lost'], true)) {
             throw ValidationException::withMessages([
                 'status' => 'Converted or lost enquiries are terminal records and cannot be reopened or edited.',
@@ -135,8 +137,10 @@ class EnquiryController extends Controller
         return back()->with('success', 'Enquiry updated.');
     }
 
-    public function convert(Enquiry $enquiry, AuditService $audit): RedirectResponse
+    public function convert(Request $request, Enquiry $enquiry, AuditService $audit): RedirectResponse
     {
+        AdminBranchScope::authorize($request, $enquiry->branch_id);
+
         $old = $enquiry->only(['status', 'converted_admission_id']);
 
         $admission = DB::transaction(function () use ($enquiry) {

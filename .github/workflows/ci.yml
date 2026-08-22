@@ -40,7 +40,8 @@ jobs:
       - name: Prepare environment
         run: |
           cp .env.example .env
-          php -r "file_exists('database/database.sqlite') || touch('database/database.sqlite');"
+          rm -f database/database.sqlite
+          touch database/database.sqlite
           php artisan key:generate
           php artisan storage:link
 
@@ -75,5 +76,5 @@ jobs:
           APP_ENV: testing
           APP_DEBUG: true
           DB_CONNECTION: sqlite
-          DB_DATABASE: database/database.sqlite
+          DB_DATABASE: ':memory:'
         run: php artisan test

@@ -82,7 +82,7 @@ class OperationsFlowsTest extends TestCase
         ));
     }
 
-    public function test_membership_renewal_expires_old_membership_and_creates_new_allocation(): void
+    public function test_membership_renewal_schedules_future_membership_and_reserves_seat(): void
     {
         $branch = Branch::query()->where('status', true)->firstOrFail();
         $slot = StudySlot::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
@@ -121,13 +121,13 @@ class OperationsFlowsTest extends TestCase
             'discount' => 0,
         ]);
 
-        $this->assertSame('expired', $oldMembership->fresh()->status);
+        $this->assertSame('active', $oldMembership->fresh()->status);
         $this->assertSame(today()->addDay()->toDateString(), $newMembership->start_date->toDateString());
-        $this->assertSame('active', $newMembership->status);
+        $this->assertSame('pending', $newMembership->status);
         $this->assertDatabaseHas('seat_allocations', [
             'student_membership_id' => $newMembership->id,
             'seat_id' => $seat->id,
-            'status' => 'active',
+            'status' => 'reserved',
         ]);
     }
 

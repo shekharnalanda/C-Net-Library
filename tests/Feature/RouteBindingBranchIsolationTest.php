@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Branch;
 use App\Models\DigitalResource;
+use App\Models\Enquiry;
 use App\Models\Role;
 use App\Models\Student;
 use App\Models\User;
@@ -52,6 +53,32 @@ class RouteBindingBranchIsolationTest extends TestCase
         ]);
 
         $this->actingAs($admin)->get(route('admin.admissions.show', $admission))->assertForbidden();
+    }
+
+
+    public function test_branch_admin_cannot_update_or_convert_other_branch_enquiry(): void
+    {
+        [$admin, , $otherBranch] = $this->branchAdminFixture();
+        $enquiry = Enquiry::create([
+            'branch_id' => $otherBranch->id,
+            'enquiry_no' => 'ISO-ENQ-'.Str::upper(Str::random(8)),
+            'name' => 'Other Branch Prospect',
+            'mobile' => '9000000773',
+            'status' => 'new',
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.enquiries.update', $enquiry), [
+            'status' => 'contacted',
+        ])->assertForbidden();
+
+        $this->actingAs($admin)->post(route('admin.enquiries.convert', $enquiry))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('enquiries', [
+            'id' => $enquiry->id,
+            'status' => 'new',
+            'converted_admission_id' => null,
+        ]);
     }
 
     public function test_branch_admin_cannot_update_or_delete_other_branch_digital_resource(): void

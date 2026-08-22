@@ -22,16 +22,6 @@
     </div>
 </header>
 <div class="wrap">
-    @php($activeMembership = $student->memberships->where('status','active')->sortByDesc('id')->first())
-    @php($allocation = $student->seatAllocations->where('status','active')->sortByDesc('id')->first())
-    @php($openAttendance = $student->attendances()->whereNull('check_out_at')->latest('id')->first())
-    @php
-        $grossPaid = $activeMembership ? (float) $activeMembership->payments->whereIn('payment_status',['paid','partial'])->sum('amount') : 0;
-        $adjusted = $activeMembership ? (float) $activeMembership->payments->sum(fn ($payment) => (float) $payment->adjustments->sum('amount')) : 0;
-        $paid = max(0, $grossPaid - $adjusted);
-        $due = $activeMembership ? max(0, (float)$activeMembership->final_fee - $paid) : 0;
-    @endphp
-
     <div class="top">
         <div>
             <h1 style="margin:0 0 4px">{{ $student->name }}</h1>

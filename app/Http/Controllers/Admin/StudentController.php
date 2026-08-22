@@ -61,7 +61,42 @@ class StudentController extends Controller
             'payments.adjustments',
         ]);
 
-        return view('admin.students.show', compact('student'));
+        $activeMembership = $student->memberships
+            ->where('status', 'active')
+            ->sortByDesc('id')
+            ->first();
+        $allocation = $student->seatAllocations
+            ->where('status', 'active')
+            ->sortByDesc('id')
+            ->first();
+        $openAttendance = $student->attendances()
+            ->whereNull('check_out_at')
+            ->latest('id')
+            ->first();
+
+        $grossPaid = $activeMembership
+            ? (float) $activeMembership->payments
+                ->whereIn('payment_status', ['paid', 'partial'])
+                ->sum('amount')
+            : 0.0;
+        $adjusted = $activeMembership
+            ? (float) $activeMembership->payments
+                ->sum(fn ($payment) => (float) $payment->adjustments->sum('amount'))
+            : 0.0;
+        $paid = max(0, $grossPaid - $adjusted);
+        $due = $activeMembership
+            ? max(0, (float) $activeMembership->final_fee - $paid)
+            : 0.0;
+
+        return view('admin.students.show', compact(
+            'student',
+            'activeMembership',
+            'allocation',
+            'openAttendance',
+            'adjusted',
+            'paid',
+            'due',
+        ));
     }
 
     public function rotateQr(Request $request, Student $student, AuditService $audit): RedirectResponse

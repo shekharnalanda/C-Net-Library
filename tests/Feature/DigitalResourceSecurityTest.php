@@ -31,7 +31,7 @@ class DigitalResourceSecurityTest extends TestCase
                 'access_type' => 'public',
                 'download_allowed' => true,
             ])
-            ->assertSessionHasErrors('file_path');
+            ->assertSessionHasErrors('resource');
 
         $this->assertDatabaseMissing('digital_resources', ['title' => 'Traversal Attempt']);
     }

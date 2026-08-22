@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\FeePlan;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Student;
 use App\Models\StudentMembership;
+use App\Models\StudySlot;
 use App\Models\User;
 use App\Services\ReceiptService;
 use Database\Seeders\DatabaseSeeder;
@@ -108,7 +110,7 @@ class PaymentAdjustmentsTest extends TestCase
         $second = $service->generate(branchId: $branch->id);
 
         $this->assertNotSame($first, $second);
-        $this->assertMatchesRegularExpression('/^[A-Z0-9_-]+-\d{4}-[A-Z0-9]{10}$/', $first);
+        $this->assertMatchesRegularExpression('/^CNL-B\d{6}-\d{4}-\d{6}$/', $first);
     }
 
     private function paymentFixture(float $amount, float $finalFee = 1000): array
@@ -126,8 +128,16 @@ class PaymentAdjustmentsTest extends TestCase
             'status' => 'active',
         ]);
 
+        $slot = StudySlot::factory()->create(['branch_id' => $branch->id]);
+        $plan = FeePlan::factory()->create([
+            'branch_id' => $branch->id,
+            'study_slot_id' => $slot->id,
+        ]);
+
         $membership = StudentMembership::create([
             'student_id' => $student->id,
+            'fee_plan_id' => $plan->id,
+            'study_slot_id' => $slot->id,
             'start_date' => today(),
             'expiry_date' => today()->addMonth(),
             'base_fee' => $finalFee,

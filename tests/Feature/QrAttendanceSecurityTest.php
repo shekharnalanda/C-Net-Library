@@ -56,10 +56,15 @@ class QrAttendanceSecurityTest extends TestCase
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
         [$student] = $this->createStudent('inactive');
 
+        $lookup = $this->actingAs($admin)->post(route('admin.attendance.scan.lookup'), [
+            'token' => $student->qr_token,
+        ]);
+        $challenge = $lookup->viewData('challenge');
+
         $response = $this->actingAs($admin)
             ->from(route('admin.attendance.scan'))
             ->post(route('admin.attendance.scan.mark', $student), [
-                'token' => $student->qr_token,
+                'challenge' => $challenge,
                 'action' => 'check_in',
             ]);
 
@@ -72,6 +77,10 @@ class QrAttendanceSecurityTest extends TestCase
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
         [$student] = $this->createStudent('active');
         $oldToken = $student->qr_token;
+        $lookup = $this->actingAs($admin)->post(route('admin.attendance.scan.lookup'), [
+            'token' => $oldToken,
+        ]);
+        $challenge = $lookup->viewData('challenge');
 
         $this->actingAs($admin)
             ->post(route('admin.students.rotate-qr', $student))
@@ -82,7 +91,7 @@ class QrAttendanceSecurityTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.attendance.scan.mark', $student), [
-                'token' => $oldToken,
+                'challenge' => $challenge,
                 'action' => 'check_in',
             ])
             ->assertForbidden();

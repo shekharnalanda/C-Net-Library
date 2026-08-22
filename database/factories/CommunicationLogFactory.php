@@ -19,7 +19,7 @@ class CommunicationLogFactory extends Factory
             'recipient' => fake()->unique()->safeEmail(),
             'subject' => fake()->sentence(),
             'message' => fake()->paragraph(),
-            'status' => 'pending',
+            'status' => 'queued',
             'provider' => null,
             'provider_message_id' => null,
             'failure_reason' => null,

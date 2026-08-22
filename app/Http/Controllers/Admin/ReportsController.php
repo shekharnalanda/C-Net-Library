@@ -62,7 +62,8 @@ class ReportsController extends Controller
         }
 
         $payments = Payment::query()
-            ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('payment_date', '>=', $from->toDateString())
+            ->whereDate('payment_date', '<=', $to->toDateString())
             ->whereIn('payment_status', ['paid', 'partial'])
             ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
 
@@ -75,7 +76,8 @@ class ReportsController extends Controller
         $membershipIncome = max(0, $grossCollection - $adjustments);
 
         $libraryIncomeQuery = LibraryChargePayment::query()
-            ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('payment_date', '>=', $from->toDateString())
+            ->whereDate('payment_date', '<=', $to->toDateString())
             ->when($branchId, fn ($query) => $query->whereHas('bookIssue.student', fn ($student) => $student->where('branch_id', $branchId)));
         $libraryFineIncome = (float) (clone $libraryIncomeQuery)->where('charge_type', 'fine')->sum('amount');
         $libraryLossIncome = (float) (clone $libraryIncomeQuery)->where('charge_type', 'loss')->sum('amount');
@@ -83,12 +85,14 @@ class ReportsController extends Controller
         $totalIncome = $membershipIncome + $libraryIncome;
 
         $expenseQuery = Expense::query()
-            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('expense_date', '>=', $from->toDateString())
+            ->whereDate('expense_date', '<=', $to->toDateString())
             ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
         $grossExpenses = (float) (clone $expenseQuery)->sum('amount');
         $expenseAdjustmentQuery = ExpenseAdjustment::query()
             ->whereHas('expense', fn ($query) => $query
-                ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+                ->whereDate('expense_date', '>=', $from->toDateString())
+            ->whereDate('expense_date', '<=', $to->toDateString())
                 ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId)));
         $expenseAdjustments = (float) (clone $expenseAdjustmentQuery)->sum('amount');
         $expenses = max(0, $grossExpenses - $expenseAdjustments);

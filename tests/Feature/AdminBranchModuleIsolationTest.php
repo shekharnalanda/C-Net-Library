@@ -10,6 +10,7 @@ use App\Models\Branch;
 use App\Models\DigitalResource;
 use App\Models\Expense;
 use App\Models\Job;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Staff;
 use App\Models\Student;
@@ -32,6 +33,19 @@ class AdminBranchModuleIsolationTest extends TestCase
             'status' => true,
         ]);
         $role = Role::query()->create(['name' => 'Branch Admin', 'slug' => 'branch-admin', 'is_system' => true]);
+        $permissions = collect([
+            'attendance.manage',
+            'library.manage',
+            'digital-library.manage',
+            'jobs.manage',
+            'staff.manage',
+            'payments.manage',
+        ])->map(fn (string $slug) => Permission::query()->create([
+            'name' => $slug,
+            'slug' => $slug,
+            'group' => 'Test',
+        ]));
+        $role->permissions()->attach($permissions->pluck('id'));
         $admin->roles()->attach($role);
 
         $studentA = Student::factory()->create(['branch_id' => $branchA->id, 'name' => 'Student A', 'status' => 'active']);
@@ -81,6 +95,14 @@ class AdminBranchModuleIsolationTest extends TestCase
         $branchA = Branch::factory()->create(['status' => true]);
         $branchB = Branch::factory()->create(['status' => true]);
         $admin = User::factory()->create(['role' => 'admin', 'branch_id' => $branchA->id, 'status' => true]);
+        $role = Role::query()->create(['name' => 'Library Admin', 'slug' => 'library-admin', 'is_system' => true]);
+        $permission = Permission::query()->create([
+            'name' => 'library.manage',
+            'slug' => 'library.manage',
+            'group' => 'Test',
+        ]);
+        $role->permissions()->attach($permission);
+        $admin->roles()->attach($role);
         $student = Student::factory()->create(['branch_id' => $branchA->id, 'status' => 'active']);
         $category = BookCategory::factory()->create();
         $book = Book::factory()->create(['book_category_id' => $category->id]);

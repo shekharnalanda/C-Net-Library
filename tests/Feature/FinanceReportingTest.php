@@ -53,10 +53,10 @@ class FinanceReportingTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.reports.index'));
 
         $response->assertOk();
-        $response->assertSee('Net Fee Collection');
+        $response->assertSee('Membership Income');
         $response->assertSee('750.00');
         $response->assertSee('250.00');
-        $response->assertSee('Daily Net Collection');
+        $response->assertSee('Daily Cash Reconciliation');
     }
 
     public function test_receipt_shows_adjustment_history_and_original_payment_value(): void
@@ -89,9 +89,9 @@ class FinanceReportingTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.payments.receipt', $payment))
             ->assertOk()
-            ->assertSee('Original Payment')
+            ->assertSee('Payment Received')
             ->assertSee('1,000.00')
-            ->assertSee('Adjustment History')
+            ->assertSee('Adjustment / Reversal History')
             ->assertSee('Receipt correction')
             ->assertSee('900.00');
     }
@@ -114,7 +114,7 @@ class FinanceReportingTest extends TestCase
         ]);
 
         $this->actingAs($studentUser)
-            ->post(route('admin.payments.adjust', $payment), [
+            ->post(route('admin.payments.adjustments.store', $payment), [
                 'type' => 'refund',
                 'amount' => 100,
                 'reason' => 'Unauthorized attempt',

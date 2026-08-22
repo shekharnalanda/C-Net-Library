@@ -4,12 +4,14 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\EnsureBranchScope;
 use App\Models\Branch;
+use App\Models\FeePlan;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Staff;
 use App\Models\StaffLeave;
 use App\Models\Student;
 use App\Models\StudentMembership;
+use App\Models\StudySlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -27,8 +29,15 @@ class BranchMiddlewareNestedModelsTest extends TestCase
         [$branchA, $branchB] = [Branch::factory()->create(), Branch::factory()->create()];
         $admin = User::factory()->create(['role' => 'admin', 'branch_id' => $branchA->id, 'status' => true]);
         $student = Student::factory()->create(['branch_id' => $branchB->id]);
+        $slot = StudySlot::factory()->create(['branch_id' => $branchB->id]);
+        $plan = FeePlan::factory()->create([
+            'branch_id' => $branchB->id,
+            'study_slot_id' => $slot->id,
+        ]);
         $membership = StudentMembership::create([
             'student_id' => $student->id,
+            'fee_plan_id' => $plan->id,
+            'study_slot_id' => $slot->id,
             'start_date' => today(),
             'expiry_date' => today()->addMonth(),
             'base_fee' => 500,
@@ -86,6 +95,7 @@ class BranchMiddlewareNestedModelsTest extends TestCase
         $request = Request::create('/admin/test', 'GET');
         $request->setUserResolver(fn () => $admin);
         $route = new Route(['GET'], '/admin/test', fn () => null);
+        $route->bind($request);
         $route->setParameter($parameterName, $model);
         $request->setRouteResolver(fn () => $route);
 

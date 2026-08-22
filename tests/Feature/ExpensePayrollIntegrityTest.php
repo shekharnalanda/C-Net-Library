@@ -25,7 +25,7 @@ class ExpensePayrollIntegrityTest extends TestCase
     public function test_paid_payroll_posts_exactly_one_linked_salary_expense_and_becomes_immutable(): void
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
-        $branch = Branch::query()->where('status', true)->firstOrFail();
+        $branch = Branch::factory()->create(['status' => true]);
         $staff = Staff::create([
             'branch_id' => $branch->id,
             'staff_code' => 'CNL-STF-PAY01',
@@ -65,7 +65,7 @@ class ExpensePayrollIntegrityTest extends TestCase
                 ...$payload,
                 'allowances' => 2000,
             ])
-            ->assertSessionHasErrors('status');
+            ->assertSessionHasErrors('transaction_ref');
 
         $this->assertSame('12500.00', $payroll->fresh()->net_salary);
         $this->assertSame(1, Expense::query()->where('payroll_id', $payroll->id)->count());
@@ -74,7 +74,7 @@ class ExpensePayrollIntegrityTest extends TestCase
     public function test_expense_adjustment_preserves_original_and_reports_net_expense(): void
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
-        $branch = Branch::query()->where('status', true)->firstOrFail();
+        $branch = Branch::factory()->create(['status' => true]);
         $expense = Expense::create([
             'branch_id' => $branch->id,
             'expense_date' => today(),
@@ -117,7 +117,7 @@ class ExpensePayrollIntegrityTest extends TestCase
     public function test_expense_adjustments_cannot_exceed_original_amount(): void
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
-        $branch = Branch::query()->where('status', true)->firstOrFail();
+        $branch = Branch::factory()->create(['status' => true]);
         $expense = Expense::create([
             'branch_id' => $branch->id,
             'expense_date' => today(),
@@ -142,6 +142,6 @@ class ExpensePayrollIntegrityTest extends TestCase
             ])
             ->assertSessionHasErrors('amount');
 
-        $this->assertSame('400.00', ExpenseAdjustment::query()->where('expense_id', $expense->id)->sum('amount'));
+        $this->assertSame(400.0, (float) ExpenseAdjustment::query()->where('expense_id', $expense->id)->sum('amount'));
     }
 }

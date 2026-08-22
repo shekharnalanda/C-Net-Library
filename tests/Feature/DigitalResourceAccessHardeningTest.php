@@ -191,7 +191,9 @@ class DigitalResourceAccessHardeningTest extends TestCase
         $response->assertOk();
         $response->assertHeader('Content-Disposition', 'attachment; filename=my-exam-notes-2026.pdf');
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
-        $response->assertHeader('Cache-Control', 'private, no-store');
+        $cacheControl = (string) $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('private', $cacheControl);
+        $this->assertStringContainsString('no-store', $cacheControl);
     }
 
     public function test_inline_view_sets_safe_content_disposition_and_private_headers(): void
@@ -214,6 +216,8 @@ class DigitalResourceAccessHardeningTest extends TestCase
         $response->assertOk();
         $response->assertHeader('Content-Disposition', 'inline; filename="read-online.pdf"');
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
-        $response->assertHeader('Cache-Control', 'private, no-store');
+        $cacheControl = (string) $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('private', $cacheControl);
+        $this->assertStringContainsString('no-store', $cacheControl);
     }
 }

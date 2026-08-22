@@ -119,7 +119,7 @@ class ReportsController extends Controller
             ->leftJoinSub($adjustedByMembership, 'adjustment_totals', function ($join) {
                 $join->on('student_memberships.id', '=', 'adjustment_totals.student_membership_id');
             })
-            ->selectRaw('SUM(GREATEST(0, student_memberships.final_fee - GREATEST(0, COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0)))) as total_due')
+            ->selectRaw('SUM(CASE WHEN student_memberships.final_fee - CASE WHEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) > 0 THEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) ELSE 0 END > 0 THEN student_memberships.final_fee - CASE WHEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) > 0 THEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) ELSE 0 END ELSE 0 END) as total_due')
             ->value('total_due');
 
         $seatQuery = Seat::query()

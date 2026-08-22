@@ -79,7 +79,7 @@ class DigitalResourceAccessHardeningTest extends TestCase
             'slug' => 'members-only-expiry-test',
             'resource_type' => 'link',
             'external_url' => 'https://example.com/member-resource',
-            'access_type' => 'member',
+            'access_type' => 'members',
             'download_allowed' => false,
             'status' => true,
         ]);
@@ -89,6 +89,45 @@ class DigitalResourceAccessHardeningTest extends TestCase
             $this->fail('Expected expired membership access denial.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('resource', $exception->errors());
+        }
+    }
+
+    public function test_branch_scoped_member_resource_is_denied_to_student_from_another_branch(): void
+    {
+        $studentBranch = Branch::query()->where('status', true)->firstOrFail();
+        $otherBranch = Branch::create([
+            'name' => 'Digital Branch Two',
+            'code' => 'DBR2',
+            'status' => true,
+        ]);
+
+        $student = Student::create([
+            'branch_id' => $studentBranch->id,
+            'student_code' => 'DIG-BR-'.Str::upper(Str::random(6)),
+            'qr_token' => (string) Str::uuid(),
+            'name' => 'Branch Digital Student',
+            'mobile' => '9000000882',
+            'joining_date' => today(),
+            'status' => 'active',
+        ]);
+
+        $resource = DigitalResource::create([
+            'branch_id' => $otherBranch->id,
+            'title' => 'Other Branch Members Resource',
+            'slug' => 'other-branch-members-resource',
+            'resource_type' => 'link',
+            'external_url' => 'https://example.com/other-branch-resource',
+            'access_type' => 'members',
+            'download_allowed' => false,
+            'status' => true,
+        ]);
+
+        try {
+            app(DigitalResourceAccessService::class)->assertCanAccess($resource, $student);
+            $this->fail('Expected cross-branch digital resource access denial.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('resource', $exception->errors());
+            $this->assertStringContainsString('branch', strtolower($exception->errors()['resource'][0]));
         }
     }
 

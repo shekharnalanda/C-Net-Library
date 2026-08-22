@@ -117,6 +117,7 @@
                 @if($activeMembership)
                     <div class="field"><div class="label">Total Fee</div><div class="value">₹{{ number_format((float)$activeMembership->final_fee,2) }}</div></div>
                     <div class="field"><div class="label">Paid (Net)</div><div class="value">₹{{ number_format($paid,2) }}</div></div>
+                    <div class="field"><div class="label">Refunds / Adjustments</div><div class="value">₹{{ number_format($adjusted,2) }}</div></div>
                     <div class="field"><div class="label">Due</div><div class="value">₹{{ number_format($due,2) }}</div></div>
                     @if($due > 0)
                         <form method="POST" action="{{ route('admin.students.payments.store', $student) }}">

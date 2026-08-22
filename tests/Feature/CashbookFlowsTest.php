@@ -26,7 +26,10 @@ class CashbookFlowsTest extends TestCase
 
     private function adminWithRole(string $legacyRole, string $pivotRole): User
     {
+        $branch = Branch::query()->where('status', true)->firstOrFail();
+
         $user = User::create([
+            'branch_id' => $branch->id,
             'name' => ucfirst($legacyRole).' User',
             'email' => $legacyRole.'-'.Str::random(6).'@example.com',
             'password' => 'SecurePass123!',

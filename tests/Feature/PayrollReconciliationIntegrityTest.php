@@ -21,7 +21,7 @@ class PayrollReconciliationIntegrityTest extends TestCase
         $branch = Branch::factory()->create(['status' => true]);
         $admin = User::factory()->create([
             'branch_id' => $branch->id,
-            'role' => 'admin',
+            'role' => 'super_admin',
             'status' => true,
         ]);
         $staffA = Staff::create([
@@ -108,7 +108,7 @@ class PayrollReconciliationIntegrityTest extends TestCase
         $branch = Branch::factory()->create(['status' => true]);
         $admin = User::factory()->create([
             'branch_id' => $branch->id,
-            'role' => 'admin',
+            'role' => 'super_admin',
             'status' => true,
         ]);
         $expense = Expense::create([

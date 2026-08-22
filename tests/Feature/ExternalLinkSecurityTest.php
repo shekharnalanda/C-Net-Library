@@ -67,7 +67,8 @@ class ExternalLinkSecurityTest extends TestCase
         ]);
         $resource = DigitalResource::create([
             'title' => 'Members Note',
-            'resource_type' => 'note',
+            'slug' => 'members-note',
+            'resource_type' => 'notes',
             'access_type' => 'members',
             'external_url' => 'https://example.org/note',
             'download_allowed' => false,

@@ -77,4 +77,7 @@ jobs:
           APP_DEBUG: true
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
+          ADMIN_NAME: CI Administrator
+          ADMIN_EMAIL: ci-admin@example.test
+          ADMIN_PASSWORD: CI-only-password-123!
         run: php artisan test

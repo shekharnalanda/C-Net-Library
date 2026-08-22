@@ -68,7 +68,7 @@ class FinancialReportingIntegrationTest extends TestCase
             'received_by' => $admin->id,
         ]);
 
-        $book = Book::query()->firstOrFail();
+        $book = Book::factory()->create();
         $copy = BookCopy::create([
             'book_id' => $book->id,
             'branch_id' => $branch->id,
@@ -125,7 +125,7 @@ class FinancialReportingIntegrationTest extends TestCase
             'status' => 'active',
         ]);
 
-        $book = Book::query()->firstOrFail();
+        $book = Book::factory()->create();
         $copy = BookCopy::create([
             'book_id' => $book->id,
             'branch_id' => $branch->id,

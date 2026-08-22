@@ -77,7 +77,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Intentionally non-destructive. The up() method adopts pre-existing
+        // This rollback is intentionally non-destructive. The up() method adopts pre-existing
         // framework runtime tables via hasTable() guards, so this migration
         // cannot know which tables it actually created. Dropping them during
         // rollback could delete shared sessions, cache, queued jobs, or failed

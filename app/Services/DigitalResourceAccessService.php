@@ -27,7 +27,12 @@ class DigitalResourceAccessService
             throw ValidationException::withMessages(['resource' => 'An active student account is required.']);
         }
 
+        if ($resource->branch_id !== null && (int) $resource->branch_id !== (int) $student->branch_id) {
+            throw ValidationException::withMessages(['resource' => 'This resource is not available for your branch.']);
+        }
+
         $membership = $student->memberships()
+            ->with('feePlan')
             ->where('status', 'active')
             ->whereDate('start_date', '<=', today())
             ->whereDate('expiry_date', '>=', today())

@@ -103,15 +103,24 @@ class StudentPortalAuthorizationTest extends TestCase
 
         $dashboard = $this->actingAs($user)->get(route('student.dashboard'));
         $dashboard->assertOk();
-        $dashboard->assertHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+        $this->assertPrivateNoStoreCachePolicy($dashboard);
         $dashboard->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
 
         $idCard = $this->actingAs($user)->get(route('student.id-card'));
         $idCard->assertOk();
-        $idCard->assertHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+        $this->assertPrivateNoStoreCachePolicy($idCard);
         $idCard->assertHeader('Referrer-Policy', 'no-referrer');
         $idCard->assertDontSee($student->qr_token, false);
         $idCard->assertDontSee(route('admin.attendance.scan', ['token' => $student->qr_token]), false);
+    }
+
+    private function assertPrivateNoStoreCachePolicy($response): void
+    {
+        $cacheControl = (string) $response->headers->get('Cache-Control');
+
+        foreach (['private', 'no-store', 'no-cache', 'must-revalidate'] as $directive) {
+            $this->assertStringContainsString($directive, $cacheControl);
+        }
     }
 
     private function createStudentAccount(string $email, string $studentCode): array

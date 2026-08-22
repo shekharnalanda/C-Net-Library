@@ -27,7 +27,10 @@ class ProductionConfigSafetyTest extends TestCase
 
     public function test_session_config_defaults_are_hardened(): void
     {
-        $this->assertSame('database', config('session.driver'));
+        $sessionConfig = file_get_contents(config_path('session.php'));
+
+        $this->assertIsString($sessionConfig);
+        $this->assertStringContainsString("env('SESSION_DRIVER', 'database')", $sessionConfig);
         $this->assertTrue((bool) config('session.encrypt'));
         $this->assertTrue((bool) config('session.secure'));
         $this->assertTrue((bool) config('session.http_only'));

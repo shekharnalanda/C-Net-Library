@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
@@ -38,6 +39,8 @@ class AuthSecurityTest extends TestCase
     public function test_successful_login_clears_rate_limiter_key(): void
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $password = 'TestAdmin123!';
+        $admin->forceFill(['password' => Hash::make($password)])->save();
         $key = strtolower($admin->email).'|127.0.0.1';
 
         RateLimiter::hit($key, 60);
@@ -45,7 +48,7 @@ class AuthSecurityTest extends TestCase
 
         $response = $this->post('/login', [
             'email' => $admin->email,
-            'password' => 'ChangeMe123!',
+            'password' => $password,
         ]);
 
         $response->assertRedirect(route('admin.dashboard'));

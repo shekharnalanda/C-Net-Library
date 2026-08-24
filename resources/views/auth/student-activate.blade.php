@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <link rel="icon" type="image/png" href="{{ asset('images/cnet-library-icon.png') }}">
     <meta name="referrer" content="no-referrer">
     <meta name="robots" content="noindex,nofollow,noarchive">
     <title>Activate Student Portal | C-Net Library</title>
@@ -13,7 +13,7 @@
 <body>
 <div class="wrap">
     <div class="card">
-        <h1>Activate Student Portal</h1>
+        <a href="{{ route('home') }}" aria-label="C-Net Library Home"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library" style="display:block;width:290px;max-width:100%;height:auto;margin:0 auto 18px"></a>\n        <h1>Activate Student Portal</h1>
         <p class="muted">Hello {{ $student->name }}. Set your password to activate your C-Net Library student account.</p>
         <p><strong>Student ID:</strong> {{ $student->student_code }}</p>
         <p><strong>Login email:</strong> {{ $student->user?->email }}</p>

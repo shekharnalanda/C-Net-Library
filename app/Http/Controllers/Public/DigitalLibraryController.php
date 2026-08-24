@@ -64,11 +64,25 @@ class DigitalLibraryController extends Controller
             ->when($request->filled('type'), fn ($q) => $q->where('resource_type', $request->string('type')))
             ->when($request->filled('category'), fn ($q) => $q->where('category', $request->string('category')))
             ->when($request->filled('q'), function ($q) use ($request) {
-                $term = '%'.trim($request->string('q')->toString()).'%';
-                $q->where(function ($sub) use ($term) {
-                    $sub->where('title', 'like', $term)
-                        ->orWhere('category', 'like', $term)
-                        ->orWhere('description', 'like', $term);
+                $search = trim($request->string('q')->toString());
+                $terms = array_values(array_unique(array_filter(
+                    preg_split('/[\\s,._\/-]+/u', $search) ?: [],
+                    fn (string $term) => mb_strlen($term) >= 2
+                )));
+
+                $q->where(function ($sub) use ($search, $terms) {
+                    $phrases = array_merge([$search], $terms);
+
+                    foreach ($phrases as $index => $phrase) {
+                        $term = '%'.$phrase.'%';
+                        $method = $index === 0 ? 'where' : 'orWhere';
+
+                        $sub->{$method}(function ($fields) use ($term) {
+                            $fields->where('title', 'like', $term)
+                                ->orWhere('category', 'like', $term)
+                                ->orWhere('description', 'like', $term);
+                        });
+                    }
                 });
             })
             ->orderByRaw("CASE access_type WHEN 'premium' THEN 0 WHEN 'members' THEN 1 ELSE 2 END")

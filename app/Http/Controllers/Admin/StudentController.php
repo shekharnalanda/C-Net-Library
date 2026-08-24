@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Services\AuditService;
+use App\Services\QrCodeService;
 use App\Support\AdminBranchScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class StudentController extends Controller
 {
@@ -97,6 +99,23 @@ class StudentController extends Controller
             'paid',
             'due',
         ));
+    }
+
+    public function idCard(Request $request, Student $student, QrCodeService $qrCode): Response
+    {
+        AdminBranchScope::authorize($request, $student->branch_id);
+
+        $student->load(['branch', 'activeMembership.studySlot']);
+        $scanUrl = route('admin.attendance.qr', ['token' => $student->qr_token]);
+        $qrDataUri = $qrCode->svgDataUri($scanUrl);
+        $adminView = true;
+
+        return response()
+            ->view('student.id-card', compact('student', 'qrDataUri', 'adminView'))
+            ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('X-Robots-Tag', 'noindex, nofollow, noarchive')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function rotateQr(Request $request, Student $student, AuditService $audit): RedirectResponse

@@ -126,7 +126,7 @@ class StudentController extends Controller
     {
         AdminBranchScope::authorize($request, $student->branch_id);
 
-        $student->load(['branch', 'activeMembership.studySlot']);
+        $student->load(['branch', 'activeMembership.studySlot', 'activeMembership.feePlan']);
 
         if (blank($student->qr_token)) {
             $student->forceFill(['qr_token' => (string) Str::uuid()])->save();

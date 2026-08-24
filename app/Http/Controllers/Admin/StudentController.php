@@ -9,6 +9,7 @@ use App\Services\QrCodeService;
 use App\Support\AdminBranchScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -99,6 +100,26 @@ class StudentController extends Controller
             'paid',
             'due',
         ));
+    }
+
+    public function updatePhoto(Request $request, Student $student): RedirectResponse
+    {
+        AdminBranchScope::authorize($request, $student->branch_id);
+
+        $validated = $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:min_width=150,min_height=150,max_width=4000,max_height=4000'],
+        ]);
+
+        $newPhoto = $validated['photo']->store('student-photos', 'public');
+        $oldPhoto = $student->photo;
+
+        $student->update(['photo' => $newPhoto]);
+
+        if ($oldPhoto && $oldPhoto !== $newPhoto) {
+            Storage::disk('public')->delete($oldPhoto);
+        }
+
+        return back()->with('success', 'Student photo updated successfully.');
     }
 
     public function idCard(Request $request, Student $student, QrCodeService $qrCode): Response

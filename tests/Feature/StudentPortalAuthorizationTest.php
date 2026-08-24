@@ -7,6 +7,8 @@ use App\Models\Student;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -133,6 +135,27 @@ class StudentPortalAuthorizationTest extends TestCase
         $student->refresh();
         $this->assertNotNull($student->qr_token);
         $response->assertDontSee($student->qr_token, false);
+    }
+
+    public function test_admin_can_upload_and_render_student_photo_on_id_card(): void
+    {
+        Storage::fake('public');
+        $admin = User::query()->where('role', 'super_admin')->firstOrFail();
+        [, $student] = $this->createStudentAccount('photo-card@example.com', 'CNL-PHOTO-CARD');
+
+        $response = $this->actingAs($admin)->post(route('admin.students.photo.update', $student), [
+            'photo' => UploadedFile::fake()->image('student.jpg', 300, 400)->size(100),
+        ]);
+
+        $response->assertRedirect();
+        $student->refresh();
+        $this->assertNotNull($student->photo);
+        Storage::disk('public')->assertExists($student->photo);
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.id-card', $student))
+            ->assertOk()
+            ->assertSee('storage/'.$student->photo, false);
     }
 
     private function assertPrivateNoStoreCachePolicy($response): void

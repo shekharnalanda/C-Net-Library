@@ -28,6 +28,7 @@
             <div class="muted">{{ $student->student_code }} · {{ $student->mobile }} · {{ $student->branch?->name ?? 'No branch' }}</div>
         </div>
         <div class="actions">
+            <a class="btn good" href="{{ route('admin.students.id-card', $student) }}" target="_blank" rel="noopener">Generate / Print ID Card</a>
             <a class="btn alt" href="{{ route('admin.students.renew.create', $student) }}">Renew / Change Seat</a>
             <form method="POST" action="{{ route('admin.students.rotate-qr', $student) }}" onsubmit="return confirm('Rotate this student QR? The previous QR will stop working immediately.');">
                 @csrf

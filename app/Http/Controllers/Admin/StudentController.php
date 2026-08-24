@@ -106,6 +106,11 @@ class StudentController extends Controller
         AdminBranchScope::authorize($request, $student->branch_id);
 
         $student->load(['branch', 'activeMembership.studySlot']);
+
+        if (blank($student->qr_token)) {
+            $student->forceFill(['qr_token' => (string) Str::uuid()])->save();
+        }
+
         $scanUrl = route('admin.attendance.qr', ['token' => $student->qr_token]);
         $qrDataUri = $qrCode->svgDataUri($scanUrl);
         $adminView = true;

@@ -94,6 +94,7 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');
         Route::get('/students/{student}', [StudentController::class, 'show'])->name('students.show');
         Route::get('/students/{student}/id-card', [StudentController::class, 'idCard'])->name('students.id-card');
+        Route::post('/students/{student}/photo', [StudentController::class, 'updatePhoto'])->middleware('throttle:10,1')->name('students.photo.update');
         Route::get('/students/{student}/renew', [MembershipRenewalController::class, 'create'])->name('students.renew.create');
         Route::post('/students/{student}/renew', [MembershipRenewalController::class, 'store'])->middleware('throttle:20,1')->name('students.renew.store');
         Route::post('/students/{student}/rotate-qr', [StudentController::class, 'rotateQr'])->middleware('throttle:10,1')->name('students.rotate-qr');

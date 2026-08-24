@@ -7,6 +7,7 @@ use App\Models\PaymentAdjustment;
 use App\Models\Student;
 use App\Services\QrCodeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class DashboardController extends Controller
@@ -47,8 +48,12 @@ class DashboardController extends Controller
     {
         $student = Student::query()
             ->where('user_id', $request->user()->id)
-            ->with(['branch', 'activeMembership.studySlot'])
+            ->with(['branch', 'activeMembership.studySlot', 'activeMembership.feePlan'])
             ->firstOrFail();
+
+        if (blank($student->qr_token)) {
+            $student->forceFill(['qr_token' => (string) Str::uuid()])->save();
+        }
 
         $scanUrl = route('admin.attendance.qr', ['token' => $student->qr_token]);
         $qrDataUri = $qrCode->svgDataUri($scanUrl);

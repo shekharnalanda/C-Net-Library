@@ -1,91 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <link rel="icon" type="image/png" href="{{ asset('images/cnet-library-icon.png') }}">
-    <meta name="referrer" content="no-referrer">
-    <meta name="robots" content="noindex,nofollow,noarchive">
-    <title>Student ID Card - {{ $student->name }}</title>
-    <style>
-        *{box-sizing:border-box}
-        :root{--navy:#102a43;--teal:#0f766e;--green:#62a744;--line:#d6e0e8;--muted:#60758a}
-        body{margin:0;background:#edf2f6;color:#172033;font-family:Arial,sans-serif}
-        .toolbar{display:flex;justify-content:center;gap:12px;padding:16px;position:sticky;top:0;z-index:5;background:#edf2f6}
-        .btn{background:var(--navy);color:#fff;border:0;border-radius:9px;padding:10px 16px;text-decoration:none;cursor:pointer;font-weight:700}
-        .sheet{width:190mm;min-height:277mm;margin:0 auto 18px;padding:10mm 6mm;background:#fff;display:flex;justify-content:center;align-items:flex-start;gap:6mm}
-        .card{width:85.6mm;height:128mm;flex:0 0 85.6mm;overflow:hidden;border:1px solid #c8d5df;border-radius:5mm;background:#fff;position:relative;box-shadow:0 10px 28px rgba(15,42,67,.12)}
-        .top{height:24mm;padding:3mm 4mm;background:linear-gradient(125deg,var(--navy),var(--teal));color:#fff;border-bottom:2.5mm solid var(--green)}
-        .brand{display:flex;align-items:center;gap:3mm}
-        .brand img{width:18mm;height:15mm;object-fit:contain;border-radius:2mm;background:#fff;padding:1mm}
-        .school{font-size:15px;font-weight:900;line-height:1.05}.subtitle{font-size:7px;letter-spacing:1px;margin-top:1.5mm}
-        .front-body{padding:4mm 5mm 2mm}.profile{display:flex;align-items:center;gap:4mm;margin-bottom:3mm}
-        .photo{width:25mm;height:30mm;border:1mm solid var(--teal);border-radius:3mm;overflow:hidden;background:#f1f5f9;flex:0 0 auto}
-        .photo img{width:100%;height:100%;object-fit:cover}.placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:7px;font-weight:800;color:var(--muted)}
-        .name{font-size:14px;font-weight:900;color:var(--navy);line-height:1.15}.code{display:inline-block;margin-top:2mm;background:#e7f5f2;color:var(--teal);border-radius:12px;padding:1.2mm 2mm;font-size:7px;font-weight:900}
-        .line{display:grid;grid-template-columns:27mm 1fr;gap:2mm;padding:1.25mm 0;border-bottom:1px dashed #d6e0e8;font-size:8px;line-height:1.25}.line b{color:var(--muted)}
-        .lower{display:flex;justify-content:space-between;align-items:flex-start;padding:2mm 5mm 12mm}
-        .qr{width:21mm;height:21mm;border:1px solid var(--teal);padding:1mm}.qr img{width:100%;height:100%}
-        .valid{text-align:center;width:39mm;font-size:7px}.valid-date{font-size:11px;font-weight:900;color:var(--navy);margin:1mm}.sig{height:7mm;border-bottom:1px solid #718096;margin-bottom:1mm}
-        .footer{position:absolute;bottom:0;left:0;right:0;background:var(--navy);border-top:1mm solid var(--green);color:#fff;text-align:center;padding:2mm;font-size:6px}
-        .back-head{height:23mm;padding:4mm;background:linear-gradient(125deg,var(--navy),var(--teal));border-bottom:2mm solid var(--green);color:#fff;text-align:center}
-        .back-head img{width:38mm;height:13mm;object-fit:contain;background:#fff;border-radius:2mm;padding:1mm}.back-title{font-size:8px;font-weight:800;margin-top:1.5mm;letter-spacing:.8px}
-        .back-body{padding:4mm 6mm 12mm}.rule{padding:2.3mm 0;border-bottom:1px solid #dfe6ed;font-size:8px;line-height:1.4}
-        .contact{margin-top:3mm;background:#f1f7f7;border-radius:3mm;padding:3mm;font-size:8px;line-height:1.5}.student-ref{text-align:center;margin-top:3mm;font-size:8px;font-weight:900;color:var(--navy)}
-        .privacy{max-width:190mm;margin:0 auto 18px;text-align:center;color:var(--muted);font-size:12px}
-        @media(max-width:760px){.sheet{width:auto;min-height:0;margin:0 12px;padding:18px;flex-direction:column;align-items:center}.card{max-width:100%}.toolbar{flex-direction:column;align-items:stretch}.btn{text-align:center}}
-        @media print{
-            body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-            .toolbar,.privacy{display:none!important}
-            .sheet{width:210mm;height:297mm;min-height:0;margin:0;padding:10mm 13mm;gap:6mm;overflow:hidden;box-shadow:none;display:flex!important;flex-direction:row!important;align-items:flex-start!important;justify-content:center!important}
-            .card{width:85.6mm!important;height:128mm!important;flex:0 0 85.6mm!important;max-width:none!important;box-shadow:none}
-            @page{size:A4 portrait;margin:0}
-        }
-    </style>
-</head>
-<body>
-@php($branch = $student->branch)
-@php($membership = $student->activeMembership)
-<div class="toolbar">
-    <a class="btn" href="{{ !empty($adminView) ? route('admin.students.show', $student) : route('student.dashboard') }}">← {{ !empty($adminView) ? 'Student Profile' : 'Student Dashboard' }}</a>
-    <button class="btn" onclick="window.print()">Print Front &amp; Back on A4</button>
-</div>
-<div class="sheet">
-    <section class="card" aria-label="Student ID card front">
-        <div class="top"><div class="brand"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library"><div><div class="school">C-Net Library</div><div class="subtitle">STUDENT IDENTITY CARD</div></div></div></div>
-        <div class="front-body">
-            <div class="profile">
-                <div class="photo">@if($student->photo)<img src="{{ asset('storage/'.$student->photo) }}" alt="{{ $student->name }} photo">@else<div class="placeholder">STUDENT<br>PHOTO</div>@endif</div>
-                <div><div class="name">{{ $student->name }}</div><div class="code">{{ $student->student_code }}</div></div>
-            </div>
-            <div class="line"><b>Branch</b><span>{{ $branch?->name ?? '—' }}</span></div>
-            <div class="line"><b>Mobile</b><span>{{ $student->mobile ?: '—' }}</span></div>
-            <div class="line"><b>Guardian</b><span>{{ $student->guardian_name ?: ($student->father_name ?: '—') }}</span></div>
-            <div class="line"><b>Study Slot</b><span>{{ $membership?->studySlot?->name ?? '—' }}</span></div>
-            <div class="line"><b>Membership</b><span>{{ $membership?->feePlan?->name ?? '—' }}</span></div>
-        </div>
-        <div class="lower">
-            <div><div class="qr"><img src="{{ $qrDataUri }}" alt="Attendance QR code"></div><div style="font-size:6px;text-align:center;margin-top:1mm">Attendance QR</div></div>
-            <div class="valid"><b>VALID UNTIL</b><div class="valid-date">{{ $membership?->expiry_date?->format('d M Y') ?? '—' }}</div><div class="sig"></div>Authorised Signatory</div>
-        </div>
-        <div class="footer">Study · Learn · Grow · C-Net Library</div>
-    </section>
-
-    <section class="card" aria-label="Student ID card back">
-        <div class="back-head"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library"><div class="back-title">STUDENT IDENTITY CARD — BACK</div></div>
-        <div class="back-body">
-            <div class="rule"><b>Important Instructions</b></div>
-            <div class="rule">This card is issued only to the registered C-Net Library member and is non-transferable.</div>
-            <div class="rule">The member should carry this card during library visits and present it when requested by authorised staff.</div>
-            <div class="rule">Loss or misuse of this card must be reported to the library office immediately.</div>
-            <div class="rule">The QR code is intended only for authorised attendance verification.</div>
-            <div class="rule">If found, please return this card to the C-Net Library branch shown below.</div>
-            <div class="contact"><b>{{ $branch?->name ?? 'C-Net Library' }}</b><br>{{ $branch?->address ?: 'Near Kalawati Palace, Quamruddin Ganj, Bihar Sharif, Nalanda - 803101' }}@if($branch?->phone)<br>Phone: {{ $branch->phone }}@endif @if($branch?->email)<br>Email: {{ $branch->email }}@endif</div>
-            <div class="student-ref">Student ID: {{ $student->student_code }}</div>
-        </div>
-        <div class="footer">C-Net Library · Member Identification</div>
-    </section>
-</div>
-<div class="privacy">A4 portrait layout: front and back are printed together. Use 100% / Actual Size in the browser print dialog.</div>
-</body>
-</html>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow,noarchive"><link rel="icon" type="image/png" href="{{ asset('images/cnet-library-icon.png') }}"><title>C-Net Library ID & Lanyard - {{ $student->name }}</title>
+<style>
+*{box-sizing:border-box}:root{--navy:#082f49;--navy2:#0c4a6e;--teal:#0f766e;--green:#65a30d;--gold:#d6a63b;--ink:#172033;--muted:#64748b;--line:#d9e2ea}body{margin:0;background:#e9eff4;color:var(--ink);font-family:Arial,sans-serif}.toolbar{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:15px;position:sticky;top:0;z-index:5;background:rgba(233,239,244,.96)}.btn{background:var(--navy);color:#fff;border:0;border-radius:9px;padding:10px 15px;text-decoration:none;cursor:pointer;font-weight:800}.btn.alt{background:#fff;color:var(--navy);border:1px solid #b9c8d5}.page{width:210mm;min-height:297mm;margin:0 auto 18px;background:#fff;padding:9mm}.heading{text-align:center;margin-bottom:5mm}.heading h1{margin:0;color:var(--navy);font-size:20px}.heading p{margin:2mm 0 0;color:var(--muted);font-size:10px}.cards{display:flex;justify-content:center;gap:7mm}.card{width:85.6mm;height:128mm;position:relative;overflow:hidden;border-radius:5mm;border:1px solid #bacbd7;background:#fff;box-shadow:0 9px 24px rgba(8,47,73,.12)}.slot{position:absolute;top:2.3mm;left:50%;transform:translateX(-50%);width:16mm;height:2.7mm;border-radius:3mm;background:#dbe4ea;z-index:2}.header{height:27mm;padding:6mm 4mm 3mm;background:linear-gradient(125deg,var(--navy),var(--navy2) 58%,var(--teal));color:#fff;border-bottom:2mm solid var(--green)}.brand{display:flex;align-items:center;gap:3mm}.brand img{width:18mm;height:14mm;object-fit:contain;background:#fff;border-radius:2mm;padding:1mm}.brandName{font-size:15px;font-weight:900;line-height:1}.tagline{font-size:6.5px;letter-spacing:.9px;margin-top:1.5mm;text-transform:uppercase}.front{padding:4mm 5mm 0}.profile{display:flex;gap:4mm;align-items:center}.photo{width:25mm;height:31mm;border:1mm solid var(--teal);border-radius:3mm;overflow:hidden;background:#f1f5f9;flex:none}.photo img{width:100%;height:100%;object-fit:cover}.placeholder{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:7px;font-weight:800}.name{font-size:14px;font-weight:900;color:var(--navy);line-height:1.12}.studentCode{display:inline-block;margin-top:2mm;padding:1.2mm 2.2mm;border-radius:20px;background:#e5f5f2;color:var(--teal);font-size:7px;font-weight:900}.status{font-size:6px;text-transform:uppercase;margin-top:1.5mm;color:var(--green);font-weight:900}.info{margin-top:3mm}.row{display:grid;grid-template-columns:25mm 1fr;gap:2mm;padding:1.2mm 0;border-bottom:1px dashed var(--line);font-size:7.5px;line-height:1.25}.row b{color:var(--muted)}.bottom{display:flex;justify-content:space-between;align-items:flex-start;padding:2.5mm 5mm 12mm}.qrWrap{text-align:center;font-size:6px}.qr{width:21mm;height:21mm;padding:1mm;border:1px solid var(--teal);border-radius:2mm}.qr img{width:100%;height:100%}.valid{width:39mm;text-align:center;font-size:6.5px}.valid strong{display:block;color:var(--navy);font-size:10px;margin:1mm}.signature{height:7mm;border-bottom:1px solid #718096;margin-bottom:1mm}.footer{position:absolute;bottom:0;left:0;right:0;background:var(--navy);border-top:1mm solid var(--green);color:#fff;text-align:center;padding:2mm;font-size:6px;letter-spacing:.25px}.backBody{padding:4mm 5mm 12mm}.services{display:grid;grid-template-columns:1fr 1fr;gap:2mm;margin-bottom:3mm}.service{background:#eef7f5;border:1px solid #cfe7e2;border-radius:2mm;padding:2mm;text-align:center;color:var(--navy);font-size:6.4px;font-weight:800}.rules{font-size:7px;line-height:1.38}.rule{padding:1.5mm 0;border-bottom:1px solid #e2e8f0}.contact{margin-top:2.5mm;padding:2.5mm;background:#f5f8fa;border-radius:2.5mm;font-size:7px;line-height:1.45}.ref{text-align:center;margin-top:2.5mm;font-size:7px;font-weight:900;color:var(--navy)}.lanyardSection{margin-top:9mm;border-top:1px dashed #b8c5cf;padding-top:6mm}.lanyardTitle{text-align:center;color:var(--navy);font-size:15px;font-weight:900;margin-bottom:2mm}.lanyardNote{text-align:center;color:var(--muted);font-size:8px;margin-bottom:4mm}.lanyard{height:20mm;border-radius:3mm;overflow:hidden;display:flex;align-items:center;background:linear-gradient(90deg,var(--navy),var(--navy2),var(--teal),var(--navy2),var(--navy));color:#fff;border-top:2mm solid var(--green);border-bottom:2mm solid var(--green)}.repeat{display:flex;align-items:center;justify-content:space-around;width:100%;white-space:nowrap}.lanyardBrand{display:flex;align-items:center;gap:2mm;font-weight:900;font-size:10px}.lanyardBrand img{height:10mm;width:18mm;object-fit:contain;background:#fff;border-radius:1.5mm;padding:.7mm}.dot{color:#b8e986;font-size:15px}.mini{font-size:6.5px;font-weight:700;letter-spacing:.7px}.specs{margin-top:4mm;display:grid;grid-template-columns:repeat(4,1fr);gap:2mm}.spec{background:#f6f8fa;border-radius:2mm;padding:2mm;text-align:center;font-size:7px;color:var(--muted)}.spec b{display:block;color:var(--navy);font-size:8px}.privacy{text-align:center;color:var(--muted);font-size:11px;padding:0 15px 18px}@media(max-width:800px){.page{width:auto;min-height:0;margin:0 10px;padding:16px}.cards{flex-direction:column;align-items:center}.card{max-width:100%}.specs{grid-template-columns:1fr 1fr}.toolbar{position:relative}}@media print{body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.toolbar,.privacy{display:none!important}.page{width:210mm;height:297mm;min-height:0;margin:0;padding:8mm;overflow:hidden}.heading{margin-bottom:4mm}.card{box-shadow:none}.lanyardSection{margin-top:7mm}@page{size:A4 portrait;margin:0}}
+</style></head><body>
+@php($branch=$student->branch) @php($membership=$student->activeMembership)
+<div class="toolbar"><a class="btn alt" href="{{ !empty($adminView) ? route('admin.students.show',$student) : route('student.dashboard') }}">← {{ !empty($adminView) ? 'Student Profile' : 'Student Dashboard' }}</a><button class="btn" onclick="window.print()">Print ID + Lanyard Design</button></div>
+<div class="page"><div class="heading"><h1>C-Net Library — Official Student Identity System</h1><p>Professional front/back ID card and branded neck-lanyard artwork</p></div><div class="cards">
+<section class="card"><div class="slot"></div><div class="header"><div class="brand"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library"><div><div class="brandName">C-Net Library</div><div class="tagline">Study · Library · Digital Learning · Career</div></div></div></div><div class="front"><div class="profile"><div class="photo">@if($student->photo)<img src="{{ asset('storage/'.$student->photo) }}" alt="{{ $student->name }} photo">@else<div class="placeholder">STUDENT<br>PHOTO</div>@endif</div><div><div class="name">{{ $student->name }}</div><div class="studentCode">{{ $student->student_code }}</div><div class="status">{{ $membership ? 'Active Member' : 'Student Member' }}</div></div></div><div class="info"><div class="row"><b>Branch</b><span>{{ $branch?->name ?? '—' }}</span></div><div class="row"><b>Study Plan</b><span>{{ $membership?->feePlan?->name ?? '—' }}</span></div><div class="row"><b>Study Slot</b><span>{{ $membership?->studySlot?->name ?? '—' }}</span></div><div class="row"><b>Guardian</b><span>{{ $student->guardian_name ?: ($student->father_name ?: '—') }}</span></div><div class="row"><b>Emergency No.</b><span>{{ $student->guardian_mobile ?: ($student->alternate_mobile ?: $student->mobile) }}</span></div></div></div><div class="bottom"><div class="qrWrap"><div class="qr"><img src="{{ $qrDataUri }}" alt="Attendance QR"></div>SECURE ATTENDANCE QR</div><div class="valid"><span>MEMBERSHIP VALID UNTIL</span><strong>{{ $membership?->expiry_date?->format('d M Y') ?? '—' }}</strong><div class="signature"></div>Authorised Signatory</div></div><div class="footer">MEMBER ACCESS · STUDY HALL · LIBRARY · DIGITAL RESOURCES · CAREER SUPPORT</div></section>
+<section class="card"><div class="slot"></div><div class="header"><div class="brand"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library"><div><div class="brandName">C-Net Library</div><div class="tagline">Member Services & Identification</div></div></div></div><div class="backBody"><div class="services"><div class="service">STUDY HALL</div><div class="service">BOOK LIBRARY</div><div class="service">DIGITAL LIBRARY</div><div class="service">ATTENDANCE</div><div class="service">STUDENT PORTAL</div><div class="service">JOBS & CAREER</div></div><div class="rules"><div class="rule"><b>1.</b> This identity card is issued only to the registered C-Net Library member and is non-transferable.</div><div class="rule"><b>2.</b> Carry the card while using C-Net Library services and present it to authorised staff when requested.</div><div class="rule"><b>3.</b> The QR code is for authorised attendance/identity verification. Do not publish or share a clear copy publicly.</div><div class="rule"><b>4.</b> Loss, damage or suspected misuse must be reported to the branch immediately so the QR credential can be rotated.</div><div class="rule"><b>5.</b> Access to seats, books and digital resources remains subject to active membership and applicable service rules.</div></div><div class="contact"><b>{{ $branch?->name ?? 'C-Net Library' }}</b><br>{{ $branch?->address ?: 'Near Kalawati Palace, Quamruddin Ganj, Bihar Sharif, Nalanda - 803101' }}@if($branch?->mobile)<br>Phone: {{ $branch->mobile }}@endif @if($branch?->email)<br>Email: {{ $branch->email }}@endif</div><div class="ref">MEMBER ID · {{ $student->student_code }}</div></div><div class="footer">IF FOUND, PLEASE RETURN TO THE C-NET LIBRARY BRANCH SHOWN ABOVE</div></section>
+</div><section class="lanyardSection"><div class="lanyardTitle">Matching Professional Neck Lanyard / ID Fita</div><div class="lanyardNote">Continuous double-sided artwork concept for printing on a 20 mm polyester lanyard.</div><div class="lanyard"><div class="repeat"><div class="lanyardBrand"><img src="{{ asset('images/cnet-library-logo.png') }}" alt=""><span>C-NET LIBRARY</span></div><span class="dot">•</span><span class="mini">STUDY · LEARN · GROW</span><span class="dot">•</span><div class="lanyardBrand"><img src="{{ asset('images/cnet-library-icon.png') }}" alt=""><span>C-NET LIBRARY</span></div><span class="dot">•</span><span class="mini">LIBRARY · DIGITAL · CAREER</span></div></div><div class="specs"><div class="spec"><b>20 mm Width</b>Professional daily-use size</div><div class="spec"><b>Navy + Teal</b>Matches official ID branding</div><div class="spec"><b>Green Edge</b>High-visibility brand accent</div><div class="spec"><b>Double-Sided</b>Logo and name remain visible</div></div></section></div><div class="privacy">For card production, print at 100% / Actual Size. Recommended finished card size: 85.6 × 128 mm vertical with slot punch and clear protective holder.</div></body></html>

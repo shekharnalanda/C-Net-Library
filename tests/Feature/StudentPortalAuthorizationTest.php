@@ -114,6 +114,24 @@ class StudentPortalAuthorizationTest extends TestCase
         $idCard->assertDontSee(route('admin.attendance.scan', ['token' => $student->qr_token]), false);
     }
 
+    public function test_admin_can_generate_a_private_printable_student_id_card(): void
+    {
+        $admin = User::query()->where('role', 'super_admin')->firstOrFail();
+        [, $student] = $this->createStudentAccount('admin-card@example.com', 'CNL-ADMIN-CARD');
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.students.id-card', $student));
+
+        $response->assertOk()
+            ->assertSee('Print / Save PDF')
+            ->assertSee($student->student_code)
+            ->assertSee('cnet-library-logo.png');
+
+        $this->assertPrivateNoStoreCachePolicy($response);
+        $response->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $response->assertDontSee($student->qr_token, false);
+    }
+
     private function assertPrivateNoStoreCachePolicy($response): void
     {
         $cacheControl = (string) $response->headers->get('Cache-Control');

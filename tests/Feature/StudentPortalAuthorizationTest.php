@@ -126,7 +126,8 @@ class StudentPortalAuthorizationTest extends TestCase
             ->get(route('admin.students.id-card', $student));
 
         $response->assertOk()
-            ->assertSee('Print / Save PDF')
+            ->assertSee('Print Front &amp; Back on A4', false)
+            ->assertSee('STUDENT IDENTITY CARD — BACK')
             ->assertSee($student->student_code)
             ->assertSee('cnet-library-logo.png');
 

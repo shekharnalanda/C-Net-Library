@@ -118,6 +118,7 @@ class StudentPortalAuthorizationTest extends TestCase
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
         [, $student] = $this->createStudentAccount('admin-card@example.com', 'CNL-ADMIN-CARD');
+        $student->forceFill(['qr_token' => null])->save();
 
         $response = $this->actingAs($admin)
             ->get(route('admin.students.id-card', $student));
@@ -129,6 +130,8 @@ class StudentPortalAuthorizationTest extends TestCase
 
         $this->assertPrivateNoStoreCachePolicy($response);
         $response->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $student->refresh();
+        $this->assertNotNull($student->qr_token);
         $response->assertDontSee($student->qr_token, false);
     }
 

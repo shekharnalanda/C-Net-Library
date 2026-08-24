@@ -18,6 +18,7 @@
         <div class="nav">
             <a class="btn light" href="{{ route('admin.dashboard') }}">Dashboard</a>
             <a class="btn alt" href="{{ route('admin.admissions.index') }}">Admissions</a>
+            <a class="btn alt" href="{{ route('admin.students.id-cards.bulk') }}">Bulk ID Cards</a>
             <a class="btn" href="{{ route('admin.seats.available') }}">Available Seats</a>
         </div>
     </div>

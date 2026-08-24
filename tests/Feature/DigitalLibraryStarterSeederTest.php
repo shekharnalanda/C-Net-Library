@@ -54,4 +54,14 @@ class DigitalLibraryStarterSeederTest extends TestCase
             ->assertSee('BPSC Official Exam Resources')
             ->assertDontSee('NCERT eBooks (Classes I–XII)');
     }
+
+    public function test_multi_word_search_returns_resources_matching_individual_words(): void
+    {
+        $this->seed(DigitalLibraryStarterSeeder::class);
+
+        $this->get(route('digital-library.index', ['q' => 'Computer Data Entry']))
+            ->assertOk()
+            ->assertSee('Spoken Tutorial Computer Courses')
+            ->assertSee('NPTEL Computer Science Courses');
+    }
 }

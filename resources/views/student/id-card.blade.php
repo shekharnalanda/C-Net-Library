@@ -37,8 +37,8 @@
         @media print{
             body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
             .toolbar,.privacy{display:none!important}
-            .sheet{width:210mm;height:297mm;min-height:0;margin:0;padding:10mm 13mm;gap:6mm;overflow:hidden;box-shadow:none}
-            .card{box-shadow:none}
+            .sheet{width:210mm;height:297mm;min-height:0;margin:0;padding:10mm 13mm;gap:6mm;overflow:hidden;box-shadow:none;display:flex!important;flex-direction:row!important;align-items:flex-start!important;justify-content:center!important}
+            .card{width:85.6mm!important;height:128mm!important;flex:0 0 85.6mm!important;max-width:none!important;box-shadow:none}
             @page{size:A4 portrait;margin:0}
         }
     </style>

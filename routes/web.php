@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
 use App\Http\Controllers\Admin\AttendanceController;
+use App\Http\Controllers\Admin\BulkStudentIdCardController;
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\CommunicationController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -92,6 +93,8 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
 
     Route::middleware('permission:students.manage')->group(function () {
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+        Route::get('/students/id-cards/bulk', [BulkStudentIdCardController::class, 'index'])->name('students.id-cards.bulk');
+        Route::post('/students/id-cards/bulk/print', [BulkStudentIdCardController::class, 'print'])->middleware('throttle:10,1')->name('students.id-cards.bulk.print');
         Route::get('/students/{student}', [StudentController::class, 'show'])->name('students.show');
         Route::get('/students/{student}/id-card', [StudentController::class, 'idCard'])->name('students.id-card');
         Route::post('/students/{student}/photo', [StudentController::class, 'updatePhoto'])->middleware('throttle:10,1')->name('students.photo.update');

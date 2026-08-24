@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <link rel="icon" type="image/png" href="{{ asset('images/cnet-library-icon.png') }}">
     <title>{{ $page->meta_title ?: $page->title.' | C-Net Library' }}</title>
     <meta name="description" content="{{ $page->meta_description ?: $page->excerpt }}">
     @if($page->meta_keywords)<meta name="keywords" content="{{ $page->meta_keywords }}">@endif
@@ -12,7 +12,7 @@
     </style>
 </head>
 <body>
-<nav class="nav"><div class="container navin"><a class="brand" href="{{ route('home') }}">C-Net Library</a><a class="btn" href="{{ route('admission.create') }}">Join Now</a></div></nav>
+<nav class="nav"><div class="container navin"><a class="brand" href="{{ route('home') }}" aria-label="C-Net Library Home"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library" style="display:block;width:210px;max-width:48vw;height:auto"></a><a class="btn" href="{{ route('admission.create') }}">Join Now</a></div></nav>
 <section class="hero"><div class="container"><h1>{{ $page->title }}</h1>@if($page->excerpt)<p>{{ $page->excerpt }}</p>@endif</div></section>
 <main class="container"><article class="content">{!! $page->content !!}</article></main>
 <footer class="footer"><div class="container">C-Net Library · Focused study, flexible plans and learning support.</div></footer>

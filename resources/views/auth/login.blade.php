@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">\n    <link rel="icon" type="image/png" href="{{ asset('images/cnet-library-icon.png') }}">
     <title>Admin Login | C-Net Library</title>
     <style>
         body { margin:0; font-family:Arial,sans-serif; background:#f4f6f8; display:grid; place-items:center; min-height:100vh; }
@@ -19,7 +19,7 @@
 </head>
 <body>
     <div class="card">
-        <h1>C-Net Library</h1>
+        <a href="{{ route('home') }}" aria-label="C-Net Library Home"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library" style="display:block;width:290px;max-width:100%;height:auto;margin:0 auto 18px"></a>
         <p>Admin & staff login</p>
 
         @if ($errors->any())

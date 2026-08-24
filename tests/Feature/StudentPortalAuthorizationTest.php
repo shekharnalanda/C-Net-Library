@@ -128,6 +128,8 @@ class StudentPortalAuthorizationTest extends TestCase
         $response->assertOk()
             ->assertSee('Print Front &amp; Back on A4', false)
             ->assertSee('STUDENT IDENTITY CARD — BACK')
+            ->assertSee('flex-direction:row!important', false)
+            ->assertSee('height:128mm!important', false)
             ->assertSee($student->student_code)
             ->assertSee('cnet-library-logo.png');
 

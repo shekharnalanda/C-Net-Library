@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Mobile\AuthController;
+use App\Http\Controllers\Api\Mobile\LibraryContentController;
 use App\Http\Controllers\Api\Mobile\StudentActivityController;
 use App\Http\Controllers\Api\Mobile\StudentController;
 use Illuminate\Support\Facades\Route;
@@ -16,5 +17,11 @@ Route::prefix('mobile/v1')->group(function () {
         Route::get('/payments', [StudentActivityController::class, 'payments']);
         Route::get('/attendance', [StudentActivityController::class, 'attendance']);
         Route::get('/seat-allocation', [StudentActivityController::class, 'seat']);
+        Route::get('/books', [LibraryContentController::class, 'books']);
+        Route::get('/issued-books', [LibraryContentController::class, 'issuedBooks']);
+        Route::get('/digital-resources', [LibraryContentController::class, 'digitalResources']);
+        Route::get('/jobs', [LibraryContentController::class, 'jobs']);
+        Route::get('/qr-member-id', [LibraryContentController::class, 'qrMemberId']);
+        Route::post('/support', [LibraryContentController::class, 'support'])->middleware('throttle:10,1');
     });
 });

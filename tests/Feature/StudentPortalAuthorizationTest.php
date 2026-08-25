@@ -115,7 +115,7 @@ class StudentPortalAuthorizationTest extends TestCase
     public function test_inactive_student_cannot_use_activation_link(): void
     {
         [, $student] = $this->createStudentAccount('inactive-activation@example.com', 'CNL-INACTIVE-ACT', 'inactive');
-        $student->forceFill(['activation_token' => hash('sha256', 'inactive-token')])->save();
+        $student->forceFill(['portal_activation_token' => hash('sha256', 'inactive-token')])->save();
 
         $this->get(route('student.activate', ['token' => 'inactive-token']))->assertNotFound();
     }
@@ -145,7 +145,7 @@ class StudentPortalAuthorizationTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Print ID + Lanyard Design')
-            ->assertSee('Member Services & Identification')
+            ->assertSee('Member Services &amp; Identification', false)
             ->assertSee('width:85.6mm;height:128mm', false)
             ->assertSee($student->student_code)
             ->assertSee('cnet-library-logo.png');

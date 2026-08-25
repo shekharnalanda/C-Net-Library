@@ -145,7 +145,7 @@ class StudentPortalAuthorizationTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Print ID + Lanyard Design')
-            ->assertSeeText('Member Services & Identification')
+            ->assertSee('Member Services & Identification', false)
             ->assertSee('width:85.6mm;height:128mm', false)
             ->assertSee($student->student_code)
             ->assertSee('cnet-library-logo.png');

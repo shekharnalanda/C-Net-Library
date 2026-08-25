@@ -41,6 +41,7 @@ class StudentPortalAuthorizationTest extends TestCase
             'name' => $user->name,
             'email' => $email,
             'mobile' => '9000000000',
+            'joining_date' => today(),
             'status' => $status,
         ]);
 

@@ -54,7 +54,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late Future<Map<String, dynamic>> _data;
 
   @override
-  void initState() { super.initState(); _data = widget.api.get('/dashboard'); }
+  void initState() {
+    super.initState();
+    _data = widget.api.get('/dashboard');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,8 +66,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: FutureBuilder<Map<String, dynamic>>(
         future: _data,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError) return _ErrorView(message: snapshot.error.toString(), retry: () => setState(() => _data = widget.api.get('/dashboard')));
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _ErrorView(
+              message: snapshot.error.toString(),
+              retry: () => setState(() => _data = widget.api.get('/dashboard')),
+            );
+          }
           final data = snapshot.data ?? {};
           final student = (data['student'] as Map?)?.cast<String, dynamic>() ?? {};
           final membership = (data['membership'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -76,14 +86,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text('Welcome, ${student['name'] ?? 'Student'}', style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 16),
-                Wrap(spacing: 12, runSpacing: 12, children: [
-                  _SummaryCard(title: 'Membership', value: membership['status']?.toString() ?? '—', icon: Icons.card_membership),
-                  _SummaryCard(title: 'Fee Due', value: '₹${finance['due'] ?? 0}', icon: Icons.payments_outlined),
-                  _SummaryCard(title: 'Paid', value: '₹${finance['paid'] ?? 0}', icon: Icons.check_circle_outline),
-                  _SummaryCard(title: 'Study Minutes', value: '${data['study_minutes'] ?? 0}', icon: Icons.schedule),
-                ]),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _SummaryCard(title: 'Membership', value: membership['status']?.toString() ?? '—', icon: Icons.card_membership),
+                    _SummaryCard(title: 'Fee Due', value: '₹${finance['due'] ?? 0}', icon: Icons.payments_outlined),
+                    _SummaryCard(title: 'Paid', value: '₹${finance['paid'] ?? 0}', icon: Icons.check_circle_outline),
+                    _SummaryCard(title: 'Study Minutes', value: '${data['study_minutes'] ?? 0}', icon: Icons.schedule),
+                  ],
+                ),
                 const SizedBox(height: 20),
-                Card(child: ListTile(leading: const Icon(Icons.support_agent), title: const Text('Support / Enquiry'), subtitle: const Text('Send a message to C-Net Library'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, SupportScreen(api: widget.api)))),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.support_agent),
+                    title: const Text('Support / Enquiry'),
+                    subtitle: const Text('Send a message to C-Net Library'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _open(context, SupportScreen(api: widget.api)),
+                  ),
+                ),
               ],
             ),
           );
@@ -98,15 +120,100 @@ class LibraryHub extends StatelessWidget {
   final ApiClient api;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Library')),
-    body: ListView(padding: const EdgeInsets.all(16), children: [
-      ListTile(leading: const Icon(Icons.search), title: const Text('Books'), subtitle: const Text('Browse library catalogue'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, JsonListScreen(title: 'Books', api: api, path: '/books', itemBuilder: (_, item) => ListTile(title: Text(item['title']?.toString() ?? 'Book'), subtitle: Text([item['author'], item['isbn']].where((e) => e != null && e.toString().isNotEmpty).join(' • '))))),
-      ListTile(leading: const Icon(Icons.assignment_returned), title: const Text('Issued Books'), subtitle: const Text('View issued and due books'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, JsonListScreen(title: 'Issued Books', api: api, path: '/issued-books', itemBuilder: (_, item) { final copy = item['book_copy'] as Map?; final book = copy?['book'] as Map?; return ListTile(title: Text(book?['title']?.toString() ?? 'Issued Book'), subtitle: Text('Status: ${item['status'] ?? '—'} • Due: ${item['due_at'] ?? '—'}')); }))),
-      ListTile(leading: const Icon(Icons.cloud_download_outlined), title: const Text('Digital Library'), subtitle: const Text('Access digital resources'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, JsonListScreen(title: 'Digital Library', api: api, path: '/digital-resources', itemBuilder: (_, item) => ListTile(title: Text(item['title']?.toString() ?? 'Resource'), subtitle: Text('${item['category'] ?? ''} ${item['resource_type'] ?? ''}'.trim())))),
-      ListTile(leading: const Icon(Icons.work_outline), title: const Text('Jobs'), subtitle: const Text('View current opportunities'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, JsonListScreen(title: 'Jobs', api: api, path: '/jobs', itemBuilder: (_, item) => ListTile(title: Text(item['title']?.toString() ?? 'Job'), subtitle: Text([item['organization'], item['location'], item['last_date']].where((e) => e != null && e.toString().isNotEmpty).join(' • '))))),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Library')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          ListTile(
+            leading: const Icon(Icons.search),
+            title: const Text('Books'),
+            subtitle: const Text('Browse library catalogue'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _open(
+              context,
+              JsonListScreen(
+                title: 'Books',
+                api: api,
+                path: '/books',
+                itemBuilder: (_, item) => ListTile(
+                  title: Text(item['title']?.toString() ?? 'Book'),
+                  subtitle: Text(
+                    [item['author'], item['isbn']]
+                        .where((e) => e != null && e.toString().isNotEmpty)
+                        .join(' • '),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.assignment_returned),
+            title: const Text('Issued Books'),
+            subtitle: const Text('View issued and due books'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _open(
+              context,
+              JsonListScreen(
+                title: 'Issued Books',
+                api: api,
+                path: '/issued-books',
+                itemBuilder: (_, item) {
+                  final copy = item['book_copy'] as Map?;
+                  final book = copy?['book'] as Map?;
+                  return ListTile(
+                    title: Text(book?['title']?.toString() ?? 'Issued Book'),
+                    subtitle: Text('Status: ${item['status'] ?? '—'} • Due: ${item['due_at'] ?? '—'}'),
+                  );
+                },
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_download_outlined),
+            title: const Text('Digital Library'),
+            subtitle: const Text('Access digital resources'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _open(
+              context,
+              JsonListScreen(
+                title: 'Digital Library',
+                api: api,
+                path: '/digital-resources',
+                itemBuilder: (_, item) => ListTile(
+                  title: Text(item['title']?.toString() ?? 'Resource'),
+                  subtitle: Text('${item['category'] ?? ''} ${item['resource_type'] ?? ''}'.trim()),
+                ),
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.work_outline),
+            title: const Text('Jobs'),
+            subtitle: const Text('View current opportunities'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _open(
+              context,
+              JsonListScreen(
+                title: 'Jobs',
+                api: api,
+                path: '/jobs',
+                itemBuilder: (_, item) => ListTile(
+                  title: Text(item['title']?.toString() ?? 'Job'),
+                  subtitle: Text(
+                    [item['organization'], item['location'], item['last_date']]
+                        .where((e) => e != null && e.toString().isNotEmpty)
+                        .join(' • '),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class ActivityHub extends StatelessWidget {
@@ -131,17 +238,24 @@ class ProfileScreen extends StatefulWidget {
   final ApiClient api;
   final TokenStore tokenStore;
   final VoidCallback onSignedOut;
+
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<Map<String, dynamic>> _profile;
+
   @override
-  void initState() { super.initState(); _profile = widget.api.get('/profile'); }
+  void initState() {
+    super.initState();
+    _profile = widget.api.get('/profile');
+  }
 
   Future<void> _logout() async {
-    try { await widget.api.post('/logout', authenticated: true); } catch (_) {}
+    try {
+      await widget.api.post('/logout', authenticated: true);
+    } catch (_) {}
     await widget.tokenStore.clear();
     if (mounted) widget.onSignedOut();
   }
@@ -152,8 +266,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     body: FutureBuilder<Map<String, dynamic>>(
       future: _profile,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError) return _ErrorView(message: snapshot.error.toString(), retry: () => setState(() => _profile = widget.api.get('/profile')));
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return _ErrorView(
+            message: snapshot.error.toString(),
+            retry: () => setState(() => _profile = widget.api.get('/profile')),
+          );
+        }
         final data = snapshot.data ?? {};
         final student = (data['student'] as Map?)?.cast<String, dynamic>() ?? data;
         return ListView(padding: const EdgeInsets.all(16), children: [
@@ -177,14 +298,47 @@ void _open(BuildContext context, Widget screen) => Navigator.of(context).push(Ma
 
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.title, required this.value, required this.icon});
-  final String title; final String value; final IconData icon;
+  final String title;
+  final String value;
+  final IconData icon;
+
   @override
-  Widget build(BuildContext context) => SizedBox(width: 165, child: Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon), const SizedBox(height: 10), Text(value, style: Theme.of(context).textTheme.titleLarge), Text(title)]))));
+  Widget build(BuildContext context) => SizedBox(
+    width: 165,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon),
+            const SizedBox(height: 10),
+            Text(value, style: Theme.of(context).textTheme.titleLarge),
+            Text(title),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.retry});
-  final String message; final VoidCallback retry;
+  final String message;
+  final VoidCallback retry;
+
   @override
-  Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(message, textAlign: TextAlign.center), const SizedBox(height: 12), FilledButton(onPressed: retry, child: const Text('Retry'))])));
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: retry, child: const Text('Retry')),
+        ],
+      ),
+    ),
+  );
 }

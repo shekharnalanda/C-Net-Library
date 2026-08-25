@@ -10,22 +10,44 @@ Production API base URL:
 
 ## Current foundation
 
-- Splash / session restore
+- Branded splash / session restore
 - Student login
 - Secure token storage
+- Automatic sign-out on expired/invalid API token
 - Dashboard summary
 - Profile and logout
 - Bottom navigation: Home, Library, Activity, Profile
-- API hooks for membership, payments, attendance, seat allocation, books, issued books, digital resources, jobs, QR member ID and support
+- Membership, payments, attendance and seat allocation
+- Books and issued books
+- Digital resources and jobs
+- Scannable QR Member ID backed by the existing attendance URL
+- Support/enquiry submission into the existing C-Net Library enquiry system
 
-## Local setup
+## Automated platform setup
 
-From `mobile_app/` run:
+On a machine with Flutter installed, from `mobile_app/` run:
 
 ```bash
-flutter pub get
-flutter test
-flutter run
+bash tool/release_setup.sh
 ```
 
-Before release, generate platform folders using the project's approved Flutter toolchain and configure Android package / iOS bundle identifier as `com.mciedu.cnetlibrary`.
+The script generates Android and iOS platform folders with:
+
+- Android application ID: `com.mciedu.cnetlibrary`
+- iOS bundle identifier: `com.mciedu.cnetlibrary`
+- Project name: `cnetlibrary`
+
+It then runs `flutter pub get`, `flutter analyze`, and `flutter test`.
+
+## Build commands
+
+```bash
+flutter build apk --debug
+flutter build appbundle --release
+```
+
+The debug APK is for direct Android testing. The release AAB is for Google Play Console. iOS release builds require macOS/Xcode and Apple signing.
+
+## Release assets still required
+
+Final C-Net Library logo/app icon artwork, Android/iOS signing credentials, store screenshots, privacy policy/store listing details, and live API deployment verification are release-stage inputs rather than source-code blockers.

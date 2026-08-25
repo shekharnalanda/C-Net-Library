@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/api_client.dart';
 import '../core/token_store.dart';
 import 'module_screens.dart';
+import 'release_qr_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key, required this.api, required this.tokenStore, required this.onSignedOut});
@@ -120,7 +121,7 @@ class ActivityHub extends StatelessWidget {
       ListTile(leading: const Icon(Icons.payments_outlined), title: const Text('Payments'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, JsonListScreen(title: 'Payments', api: api, path: '/payments', itemBuilder: (_, item) => ListTile(title: Text('₹${item['amount'] ?? 0}'), subtitle: Text('${item['payment_date'] ?? '—'} • ${item['payment_status'] ?? '—'} • ${item['receipt_no'] ?? ''}'))))),
       ListTile(leading: const Icon(Icons.fact_check_outlined), title: const Text('Attendance'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, JsonListScreen(title: 'Attendance', api: api, path: '/attendance', itemBuilder: (_, item) => ListTile(title: Text(item['attendance_date']?.toString() ?? 'Attendance'), subtitle: Text('Check-in: ${item['check_in_at'] ?? '—'} • Study: ${item['study_minutes'] ?? 0} min'))))),
       ListTile(leading: const Icon(Icons.event_seat_outlined), title: const Text('Seat / Study Slot'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, SeatScreen(api: api))),
-      ListTile(leading: const Icon(Icons.qr_code_2), title: const Text('QR Member ID'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, QrMemberScreen(api: api))),
+      ListTile(leading: const Icon(Icons.qr_code_2), title: const Text('QR Member ID'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, ReleaseQrMemberScreen(api: api))),
     ]),
   );
 }

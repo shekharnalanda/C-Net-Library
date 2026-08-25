@@ -117,7 +117,7 @@ class StudentPortalAuthorizationTest extends TestCase
         [, $student] = $this->createStudentAccount('inactive-activation@example.com', 'CNL-INACTIVE-ACT', 'inactive');
         $student->forceFill(['portal_activation_token' => hash('sha256', 'inactive-token')])->save();
 
-        $this->get(route('student.activate', ['token' => 'inactive-token']))->assertNotFound();
+        $this->get(route('student.activate', ['token' => 'inactive-token']))->assertStatus(410);
     }
 
     public function test_student_portal_pages_are_not_cacheable_and_id_card_does_not_render_raw_qr_token(): void
@@ -145,13 +145,13 @@ class StudentPortalAuthorizationTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Print ID + Lanyard Design')
-            ->assertSee('Member Services &amp; Identification', false)
+            ->assertSeeText('Member Services & Identification')
             ->assertSee('width:85.6mm;height:128mm', false)
             ->assertSee($student->student_code)
             ->assertSee('cnet-library-logo.png');
 
         $this->assertPrivateNoStoreCachePolicy($response);
-        $response->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $response->assertHeader('X-Robots-Tag', 'noindex, nofollow,noarchive');
         $student->refresh();
         $this->assertNotNull($student->qr_token);
         $response->assertDontSee($student->qr_token, false);

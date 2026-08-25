@@ -13,7 +13,13 @@ class CNetLibraryApp extends StatefulWidget {
 
 class _CNetLibraryAppState extends State<CNetLibraryApp> {
   final TokenStore _tokenStore = TokenStore();
-  late final ApiClient _api = ApiClient(_tokenStore);
+  late final ApiClient _api = ApiClient(
+    _tokenStore,
+    onUnauthorized: () async {
+      if (!mounted) return;
+      setState(() => _signedIn = false);
+    },
+  );
   bool? _signedIn;
 
   @override
@@ -33,7 +39,12 @@ class _CNetLibraryAppState extends State<CNetLibraryApp> {
     return MaterialApp(
       title: 'C-Net Library',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF263A7A),
+        inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
+        cardTheme: const CardThemeData(elevation: 0.6, margin: EdgeInsets.zero),
+      ),
       home: _signedIn == null
           ? const _SplashScreen()
           : _signedIn!
@@ -49,18 +60,25 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.local_library_rounded, size: 72),
-            SizedBox(height: 16),
-            Text('C-Net Library', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('Powered by MCI Educational Group'),
-            SizedBox(height: 24),
-            CircularProgressIndicator(),
-          ],
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(radius: 48, child: Icon(Icons.local_library_rounded, size: 54)),
+                SizedBox(height: 20),
+                Text('C-Net Library', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                SizedBox(height: 6),
+                Text('Study • Library • Digital Learning', textAlign: TextAlign.center),
+                SizedBox(height: 8),
+                Text('Powered by MCI Educational Group'),
+                SizedBox(height: 28),
+                CircularProgressIndicator(),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -151,7 +151,7 @@ class StudentPortalAuthorizationTest extends TestCase
             ->assertSee('cnet-library-logo.png');
 
         $this->assertPrivateNoStoreCachePolicy($response);
-        $response->assertHeader('X-Robots-Tag', 'noindex, nofollow,noarchive');
+        $response->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
         $student->refresh();
         $this->assertNotNull($student->qr_token);
         $response->assertDontSee($student->qr_token, false);

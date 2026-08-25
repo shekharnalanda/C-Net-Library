@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Branch;
 use App\Models\Student;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -60,18 +61,28 @@ class MobileApiTest extends TestCase
 
     public function test_active_student_can_login_and_access_profile(): void
     {
-        $student = Student::query()->whereNotNull('user_id')->first();
-        $this->assertNotNull($student, 'Seeder must provide a student linked to a user.');
-
-        $user = User::query()->findOrFail($student->user_id);
+        $branch = Branch::query()->firstOrFail();
         $password = 'MobileTest123!';
 
-        $user->forceFill([
+        $user = User::query()->create([
+            'branch_id' => $branch->id,
+            'name' => 'Mobile Test Student',
+            'email' => 'mobile-student@example.test',
+            'password' => Hash::make($password),
             'role' => 'student',
             'status' => true,
-            'password' => Hash::make($password),
-        ])->save();
-        $student->forceFill(['status' => 'active'])->save();
+        ]);
+
+        Student::query()->create([
+            'branch_id' => $branch->id,
+            'user_id' => $user->id,
+            'student_code' => 'MOB-TEST-001',
+            'name' => 'Mobile Test Student',
+            'mobile' => '9000000001',
+            'email' => $user->email,
+            'joining_date' => today(),
+            'status' => 'active',
+        ]);
 
         $login = $this->postJson('/api/mobile/v1/login', [
             'email' => $user->email,
@@ -84,6 +95,7 @@ class MobileApiTest extends TestCase
 
         $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/mobile/v1/profile')
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('student.email', $user->email);
     }
 }

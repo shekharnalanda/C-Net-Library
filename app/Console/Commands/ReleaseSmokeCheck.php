@@ -62,6 +62,19 @@ class ReleaseSmokeCheck extends Command
             'student.dashboard',
             'student.id-card',
             'digital-library.index',
+            'api.mobile.v1.login',
+            'api.mobile.v1.dashboard',
+            'api.mobile.v1.profile',
+            'api.mobile.v1.membership',
+            'api.mobile.v1.payments',
+            'api.mobile.v1.attendance',
+            'api.mobile.v1.seat-allocation',
+            'api.mobile.v1.books',
+            'api.mobile.v1.issued-books',
+            'api.mobile.v1.digital-resources',
+            'api.mobile.v1.jobs',
+            'api.mobile.v1.qr-member-id',
+            'api.mobile.v1.support',
         ];
 
         foreach ($criticalRoutes as $routeName) {

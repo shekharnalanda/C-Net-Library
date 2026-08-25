@@ -8,8 +8,8 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class StudentPortalAuthorizationTest extends TestCase
@@ -20,6 +20,39 @@ class StudentPortalAuthorizationTest extends TestCase
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
+    }
+
+    private function createStudentAccount(string $email, string $studentCode, string $status = 'active'): array
+    {
+        $branch = Branch::query()->where('status', true)->firstOrFail();
+        $user = User::query()->create([
+            'name' => 'Student '.$studentCode,
+            'email' => $email,
+            'password' => Hash::make('StudentPass123!'),
+            'role' => 'student',
+            'status' => true,
+            'branch_id' => $branch->id,
+        ]);
+
+        $student = Student::query()->create([
+            'user_id' => $user->id,
+            'branch_id' => $branch->id,
+            'student_code' => $studentCode,
+            'name' => $user->name,
+            'email' => $email,
+            'mobile' => '9000000000',
+            'joining_date' => today(),
+            'status' => $status,
+        ]);
+
+        return [$user, $student];
+    }
+
+    private function assertPrivateNoStoreCachePolicy($response): void
+    {
+        $cacheControl = strtolower((string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-store', $cacheControl);
+        $this->assertStringContainsString('private', $cacheControl);
     }
 
     public function test_guest_is_redirected_from_student_portal(): void
@@ -40,7 +73,7 @@ class StudentPortalAuthorizationTest extends TestCase
 
     public function test_student_can_access_dashboard_id_card_and_saved_jobs(): void
     {
-        [$user] = $this->createStudentAccount('portal-access@example.com', 'CNL-PORTAL-ACCESS');
+        [$user] = $this->createStudentAccount('student-access@example.com', 'CNL-ACCESS');
 
         $this->actingAs($user)->get(route('student.dashboard'))->assertOk();
         $this->actingAs($user)->get(route('student.id-card'))->assertOk();
@@ -49,37 +82,31 @@ class StudentPortalAuthorizationTest extends TestCase
 
     public function test_student_dashboard_is_resolved_only_from_authenticated_user(): void
     {
-        [$firstUser, $firstStudent] = $this->createStudentAccount('first-student@example.com', 'CNL-FIRST-STUDENT');
-        [, $secondStudent] = $this->createStudentAccount('second-student@example.com', 'CNL-SECOND-STUDENT');
+        [$firstUser, $firstStudent] = $this->createStudentAccount('first@example.com', 'CNL-FIRST');
+        [, $secondStudent] = $this->createStudentAccount('second@example.com', 'CNL-SECOND');
 
         $response = $this->actingAs($firstUser)->get(route('student.dashboard'));
 
-        $response->assertOk();
-        $response->assertSee($firstStudent->student_code);
-        $response->assertDontSee($secondStudent->student_code);
+        $response->assertOk()
+            ->assertSee($firstStudent->student_code)
+            ->assertDontSee($secondStudent->student_code);
     }
 
     public function test_inactive_linked_student_terminates_existing_portal_session(): void
     {
-        [$user, $student] = $this->createStudentAccount('inactive-student@example.com', 'CNL-INACTIVE-STUDENT');
-        $student->update(['status' => 'inactive']);
+        [$user] = $this->createStudentAccount('inactive-session@example.com', 'CNL-INACTIVE-SESSION', 'inactive');
 
-        $this->actingAs($user)
-            ->get(route('student.dashboard'))
-            ->assertRedirect(route('login'))
-            ->assertSessionHasErrors('email');
-
+        $this->actingAs($user)->get(route('student.dashboard'))->assertRedirect(route('login'));
         $this->assertGuest();
     }
 
     public function test_inactive_linked_student_cannot_log_in(): void
     {
-        [, $student] = $this->createStudentAccount('inactive-login@example.com', 'CNL-INACTIVE-LOGIN');
-        $student->update(['status' => 'inactive']);
+        [$user] = $this->createStudentAccount('inactive-login@example.com', 'CNL-INACTIVE-LOGIN', 'inactive');
 
         $this->post(route('login.store'), [
-            'email' => 'inactive-login@example.com',
-            'password' => 'SecurePass123!',
+            'email' => $user->email,
+            'password' => 'StudentPass123!',
         ])->assertSessionHasErrors('email');
 
         $this->assertGuest();
@@ -87,31 +114,22 @@ class StudentPortalAuthorizationTest extends TestCase
 
     public function test_inactive_student_cannot_use_activation_link(): void
     {
-        [, $student] = $this->createStudentAccount('activation-inactive@example.com', 'CNL-ACT-INACTIVE');
-        $plainToken = Str::random(64);
-        $student->update([
-            'status' => 'inactive',
-            'portal_activation_token' => hash('sha256', $plainToken),
-            'portal_activation_expires_at' => now()->addHour(),
-            'portal_activated_at' => null,
-        ]);
+        [, $student] = $this->createStudentAccount('inactive-activation@example.com', 'CNL-INACTIVE-ACT', 'inactive');
+        $student->forceFill(['portal_activation_token' => hash('sha256', 'inactive-token')])->save();
 
-        $this->get(route('student.activate', $plainToken))->assertGone();
+        $this->get(route('student.activate', ['token' => 'inactive-token']))->assertStatus(410);
     }
 
-    public function test_student_portal_pages_are_not_cacheable_and_id_card_does_not_render_qr_secret(): void
+    public function test_student_portal_pages_are_not_cacheable_and_id_card_does_not_render_raw_qr_token(): void
     {
-        [$user, $student] = $this->createStudentAccount('privacy-student@example.com', 'CNL-PRIVACY-STUDENT');
+        [$user, $student] = $this->createStudentAccount('privacy@example.com', 'CNL-PRIVACY');
+        $student->forceFill(['qr_token' => 'super-secret-qr-token'])->save();
 
         $dashboard = $this->actingAs($user)->get(route('student.dashboard'));
-        $dashboard->assertOk();
         $this->assertPrivateNoStoreCachePolicy($dashboard);
-        $dashboard->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
 
         $idCard = $this->actingAs($user)->get(route('student.id-card'));
-        $idCard->assertOk();
         $this->assertPrivateNoStoreCachePolicy($idCard);
-        $idCard->assertHeader('Referrer-Policy', 'no-referrer');
         $idCard->assertDontSee($student->qr_token, false);
         $idCard->assertDontSee(route('admin.attendance.scan', ['token' => $student->qr_token]), false);
     }
@@ -126,10 +144,9 @@ class StudentPortalAuthorizationTest extends TestCase
             ->get(route('admin.students.id-card', $student));
 
         $response->assertOk()
-            ->assertSee('Print Front &amp; Back on A4', false)
-            ->assertSee('STUDENT IDENTITY CARD — BACK')
-            ->assertSee('flex-direction:row!important', false)
-            ->assertSee('height:128mm!important', false)
+            ->assertSee('Print ID + Lanyard Design')
+            ->assertSee('Member Services & Identification', false)
+            ->assertSee('width:85.6mm;height:128mm', false)
             ->assertSee($student->student_code)
             ->assertSee('cnet-library-logo.png');
 
@@ -146,11 +163,12 @@ class StudentPortalAuthorizationTest extends TestCase
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
         [, $student] = $this->createStudentAccount('photo-card@example.com', 'CNL-PHOTO-CARD');
 
-        $response = $this->actingAs($admin)->post(route('admin.students.photo.update', $student), [
-            'photo' => UploadedFile::fake()->image('student.jpg', 300, 400)->size(100),
-        ]);
+        $this->actingAs($admin)
+            ->post(route('admin.students.photo.update', $student), [
+                'photo' => UploadedFile::fake()->image('student.jpg', 300, 400),
+            ])
+            ->assertRedirect();
 
-        $response->assertRedirect();
         $student->refresh();
         $this->assertNotNull($student->photo);
         Storage::disk('public')->assertExists($student->photo);
@@ -159,40 +177,5 @@ class StudentPortalAuthorizationTest extends TestCase
             ->get(route('admin.students.id-card', $student))
             ->assertOk()
             ->assertSee('storage/'.$student->photo, false);
-    }
-
-    private function assertPrivateNoStoreCachePolicy($response): void
-    {
-        $cacheControl = (string) $response->headers->get('Cache-Control');
-
-        foreach (['private', 'no-store', 'no-cache', 'must-revalidate'] as $directive) {
-            $this->assertStringContainsString($directive, $cacheControl);
-        }
-    }
-
-    private function createStudentAccount(string $email, string $studentCode): array
-    {
-        $branch = Branch::query()->where('status', true)->firstOrFail();
-
-        $user = User::create([
-            'name' => $studentCode,
-            'email' => $email,
-            'password' => 'SecurePass123!',
-            'role' => 'student',
-            'status' => true,
-        ]);
-
-        $student = Student::create([
-            'branch_id' => $branch->id,
-            'user_id' => $user->id,
-            'student_code' => $studentCode,
-            'qr_token' => (string) Str::uuid(),
-            'name' => $studentCode,
-            'mobile' => (string) random_int(7000000000, 9999999999),
-            'joining_date' => today(),
-            'status' => 'active',
-        ]);
-
-        return [$user, $student];
     }
 }

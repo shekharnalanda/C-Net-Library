@@ -4,9 +4,13 @@ use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\JobController;
 use App\Http\Controllers\Admin\CommunicationController;
 use App\Http\Controllers\Admin\CmsController;
+use App\Http\Controllers\Admin\AdmissionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web','auth','admin','admin.branch'])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('permission:admissions.manage')->group(function () {
+        Route::patch('/admissions/{admission}/review', [AdmissionController::class,'review'])->middleware('throttle:20,1')->name('admissions.review');
+    });
     Route::middleware('permission:staff.manage')->group(function () {
         Route::patch('/staff/{staff}', [StaffController::class,'update'])->middleware('throttle:30,1')->name('staff.update');
         Route::delete('/staff/{staff}', [StaffController::class,'destroy'])->middleware('throttle:10,1')->name('staff.destroy');

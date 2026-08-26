@@ -15,6 +15,7 @@
         </div>
         <div class="d-flex gap-2">
             <a href="{{ route('admin.study-space.index') }}" class="btn btn-outline-primary">Study Hall & Seats</a>
+            <a href="{{ route('admin.lockers.index') }}" class="btn btn-outline-success">Lockers</a>
             <a href="{{ route('admin.admissions.index') }}" class="btn btn-outline-secondary">Back to Admissions</a>
         </div>
     </div>
@@ -46,8 +47,12 @@
                         <dt class="col-5">Branch</dt><dd class="col-7">{{ $admission->branch?->name ?? '—' }}</dd>
                         <dt class="col-5">Preferred Slot</dt><dd class="col-7">{{ $admission->studySlot?->name ?? '—' }}</dd>
                         <dt class="col-5">Preferred Plan</dt><dd class="col-7">{{ $admission->feePlan?->name ?? '—' }}</dd>
+                        <dt class="col-5">Locker Requested</dt><dd class="col-7"><span class="badge {{ $admission->wants_locker ? 'text-bg-success' : 'text-bg-secondary' }}">{{ $admission->wants_locker ? 'YES — chargeable monthly locker required' : 'No' }}</span></dd>
                         <dt class="col-5">Status</dt><dd class="col-7">{{ str_replace('_', ' ', ucfirst($admission->status)) }}</dd>
                     </dl>
+                    @if($admission->wants_locker)
+                        <div class="alert alert-success mt-3 mb-0 small">This applicant requested a locker. After the student record is created, open <strong>Locker Management</strong> to allocate an available locker. The allocation automatically captures the admin-configured monthly locker charge.</div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -59,7 +64,10 @@
                     <p class="text-muted small">Select the study slot and matching fee plan. Available seats are checked for the full membership validity period before approval.</p>
 
                     @if($admission->status === 'converted')
-                        <div class="alert alert-info mb-0">This application has already been converted into a student record with membership and seat allocation.</div>
+                        <div class="alert alert-info">This application has already been converted into a student record with membership and seat allocation.</div>
+                        @if($admission->wants_locker)
+                            <a class="btn btn-success" href="{{ route('admin.lockers.index') }}">Allocate Requested Locker</a>
+                        @endif
                     @else
                         <form method="POST" action="{{ route('admin.admissions.approve', $admission) }}" id="approval-form">
                             @csrf
@@ -110,6 +118,10 @@
                             </div>
 
                             <div id="period_preview" class="alert alert-light border mt-3 mb-0 small">Select a fee plan to calculate the allocation period.</div>
+
+                            @if($admission->wants_locker)
+                                <div class="alert alert-success border mt-3 mb-0 small"><strong>Locker required:</strong> approve the admission first, then use Locker Management to allocate an available locker at the configured monthly charge.</div>
+                            @endif
 
                             <div class="row g-3 mt-1">
                                 <div class="col-md-6">

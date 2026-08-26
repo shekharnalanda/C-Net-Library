@@ -1,136 +1,16 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
-
-use App\Http\Controllers\Controller;
-use App\Models\CmsPage;
-use App\Models\Faq;
-use App\Models\GalleryItem;
-use App\Models\Testimonial;
-use App\Services\AuditService;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\View\View;
-
-class CmsController extends Controller
-{
-    public function index(): View
-    {
-        return view('admin.cms.index', [
-            'pages' => CmsPage::query()->orderBy('sort_order')->orderBy('title')->get(),
-            'faqs' => Faq::query()->orderBy('sort_order')->get(),
-            'testimonials' => Testimonial::query()->latest()->get(),
-            'galleryItems' => GalleryItem::query()->orderBy('sort_order')->latest()->get(),
-        ]);
-    }
-
-    public function updatePage(Request $request, CmsPage $page, AuditService $audit): RedirectResponse
-    {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:180'],
-            'excerpt' => ['nullable', 'string', 'max:1000'],
-            'content' => ['nullable', 'string'],
-            'meta_title' => ['nullable', 'string', 'max:180'],
-            'meta_description' => ['nullable', 'string', 'max:500'],
-            'meta_keywords' => ['nullable', 'string', 'max:500'],
-            'canonical_url' => ['nullable', 'url', 'max:500'],
-            'status' => ['nullable', 'boolean'],
-        ]);
-
-        if (array_key_exists('content', $data)) {
-            $data['content'] = $this->sanitizeHtml($data['content']);
-        }
-
-        $old = $page->only(array_keys($data));
-        $page->update($data + ['status' => $request->boolean('status')]);
-        $audit->log('cms.page.updated', $page, $old, $page->only(array_keys($data)));
-
-        return back()->with('success', 'CMS page updated.');
-    }
-
-    public function storeFaq(Request $request, AuditService $audit): RedirectResponse
-    {
-        $data = $request->validate([
-            'question' => ['required', 'string', 'max:500'],
-            'answer' => ['required', 'string', 'max:5000'],
-        ]);
-
-        $faq = Faq::create($data + ['status' => true]);
-        $audit->log('cms.faq.created', $faq, [], $faq->only(['question', 'answer']));
-
-        return back()->with('success', 'FAQ added.');
-    }
-
-    public function storeTestimonial(Request $request, AuditService $audit): RedirectResponse
-    {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'designation' => ['nullable', 'string', 'max:180'],
-            'message' => ['required', 'string', 'max:3000'],
-            'rating' => ['nullable', 'integer', 'between:1,5'],
-        ]);
-
-        $testimonial = Testimonial::create($data + ['rating' => $data['rating'] ?? 5, 'status' => true]);
-        $audit->log('cms.testimonial.created', $testimonial, [], $testimonial->only(['name', 'designation', 'message', 'rating']));
-
-        return back()->with('success', 'Testimonial added.');
-    }
-
-    public function storeGallery(Request $request, AuditService $audit): RedirectResponse
-    {
-        $data = $request->validate([
-            'title' => ['nullable', 'string', 'max:180'],
-            'alt_text' => ['nullable', 'string', 'max:255'],
-            'image' => [
-                'required',
-                'file',
-                'max:5120',
-                'mimes:jpg,jpeg,png,webp,gif',
-                'mimetypes:image/jpeg,image/png,image/webp,image/gif',
-            ],
-        ]);
-
-        $path = $request->file('image')->store('gallery', 'public');
-
-        $item = GalleryItem::create([
-            'title' => $data['title'] ?? null,
-            'image_path' => $path,
-            'alt_text' => $data['alt_text'] ?? $data['title'] ?? 'C-Net Library gallery image',
-            'sort_order' => (int) GalleryItem::max('sort_order') + 1,
-            'status' => true,
-        ]);
-
-        $audit->log('cms.gallery.created', $item, [], $item->only(['title', 'image_path', 'alt_text']));
-
-        return back()->with('success', 'Gallery image uploaded.');
-    }
-
-    public function destroyGallery(GalleryItem $galleryItem, AuditService $audit): RedirectResponse
-    {
-        $old = $galleryItem->toArray();
-
-        if ($galleryItem->image_path) {
-            Storage::disk('public')->delete($galleryItem->image_path);
-        }
-
-        $audit->log('cms.gallery.deleted', $galleryItem, $old, []);
-        $galleryItem->delete();
-
-        return back()->with('success', 'Gallery image removed.');
-    }
-
-    private function sanitizeHtml(?string $html): ?string
-    {
-        if ($html === null || trim($html) === '') {
-            return $html;
-        }
-
-        $clean = preg_replace('#<(script|style|iframe|object|embed|form|input|button)[^>]*>.*?</\1>#is', '', $html) ?? $html;
-        $clean = preg_replace('#<(script|style|iframe|object|embed|form|input|button)[^>]*/?>#is', '', $clean) ?? $clean;
-        $clean = preg_replace('/\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean) ?? $clean;
-        $clean = preg_replace('/\s+(href|src)\s*=\s*(["\'])\s*javascript:[^"\']*\2/i', '', $clean) ?? $clean;
-
-        return strip_tags($clean, '<p><br><strong><b><em><i><u><ul><ol><li><h2><h3><h4><blockquote><a><img><table><thead><tbody><tr><th><td><hr>');
-    }
+use App\Http\Controllers\Controller;use App\Models\CmsPage;use App\Models\Faq;use App\Models\GalleryItem;use App\Models\Testimonial;use App\Services\AuditService;use Illuminate\Http\RedirectResponse;use Illuminate\Http\Request;use Illuminate\Support\Facades\Storage;use Illuminate\View\View;
+class CmsController extends Controller{
+public function index():View{return view('admin.cms.index',['pages'=>CmsPage::orderBy('sort_order')->orderBy('title')->get(),'faqs'=>Faq::orderBy('sort_order')->get(),'testimonials'=>Testimonial::latest()->get(),'galleryItems'=>GalleryItem::orderBy('sort_order')->latest()->get()]);}
+public function updatePage(Request $r,CmsPage $page,AuditService $a):RedirectResponse{$d=$r->validate(['title'=>['required','string','max:180'],'excerpt'=>['nullable','string','max:1000'],'content'=>['nullable','string'],'meta_title'=>['nullable','string','max:180'],'meta_description'=>['nullable','string','max:500'],'meta_keywords'=>['nullable','string','max:500'],'canonical_url'=>['nullable','url','max:500'],'status'=>['nullable','boolean']]);if(array_key_exists('content',$d))$d['content']=$this->sanitizeHtml($d['content']);$old=$page->only(array_keys($d));$page->update($d+['status'=>$r->boolean('status')]);$a->log('cms.page.updated',$page,$old,$page->only(array_keys($d)));return back()->with('success','CMS page updated.');}
+public function storeFaq(Request $r,AuditService $a):RedirectResponse{$d=$r->validate(['question'=>['required','string','max:500'],'answer'=>['required','string','max:5000']]);$f=Faq::create($d+['status'=>true]);$a->log('cms.faq.created',$f,[],$f->only(['question','answer']));return back()->with('success','FAQ added.');}
+public function updateFaq(Request $r,Faq $faq,AuditService $a):RedirectResponse{$d=$r->validate(['question'=>['required','string','max:500'],'answer'=>['required','string','max:5000'],'status'=>['nullable','boolean']]);$old=$faq->toArray();$faq->update($d+['status'=>$r->boolean('status')]);$a->log('cms.faq.updated',$faq,$old,$faq->toArray());return back()->with('success','FAQ updated.');}
+public function destroyFaq(Faq $faq,AuditService $a):RedirectResponse{$old=$faq->toArray();$a->log('cms.faq.deleted',$faq,$old,[]);$faq->delete();return back()->with('success','FAQ deleted.');}
+public function storeTestimonial(Request $r,AuditService $a):RedirectResponse{$d=$r->validate(['name'=>['required','string','max:150'],'designation'=>['nullable','string','max:180'],'message'=>['required','string','max:3000'],'rating'=>['nullable','integer','between:1,5']]);$t=Testimonial::create($d+['rating'=>$d['rating']??5,'status'=>true]);$a->log('cms.testimonial.created',$t,[],$t->only(['name','designation','message','rating']));return back()->with('success','Testimonial added.');}
+public function updateTestimonial(Request $r,Testimonial $testimonial,AuditService $a):RedirectResponse{$d=$r->validate(['name'=>['required','string','max:150'],'designation'=>['nullable','string','max:180'],'message'=>['required','string','max:3000'],'rating'=>['required','integer','between:1,5'],'status'=>['nullable','boolean']]);$old=$testimonial->toArray();$testimonial->update($d+['status'=>$r->boolean('status')]);$a->log('cms.testimonial.updated',$testimonial,$old,$testimonial->toArray());return back()->with('success','Testimonial updated.');}
+public function destroyTestimonial(Testimonial $testimonial,AuditService $a):RedirectResponse{$old=$testimonial->toArray();$a->log('cms.testimonial.deleted',$testimonial,$old,[]);$testimonial->delete();return back()->with('success','Testimonial deleted.');}
+public function storeGallery(Request $r,AuditService $a):RedirectResponse{$d=$r->validate(['title'=>['nullable','string','max:180'],'alt_text'=>['nullable','string','max:255'],'image'=>['required','file','max:5120','mimes:jpg,jpeg,png,webp,gif','mimetypes:image/jpeg,image/png,image/webp,image/gif']]);$path=$r->file('image')->store('gallery','public');$i=GalleryItem::create(['title'=>$d['title']??null,'image_path'=>$path,'alt_text'=>$d['alt_text']??$d['title']??'C-Net Library gallery image','sort_order'=>(int)GalleryItem::max('sort_order')+1,'status'=>true]);$a->log('cms.gallery.created',$i,[],$i->only(['title','image_path','alt_text']));return back()->with('success','Gallery image uploaded.');}
+public function destroyGallery(GalleryItem $i,AuditService $a):RedirectResponse{$old=$i->toArray();if($i->image_path)Storage::disk('public')->delete($i->image_path);$a->log('cms.gallery.deleted',$i,$old,[]);$i->delete();return back()->with('success','Gallery image removed.');}
+private function sanitizeHtml(?string $h):?string{if($h===null||trim($h)==='')return $h;$c=preg_replace('#<(script|style|iframe|object|embed|form|input|button)[^>]*>.*?</\\1>#is','',$h)??$h;$c=preg_replace('#<(script|style|iframe|object|embed|form|input|button)[^>]*/?>#is','',$c)??$c;$c=preg_replace('/\\s+on[a-z]+\\s*=\\s*("[^"]*"|\'[^\']*\'|[^\\s>]+)/i','',$c)??$c;$c=preg_replace('/\\s+(href|src)\\s*=\\s*(["\'])\\s*javascript:[^"\']*\\2/i','',$c)??$c;return strip_tags($c,'<p><br><strong><b><em><i><u><ul><ol><li><h2><h3><h4><blockquote><a><img><table><thead><tbody><tr><th><td><hr>');}
 }

@@ -33,17 +33,20 @@ class HomeScreen extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('C-Net Library'),
+        title: const Text('C-Net'),
         actions: [
-          TextButton(
+          TextButton.icon(
             onPressed: () => _openLogin(context, 'student'),
-            child: const Text('Student Login'),
+            icon: const Icon(Icons.school_outlined, size: 19),
+            label: const Text('Student'),
           ),
-          IconButton(
+          const SizedBox(width: 2),
+          TextButton.icon(
             onPressed: () => _openLogin(context, 'admin'),
-            tooltip: 'Admin / Staff Login',
-            icon: const Icon(Icons.admin_panel_settings_outlined),
+            icon: const Icon(Icons.admin_panel_settings_outlined, size: 19),
+            label: const Text('Admin / Staff'),
           ),
+          const SizedBox(width: 6),
         ],
       ),
       body: SafeArea(

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'core/api_client.dart';
 import 'core/token_store.dart';
-import 'screens/login_screen.dart';
+import 'screens/admin_shell.dart';
+import 'screens/home_screen.dart';
 import 'screens/main_shell.dart';
 
 class CNetLibraryApp extends StatefulWidget {
@@ -17,10 +18,16 @@ class _CNetLibraryAppState extends State<CNetLibraryApp> {
     _tokenStore,
     onUnauthorized: () async {
       if (!mounted) return;
-      setState(() => _signedIn = false);
+      await _tokenStore.clear();
+      setState(() {
+        _signedIn = false;
+        _role = null;
+      });
     },
   );
+
   bool? _signedIn;
+  String? _role;
 
   @override
   void initState() {
@@ -30,8 +37,33 @@ class _CNetLibraryAppState extends State<CNetLibraryApp> {
 
   Future<void> _restoreSession() async {
     final token = await _tokenStore.read();
+    final role = await _tokenStore.readRole();
     if (!mounted) return;
-    setState(() => _signedIn = token != null && token.isNotEmpty);
+
+    final hasValidLocalSession = token != null && token.isNotEmpty && (role == 'student' || role == 'admin');
+    if (!hasValidLocalSession && token != null) await _tokenStore.clear();
+
+    setState(() {
+      _signedIn = hasValidLocalSession;
+      _role = hasValidLocalSession ? role : null;
+    });
+  }
+
+  Future<void> _refreshSignedInState() async {
+    final role = await _tokenStore.readRole();
+    if (!mounted) return;
+    setState(() {
+      _signedIn = true;
+      _role = role;
+    });
+    if (Navigator.of(context).canPop()) Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  void _signedOut() {
+    setState(() {
+      _signedIn = false;
+      _role = null;
+    });
   }
 
   @override
@@ -47,9 +79,11 @@ class _CNetLibraryAppState extends State<CNetLibraryApp> {
       ),
       home: _signedIn == null
           ? const _SplashScreen()
-          : _signedIn!
-              ? MainShell(api: _api, tokenStore: _tokenStore, onSignedOut: () => setState(() => _signedIn = false))
-              : LoginScreen(api: _api, tokenStore: _tokenStore, onSignedIn: () => setState(() => _signedIn = true)),
+          : !_signedIn!
+              ? HomeScreen(api: _api, tokenStore: _tokenStore, onSignedIn: _refreshSignedInState)
+              : _role == 'admin'
+                  ? AdminShell(api: _api, tokenStore: _tokenStore, onSignedOut: _signedOut)
+                  : MainShell(api: _api, tokenStore: _tokenStore, onSignedOut: _signedOut),
     );
   }
 }

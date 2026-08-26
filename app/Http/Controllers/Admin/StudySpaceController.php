@@ -29,6 +29,16 @@ class StudySpaceController extends Controller
         $summary=['halls'=>$halls->count(),'seats'=>$halls->sum('seats_count'),'slots'=>$slots->where('status',true)->count(),'active_allocations'=>SeatAllocation::query()->whereHas('student',fn($q)=>$q->whereIn('branch_id',$branchIds))->whereIn('status',['active','reserved'])->whereDate('allocated_from','<=',today())->where(fn($q)=>$q->whereNull('allocated_to')->orWhereDate('allocated_to','>=',today()))->count()];
         return view('admin.study-space.index',compact('branches','halls','slots','plans','students','allocations','summary'));
     }
+
+    public function seatTools(Request $request): View
+    {
+        $user=$request->user();
+        $branches=Branch::query()->where('status',true)->when(!$user->isGlobalAdmin(),fn($q)=>$q->whereKey($user->branch_id))->orderBy('name')->get();
+        $branchIds=$branches->pluck('id');
+        $halls=StudyHall::query()->whereIn('branch_id',$branchIds)->withCount('seats')->with(['branch','seats'=>fn($q)=>$q->withCount('allocations')->orderBy('seat_no')])->orderBy('branch_id')->orderBy('name')->get();
+        return view('admin.study-space.seat-tools',compact('branches','halls'));
+    }
+
     public function storeHall(Request $r):RedirectResponse{$d=$r->validate(['branch_id'=>['required','exists:branches,id'],'name'=>['required','string','max:120'],'floor'=>['nullable','string','max:80'],'total_seats'=>['required','integer','min:1','max:1000'],'status'=>['nullable','boolean']]);AdminBranchScope::authorize($r,(int)$d['branch_id']);$d['status']=$r->boolean('status',true);StudyHall::create($d);return back()->with('success','Study hall created successfully. Add individual seat numbers below.');}
     public function updateHall(Request $r,StudyHall $hall):RedirectResponse{AdminBranchScope::authorize($r,$hall->branch_id);$d=$r->validate(['name'=>['required','string','max:120'],'floor'=>['nullable','string','max:80'],'total_seats'=>['required','integer','min:1','max:1000'],'status'=>['nullable','boolean']]);$d['status']=$r->boolean('status');$hall->update($d);return back()->with('success','Study hall updated. Capacity is descriptive; actual seats are controlled by individual seat records.');}
     public function destroyHall(Request $r,StudyHall $hall):RedirectResponse{AdminBranchScope::authorize($r,$hall->branch_id);if($hall->seats()->exists())return back()->withErrors(['hall'=>'Hall cannot be deleted while seat records exist. Delete unused seats first, or disable the hall to preserve allocation history.']);$n=$hall->name;$hall->delete();return back()->with('success',"Study hall {$n} deleted.");}

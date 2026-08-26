@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StudentController;
+use App\Http\Controllers\Admin\StudySpaceController;
 use App\Http\Controllers\Auth\FirstAdminSetupController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\StudentActivationController;
@@ -102,6 +103,18 @@ Route::middleware(['auth', 'admin', 'admin.branch'])->prefix('admin')->name('adm
         Route::post('/students/{student}/renew', [MembershipRenewalController::class, 'store'])->middleware('throttle:20,1')->name('students.renew.store');
         Route::post('/students/{student}/rotate-qr', [StudentController::class, 'rotateQr'])->middleware('throttle:10,1')->name('students.rotate-qr');
         Route::get('/available-seats', SeatAvailabilityController::class)->name('seats.available');
+
+        Route::get('/study-space', [StudySpaceController::class, 'index'])->name('study-space.index');
+        Route::post('/study-space/halls', [StudySpaceController::class, 'storeHall'])->middleware('throttle:30,1')->name('study-space.halls.store');
+        Route::patch('/study-space/halls/{hall}', [StudySpaceController::class, 'updateHall'])->middleware('throttle:30,1')->name('study-space.halls.update');
+        Route::post('/study-space/seats', [StudySpaceController::class, 'storeSeat'])->middleware('throttle:60,1')->name('study-space.seats.store');
+        Route::patch('/study-space/seats/{seat}', [StudySpaceController::class, 'updateSeat'])->middleware('throttle:60,1')->name('study-space.seats.update');
+        Route::post('/study-space/slots', [StudySpaceController::class, 'storeSlot'])->middleware('throttle:30,1')->name('study-space.slots.store');
+        Route::patch('/study-space/slots/{slot}', [StudySpaceController::class, 'updateSlot'])->middleware('throttle:30,1')->name('study-space.slots.update');
+        Route::post('/study-space/plans', [StudySpaceController::class, 'storePlan'])->middleware('throttle:30,1')->name('study-space.plans.store');
+        Route::patch('/study-space/plans/{plan}', [StudySpaceController::class, 'updatePlan'])->middleware('throttle:30,1')->name('study-space.plans.update');
+        Route::post('/study-space/allocations', [StudySpaceController::class, 'allocate'])->middleware('throttle:60,1')->name('study-space.allocations.store');
+        Route::patch('/study-space/allocations/{allocation}', [StudySpaceController::class, 'updateAllocation'])->middleware('throttle:60,1')->name('study-space.allocations.update');
     });
 
     Route::middleware('permission:payments.manage')->group(function () {

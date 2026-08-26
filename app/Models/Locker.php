@@ -11,6 +11,7 @@ class Locker extends Model
 
     protected $fillable = [
         'branch_id',
+        'study_hall_id',
         'locker_no',
         'location',
         'monthly_charge',
@@ -25,6 +26,11 @@ class Locker extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function studyHall()
+    {
+        return $this->belongsTo(StudyHall::class);
     }
 
     public function allocations()

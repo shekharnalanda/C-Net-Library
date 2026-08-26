@@ -52,7 +52,9 @@ class _LoginScreenState extends State<LoginScreen> {
       final token = data['token']?.toString();
       if (token == null || token.isEmpty) throw Exception('Login token was not returned.');
       await widget.tokenStore.write(token, role: widget.role);
-      if (mounted) widget.onSignedIn();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.onSignedIn();
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {

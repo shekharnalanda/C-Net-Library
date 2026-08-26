@@ -22,12 +22,14 @@ class Admission extends Model
         'address',
         'study_slot_id',
         'fee_plan_id',
+        'wants_locker',
         'status',
         'remarks',
     ];
 
     protected $casts = [
         'dob' => 'date',
+        'wants_locker' => 'boolean',
     ];
 
     public function branch(): BelongsTo

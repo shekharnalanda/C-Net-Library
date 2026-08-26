@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::group([], base_path('routes/students.php'));
             Route::group([], base_path('routes/slots.php'));
             Route::group([], base_path('routes/management-crud.php'));
+            Route::group([], base_path('routes/library-inventory.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

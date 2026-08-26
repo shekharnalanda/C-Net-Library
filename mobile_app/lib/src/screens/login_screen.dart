@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../core/api_client.dart';
 import '../core/token_store.dart';
 
@@ -29,6 +33,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _showPassword = false;
   String? _error;
 
+  String _friendlyError(Object error) {
+    if (error is SocketException || error is http.ClientException || error is TimeoutException) {
+      return 'Internet connection or C-Net Library server could not be reached. Please check your mobile data/Wi-Fi and try again.';
+    }
+    final message = error.toString().replaceFirst('Exception: ', '');
+    return message.isEmpty ? 'Login could not be completed. Please try again.' : message;
+  }
+
   Future<void> _login() async {
     if (_email.text.trim().isEmpty || _password.text.isEmpty) {
       setState(() => _error = 'Email and password are required.');
@@ -56,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.of(context).pop();
       widget.onSignedIn();
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = _friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

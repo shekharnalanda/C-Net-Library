@@ -3,10 +3,20 @@ import '../core/api_client.dart';
 import '../core/token_store.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.api, required this.tokenStore, required this.onSignedIn});
+  const LoginScreen({
+    super.key,
+    required this.api,
+    required this.tokenStore,
+    required this.role,
+    required this.onSignedIn,
+  });
+
   final ApiClient api;
   final TokenStore tokenStore;
+  final String role;
   final VoidCallback onSignedIn;
+
+  bool get isAdmin => role == 'admin';
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -16,17 +26,32 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
+  bool _showPassword = false;
   String? _error;
 
   Future<void> _login() async {
-    setState(() { _loading = true; _error = null; });
+    if (_email.text.trim().isEmpty || _password.text.isEmpty) {
+      setState(() => _error = 'Email and password are required.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
-      final data = await widget.api.post('/login', body: {
-        'email': _email.text.trim(),
-        'password': _password.text,
-        'device_name': 'C-Net Library App',
-      });
-      await widget.tokenStore.write(data['token'] as String);
+      final data = await widget.api.post(
+        widget.isAdmin ? '/admin/login' : '/login',
+        body: {
+          'email': _email.text.trim(),
+          'password': _password.text,
+          'device_name': widget.isAdmin ? 'C-Net Library Admin App' : 'C-Net Library Student App',
+        },
+      );
+      final token = data['token']?.toString();
+      if (token == null || token.isEmpty) throw Exception('Login token was not returned.');
+      await widget.tokenStore.write(token, role: widget.role);
       if (mounted) widget.onSignedIn();
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -37,7 +62,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.isAdmin ? 'Admin / Staff Login' : 'Student Login';
+    final icon = widget.isAdmin ? Icons.admin_panel_settings_outlined : Icons.school_outlined;
+
     return Scaffold(
+      appBar: AppBar(title: Text(title)),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -47,18 +76,54 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.local_library_rounded, size: 72),
+                  Icon(icon, size: 72),
                   const SizedBox(height: 12),
-                  const Text('C-Net Library', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'C-Net Library',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 6),
-                  const Text('Student Login', textAlign: TextAlign.center),
+                  Text(title, textAlign: TextAlign.center),
                   const SizedBox(height: 28),
-                  TextField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder())),
+                  TextField(
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                  ),
                   const SizedBox(height: 14),
-                  TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder())),
-                  if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+                  TextField(
+                    controller: _password,
+                    obscureText: !_showPassword,
+                    onSubmitted: (_) => _loading ? null : _login(),
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(() => _showPassword = !_showPassword),
+                        icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
+                      ),
+                    ),
+                  ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    ),
                   const SizedBox(height: 18),
-                  FilledButton.icon(onPressed: _loading ? null : _login, icon: const Icon(Icons.login), label: Text(_loading ? 'Signing in...' : 'Login')),
+                  FilledButton.icon(
+                    onPressed: _loading ? null : _login,
+                    icon: const Icon(Icons.login),
+                    label: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(_loading ? 'Signing in...' : 'Login'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                    child: const Text('Back to Home'),
+                  ),
                 ],
               ),
             ),
@@ -66,5 +131,12 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
   }
 }

@@ -56,8 +56,16 @@ class ReleaseSmokeCheck extends Command
             'digital-library.index', 'jobs.index',
             'student.dashboard', 'student.id-card', 'student.saved-jobs.index',
             'admin.dashboard', 'admin.admissions.index', 'admin.enquiries.index',
-            'admin.students.index', 'admin.students.id-cards.bulk',
-            'admin.branches.index', 'admin.study-space.index', 'admin.seats.available', 'admin.lockers.index',
+            'admin.students.index', 'admin.students.store', 'admin.students.update', 'admin.students.destroy',
+            'admin.students.force-destroy', 'admin.students.id-cards.bulk',
+            'admin.branches.index', 'admin.branches.store', 'admin.branches.update', 'admin.branches.destroy',
+            'admin.study-space.index', 'admin.study-space.seat-tools', 'admin.seats.available',
+            'admin.study-space.halls.store', 'admin.study-space.halls.update', 'admin.study-space.halls.destroy',
+            'admin.study-space.seats.store', 'admin.study-space.seats.bulk', 'admin.study-space.seats.update', 'admin.study-space.seats.destroy',
+            'admin.slots.index', 'admin.study-space.slots.store', 'admin.study-space.slots.update', 'admin.study-space.slots.destroy',
+            'admin.study-space.plans.store', 'admin.study-space.plans.update',
+            'admin.lockers.index', 'admin.lockers.store', 'admin.lockers.bulk', 'admin.lockers.update', 'admin.lockers.destroy',
+            'admin.lockers.allocations.store', 'admin.lockers.allocations.update', 'admin.lockers.allocations.payments.store',
             'admin.attendance.index', 'admin.attendance.scan',
             'admin.expenses.index', 'admin.library.index', 'admin.digital-resources.index',
             'admin.jobs.index', 'admin.communications.index', 'admin.staff.index',
@@ -94,7 +102,7 @@ class ReleaseSmokeCheck extends Command
         }
 
         if ($failures === []) {
-            $this->info('Release smoke checks passed for public, student, admin, branches, study-space, locker and mobile API routes.');
+            $this->info('Release smoke checks passed for public, student, admin, branch CRUD, hall/seat CRUD, slot/plan management, locker CRUD and mobile API routes.');
             return self::SUCCESS;
         }
 

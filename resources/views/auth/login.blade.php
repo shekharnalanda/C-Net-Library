@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">\n    <link rel="icon" type="image/png" href="{{ asset('images/cnet-library-icon.png') }}">
-    <title>Admin Login | C-Net Library</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="{{ asset('images/cnet-library-icon.png') }}">
+    <title>Portal Login | C-Net Library</title>
     <style>
         body { margin:0; font-family:Arial,sans-serif; background:#f4f6f8; display:grid; place-items:center; min-height:100vh; }
         .card { width:min(420px,92vw); background:white; padding:32px; border-radius:14px; box-shadow:0 12px 35px rgba(0,0,0,.08); }
@@ -15,12 +16,14 @@
         .error { background:#fee2e2; color:#991b1b; padding:10px 12px; border-radius:8px; margin-bottom:16px; }
         .remember { display:flex; gap:8px; align-items:center; margin-top:12px; }
         .remember input { width:auto; }
+        .back { display:block; margin-top:18px; text-align:center; color:#0f766e; text-decoration:none; font-weight:700; }
     </style>
 </head>
 <body>
     <div class="card">
         <a href="{{ route('home') }}" aria-label="C-Net Library Home"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library" style="display:block;width:290px;max-width:100%;height:auto;margin:0 auto 18px"></a>
-        <p>Admin & staff login</p>
+        <h1>Portal Login</h1>
+        <p>Student, Admin & Staff Login</p>
 
         @if ($errors->any())
             <div class="error">{{ $errors->first() }}</div>
@@ -42,6 +45,7 @@
 
             <button type="submit">Login</button>
         </form>
+        <a class="back" href="{{ route('home') }}">← Back to Home</a>
     </div>
 </body>
 </html>

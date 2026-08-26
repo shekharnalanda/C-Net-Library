@@ -12,6 +12,7 @@ use App\Models\Enquiry;
 use App\Models\Expense;
 use App\Models\ExpenseAdjustment;
 use App\Models\LibraryChargePayment;
+use App\Models\LockerPayment;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Seat;
@@ -26,254 +27,80 @@ class ReportsController extends Controller
 {
     public function index(Request $request)
     {
-        $validated = $request->validate([
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date'],
-            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
-        ]);
-
-        $from = isset($validated['from'])
-            ? Carbon::parse($validated['from'])->startOfDay()
-            : now()->startOfMonth();
-
-        $to = isset($validated['to'])
-            ? Carbon::parse($validated['to'])->endOfDay()
-            : now()->endOfDay();
-
-        if ($from->gt($to)) {
-            throw ValidationException::withMessages([
-                'to' => 'The report end date must be on or after the start date.',
-            ]);
-        }
-
-        if ($from->diffInDays($to) > 366) {
-            throw ValidationException::withMessages([
-                'to' => 'Please select a report period of 366 days or less.',
-            ]);
-        }
+        $validated = $request->validate(['from'=>['nullable','date'],'to'=>['nullable','date'],'branch_id'=>['nullable','integer','exists:branches,id']]);
+        $from = isset($validated['from']) ? Carbon::parse($validated['from'])->startOfDay() : now()->startOfMonth();
+        $to = isset($validated['to']) ? Carbon::parse($validated['to'])->endOfDay() : now()->endOfDay();
+        if ($from->gt($to)) throw ValidationException::withMessages(['to'=>'The report end date must be on or after the start date.']);
+        if ($from->diffInDays($to) > 366) throw ValidationException::withMessages(['to'=>'Please select a report period of 366 days or less.']);
 
         $user = $request->user();
-        $branchId = $user->isGlobalAdmin()
-            ? (isset($validated['branch_id']) ? (int) $validated['branch_id'] : null)
-            : (int) $user->branch_id;
+        $branchId = $user->isGlobalAdmin() ? (isset($validated['branch_id']) ? (int)$validated['branch_id'] : null) : (int)$user->branch_id;
+        if ($branchId) Branch::query()->whereKey($branchId)->where('status',true)->firstOrFail();
 
-        if ($branchId) {
-            Branch::query()->whereKey($branchId)->where('status', true)->firstOrFail();
-        }
+        $payments = Payment::query()->whereDate('payment_date','>=',$from->toDateString())->whereDate('payment_date','<=',$to->toDateString())->whereIn('payment_status',['paid','partial'])->when($branchId,fn($q)=>$q->whereHas('student',fn($s)=>$s->where('branch_id',$branchId)));
+        $grossCollection=(float)(clone $payments)->sum('amount');
+        $adjustmentQuery=PaymentAdjustment::query()->whereBetween('created_at',[$from,$to])->when($branchId,fn($q)=>$q->whereHas('payment.student',fn($s)=>$s->where('branch_id',$branchId)));
+        $adjustments=(float)(clone $adjustmentQuery)->sum('amount');
+        $membershipIncome=max(0,$grossCollection-$adjustments);
 
-        $payments = Payment::query()
-            ->whereDate('payment_date', '>=', $from->toDateString())
-            ->whereDate('payment_date', '<=', $to->toDateString())
-            ->whereIn('payment_status', ['paid', 'partial'])
-            ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
+        $libraryIncomeQuery=LibraryChargePayment::query()->whereDate('payment_date','>=',$from->toDateString())->whereDate('payment_date','<=',$to->toDateString())->when($branchId,fn($q)=>$q->whereHas('bookIssue.student',fn($s)=>$s->where('branch_id',$branchId)));
+        $libraryFineIncome=(float)(clone $libraryIncomeQuery)->where('charge_type','fine')->sum('amount');
+        $libraryLossIncome=(float)(clone $libraryIncomeQuery)->where('charge_type','loss')->sum('amount');
+        $libraryIncome=$libraryFineIncome+$libraryLossIncome;
 
-        $grossCollection = (float) (clone $payments)->sum('amount');
+        $lockerIncomeQuery=LockerPayment::query()->where('status','paid')->whereDate('payment_date','>=',$from->toDateString())->whereDate('payment_date','<=',$to->toDateString())->when($branchId,fn($q)=>$q->whereHas('student',fn($s)=>$s->where('branch_id',$branchId)));
+        $lockerIncome=(float)(clone $lockerIncomeQuery)->sum('amount');
+        $totalIncome=$membershipIncome+$libraryIncome+$lockerIncome;
 
-        $adjustmentQuery = PaymentAdjustment::query()
-            ->whereBetween('created_at', [$from, $to])
-            ->when($branchId, fn ($query) => $query->whereHas('payment.student', fn ($student) => $student->where('branch_id', $branchId)));
-        $adjustments = (float) (clone $adjustmentQuery)->sum('amount');
-        $membershipIncome = max(0, $grossCollection - $adjustments);
+        $expenseQuery=Expense::query()->whereDate('expense_date','>=',$from->toDateString())->whereDate('expense_date','<=',$to->toDateString())->when($branchId,fn($q)=>$q->where('branch_id',$branchId));
+        $grossExpenses=(float)(clone $expenseQuery)->sum('amount');
+        $expenseAdjustmentQuery=ExpenseAdjustment::query()->whereHas('expense',fn($q)=>$q->whereDate('expense_date','>=',$from->toDateString())->whereDate('expense_date','<=',$to->toDateString())->when($branchId,fn($e)=>$e->where('branch_id',$branchId)));
+        $expenseAdjustments=(float)(clone $expenseAdjustmentQuery)->sum('amount');
+        $expenses=max(0,$grossExpenses-$expenseAdjustments);
+        $closingBalance=$totalIncome-$expenses;
 
-        $libraryIncomeQuery = LibraryChargePayment::query()
-            ->whereDate('payment_date', '>=', $from->toDateString())
-            ->whereDate('payment_date', '<=', $to->toDateString())
-            ->when($branchId, fn ($query) => $query->whereHas('bookIssue.student', fn ($student) => $student->where('branch_id', $branchId)));
-        $libraryFineIncome = (float) (clone $libraryIncomeQuery)->where('charge_type', 'fine')->sum('amount');
-        $libraryLossIncome = (float) (clone $libraryIncomeQuery)->where('charge_type', 'loss')->sum('amount');
-        $libraryIncome = $libraryFineIncome + $libraryLossIncome;
-        $totalIncome = $membershipIncome + $libraryIncome;
+        $membershipQuery=StudentMembership::query()->where('status','active')->whereDate('start_date','<=',today())->whereDate('expiry_date','>=',today())->when($branchId,fn($q)=>$q->whereHas('student',fn($s)=>$s->where('branch_id',$branchId)));
+        $activeMembershipCount=(clone $membershipQuery)->count();
+        $paidByMembership=Payment::query()->selectRaw('student_membership_id, SUM(amount) as gross_paid')->whereIn('payment_status',['paid','partial'])->groupBy('student_membership_id');
+        $adjustedByMembership=PaymentAdjustment::query()->join('payments','payments.id','=','payment_adjustments.payment_id')->selectRaw('payments.student_membership_id, SUM(payment_adjustments.amount) as adjusted_amount')->groupBy('payments.student_membership_id');
+        $totalDue=(float)(clone $membershipQuery)->leftJoinSub($paidByMembership,'paid_totals',fn($j)=>$j->on('student_memberships.id','=','paid_totals.student_membership_id'))->leftJoinSub($adjustedByMembership,'adjustment_totals',fn($j)=>$j->on('student_memberships.id','=','adjustment_totals.student_membership_id'))->selectRaw('SUM(CASE WHEN student_memberships.final_fee - CASE WHEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) > 0 THEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) ELSE 0 END > 0 THEN student_memberships.final_fee - CASE WHEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) > 0 THEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) ELSE 0 END ELSE 0 END) as total_due')->value('total_due');
 
-        $expenseQuery = Expense::query()
-            ->whereDate('expense_date', '>=', $from->toDateString())
-            ->whereDate('expense_date', '<=', $to->toDateString())
-            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
-        $grossExpenses = (float) (clone $expenseQuery)->sum('amount');
-        $expenseAdjustmentQuery = ExpenseAdjustment::query()
-            ->whereHas('expense', fn ($query) => $query
-                ->whereDate('expense_date', '>=', $from->toDateString())
-            ->whereDate('expense_date', '<=', $to->toDateString())
-                ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId)));
-        $expenseAdjustments = (float) (clone $expenseAdjustmentQuery)->sum('amount');
-        $expenses = max(0, $grossExpenses - $expenseAdjustments);
-        $closingBalance = $totalIncome - $expenses;
+        $seatQuery=Seat::query()->where('status',true)->when($branchId,fn($q)=>$q->whereHas('studyHall',fn($h)=>$h->where('branch_id',$branchId)));
+        $totalSeats=(clone $seatQuery)->count();
+        $occupiedSeats=SeatAllocation::query()->where('status','active')->whereDate('allocated_from','<=',today())->where(fn($q)=>$q->whereNull('allocated_to')->orWhereDate('allocated_to','>=',today()))->when($branchId,fn($q)=>$q->whereHas('seat.studyHall',fn($h)=>$h->where('branch_id',$branchId)))->distinct('seat_id')->count('seat_id');
+        $attendanceMinutes=Attendance::query()->whereBetween('check_in_at',[$from,$to])->when($branchId,fn($q)=>$q->where('branch_id',$branchId))->sum('study_minutes');
+        $admissions=Admission::query()->whereBetween('created_at',[$from,$to])->when($branchId,fn($q)=>$q->where('branch_id',$branchId));
+        $admissionCount=(clone $admissions)->count(); $convertedAdmissions=(clone $admissions)->whereIn('status',['approved','converted'])->count();
+        $enquiries=Enquiry::query()->whereBetween('created_at',[$from,$to])->when($branchId,fn($q)=>$q->where('branch_id',$branchId));
+        $enquiryCount=(clone $enquiries)->count(); $convertedEnquiries=(clone $enquiries)->where('status','converted')->count();
+        $students=Student::query()->where('status','active')->when($branchId,fn($q)=>$q->where('branch_id',$branchId));
+        $bookCopies=BookCopy::query()->when($branchId,fn($q)=>$q->where('branch_id',$branchId));
+        $bookIssues=BookIssue::query()->when($branchId,fn($q)=>$q->whereHas('student',fn($s)=>$s->where('branch_id',$branchId)));
 
-        $membershipQuery = StudentMembership::query()
-            ->where('status', 'active')
-            ->whereDate('start_date', '<=', today())
-            ->whereDate('expiry_date', '>=', today())
-            ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
-
-        $activeMembershipCount = (clone $membershipQuery)->count();
-
-        $paidByMembership = Payment::query()
-            ->selectRaw('student_membership_id, SUM(amount) as gross_paid')
-            ->whereIn('payment_status', ['paid', 'partial'])
-            ->groupBy('student_membership_id');
-
-        $adjustedByMembership = PaymentAdjustment::query()
-            ->join('payments', 'payments.id', '=', 'payment_adjustments.payment_id')
-            ->selectRaw('payments.student_membership_id, SUM(payment_adjustments.amount) as adjusted_amount')
-            ->groupBy('payments.student_membership_id');
-
-        $totalDue = (float) (clone $membershipQuery)
-            ->leftJoinSub($paidByMembership, 'paid_totals', function ($join) {
-                $join->on('student_memberships.id', '=', 'paid_totals.student_membership_id');
-            })
-            ->leftJoinSub($adjustedByMembership, 'adjustment_totals', function ($join) {
-                $join->on('student_memberships.id', '=', 'adjustment_totals.student_membership_id');
-            })
-            ->selectRaw('SUM(CASE WHEN student_memberships.final_fee - CASE WHEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) > 0 THEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) ELSE 0 END > 0 THEN student_memberships.final_fee - CASE WHEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) > 0 THEN COALESCE(paid_totals.gross_paid, 0) - COALESCE(adjustment_totals.adjusted_amount, 0) ELSE 0 END ELSE 0 END) as total_due')
-            ->value('total_due');
-
-        $seatQuery = Seat::query()
-            ->where('status', true)
-            ->when($branchId, fn ($query) => $query->whereHas('studyHall', fn ($hall) => $hall->where('branch_id', $branchId)));
-        $totalSeats = (clone $seatQuery)->count();
-
-        $occupiedSeats = SeatAllocation::query()
-            ->where('status', 'active')
-            ->whereDate('allocated_from', '<=', today())
-            ->where(function ($query) {
-                $query->whereNull('allocated_to')->orWhereDate('allocated_to', '>=', today());
-            })
-            ->when($branchId, fn ($query) => $query->whereHas('seat.studyHall', fn ($hall) => $hall->where('branch_id', $branchId)))
-            ->distinct('seat_id')
-            ->count('seat_id');
-
-        $attendanceMinutes = Attendance::query()
-            ->whereBetween('check_in_at', [$from, $to])
-            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
-            ->sum('study_minutes');
-
-        $admissions = Admission::query()
-            ->whereBetween('created_at', [$from, $to])
-            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
-        $admissionCount = (clone $admissions)->count();
-        $convertedAdmissions = (clone $admissions)->whereIn('status', ['approved', 'converted'])->count();
-
-        $enquiries = Enquiry::query()
-            ->whereBetween('created_at', [$from, $to])
-            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
-        $enquiryCount = (clone $enquiries)->count();
-        $convertedEnquiries = (clone $enquiries)->where('status', 'converted')->count();
-
-        $students = Student::query()
-            ->where('status', 'active')
-            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
-
-        $bookCopies = BookCopy::query()
-            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId));
-        $bookIssues = BookIssue::query()
-            ->when($branchId, fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $branchId)));
-
-        $metrics = [
-            'students' => (clone $students)->count(),
-            'active_memberships' => $activeMembershipCount,
-            'collection' => $membershipIncome,
-            'membership_income' => $membershipIncome,
-            'gross_collection' => $grossCollection,
-            'adjustments' => $adjustments,
-            'library_income' => $libraryIncome,
-            'library_fine_income' => $libraryFineIncome,
-            'library_loss_income' => $libraryLossIncome,
-            'total_income' => $totalIncome,
-            'gross_expenses' => $grossExpenses,
-            'expense_adjustments' => $expenseAdjustments,
-            'expenses' => $expenses,
-            'closing_balance' => $closingBalance,
-            'due' => $totalDue,
-            'seat_occupancy_percent' => $totalSeats > 0 ? round(($occupiedSeats / $totalSeats) * 100, 1) : 0,
-            'occupied_seats' => $occupiedSeats,
-            'total_seats' => $totalSeats,
-            'study_hours' => round(((int) $attendanceMinutes) / 60, 1),
-            'admissions' => $admissionCount,
-            'admission_conversion_percent' => $admissionCount > 0 ? round(($convertedAdmissions / $admissionCount) * 100, 1) : 0,
-            'enquiries' => $enquiryCount,
-            'crm_conversion_percent' => $enquiryCount > 0 ? round(($convertedEnquiries / $enquiryCount) * 100, 1) : 0,
-            'books_available' => (clone $bookCopies)->where('status', 'available')->count(),
-            'books_issued' => (clone $bookIssues)->whereIn('status', ['issued', 'overdue'])->count(),
-            'overdue_books' => (clone $bookIssues)->whereIn('status', ['issued', 'overdue'])->whereDate('due_at', '<', today())->count(),
+        $metrics=[
+            'students'=>(clone $students)->count(),'active_memberships'=>$activeMembershipCount,'collection'=>$membershipIncome,'membership_income'=>$membershipIncome,
+            'gross_collection'=>$grossCollection,'adjustments'=>$adjustments,'library_income'=>$libraryIncome,'library_fine_income'=>$libraryFineIncome,'library_loss_income'=>$libraryLossIncome,
+            'locker_income'=>$lockerIncome,'total_income'=>$totalIncome,'gross_expenses'=>$grossExpenses,'expense_adjustments'=>$expenseAdjustments,'expenses'=>$expenses,'closing_balance'=>$closingBalance,'due'=>$totalDue,
+            'seat_occupancy_percent'=>$totalSeats>0?round(($occupiedSeats/$totalSeats)*100,1):0,'occupied_seats'=>$occupiedSeats,'total_seats'=>$totalSeats,'study_hours'=>round(((int)$attendanceMinutes)/60,1),
+            'admissions'=>$admissionCount,'admission_conversion_percent'=>$admissionCount>0?round(($convertedAdmissions/$admissionCount)*100,1):0,'enquiries'=>$enquiryCount,'crm_conversion_percent'=>$enquiryCount>0?round(($convertedEnquiries/$enquiryCount)*100,1):0,
+            'books_available'=>(clone $bookCopies)->where('status','available')->count(),'books_issued'=>(clone $bookIssues)->whereIn('status',['issued','overdue'])->count(),'overdue_books'=>(clone $bookIssues)->whereIn('status',['issued','overdue'])->whereDate('due_at','<',today())->count(),
         ];
 
-        $incomeCategories = collect([
-            (object) ['category' => 'Membership', 'total' => $membershipIncome],
-            (object) ['category' => 'Library Fine', 'total' => $libraryFineIncome],
-            (object) ['category' => 'Lost Book Recovery', 'total' => $libraryLossIncome],
-        ])->filter(fn ($row) => (float) $row->total > 0)->values();
+        $incomeCategories=collect([(object)['category'=>'Membership','total'=>$membershipIncome],(object)['category'=>'Library Fine','total'=>$libraryFineIncome],(object)['category'=>'Lost Book Recovery','total'=>$libraryLossIncome],(object)['category'=>'Locker Fee','total'=>$lockerIncome]])->filter(fn($r)=>(float)$r->total>0)->values();
 
-        $grossDaily = (clone $payments)
-            ->selectRaw('payment_date, SUM(amount) as total')
-            ->groupBy('payment_date')
-            ->pluck('total', 'payment_date');
+        $grossDaily=(clone $payments)->selectRaw('payment_date, SUM(amount) as total')->groupBy('payment_date')->pluck('total','payment_date');
+        $dailyAdjustments=(clone $adjustmentQuery)->selectRaw('DATE(created_at) as adjustment_day, SUM(amount) as total')->groupByRaw('DATE(created_at)')->pluck('total','adjustment_day');
+        $dailyLibraryIncome=(clone $libraryIncomeQuery)->selectRaw('payment_date, SUM(amount) as total')->groupBy('payment_date')->pluck('total','payment_date');
+        $dailyLockerIncome=(clone $lockerIncomeQuery)->selectRaw('payment_date, SUM(amount) as total')->groupBy('payment_date')->pluck('total','payment_date');
+        $dailyGrossExpenses=(clone $expenseQuery)->selectRaw('expense_date, SUM(amount) as total')->groupBy('expense_date')->pluck('total','expense_date');
+        $dailyExpenseAdjustments=(clone $expenseAdjustmentQuery)->join('expenses','expenses.id','=','expense_adjustments.expense_id')->selectRaw('expenses.expense_date, SUM(expense_adjustments.amount) as total')->groupBy('expenses.expense_date')->pluck('total','expenses.expense_date');
 
-        $dailyAdjustments = (clone $adjustmentQuery)
-            ->selectRaw('DATE(created_at) as adjustment_day, SUM(amount) as total')
-            ->groupByRaw('DATE(created_at)')
-            ->pluck('total', 'adjustment_day');
+        $dailyCollections=collect(array_unique(array_merge($grossDaily->keys()->all(),$dailyAdjustments->keys()->all(),$dailyLibraryIncome->keys()->all(),$dailyLockerIncome->keys()->all(),$dailyGrossExpenses->keys()->all(),$dailyExpenseAdjustments->keys()->all())))->sort()->values()->map(function($date)use($grossDaily,$dailyAdjustments,$dailyLibraryIncome,$dailyLockerIncome,$dailyGrossExpenses,$dailyExpenseAdjustments){
+            $gross=(float)($grossDaily[$date]??0); $adj=(float)($dailyAdjustments[$date]??0); $membership=max(0,$gross-$adj); $library=(float)($dailyLibraryIncome[$date]??0); $locker=(float)($dailyLockerIncome[$date]??0); $income=$membership+$library+$locker; $grossExpense=(float)($dailyGrossExpenses[$date]??0); $expenseAdj=(float)($dailyExpenseAdjustments[$date]??0); $expense=max(0,$grossExpense-$expenseAdj);
+            return (object)['payment_date'=>$date,'total'=>$income,'membership_total'=>$membership,'library_total'=>$library,'locker_total'=>$locker,'gross_total'=>$gross,'adjustment_total'=>$adj,'expense_total'=>$expense,'cash_balance'=>$income-$expense];
+        });
 
-        $dailyLibraryIncome = (clone $libraryIncomeQuery)
-            ->selectRaw('payment_date, SUM(amount) as total')
-            ->groupBy('payment_date')
-            ->pluck('total', 'payment_date');
-
-        $dailyGrossExpenses = (clone $expenseQuery)
-            ->selectRaw('expense_date, SUM(amount) as total')
-            ->groupBy('expense_date')
-            ->pluck('total', 'expense_date');
-
-        $dailyExpenseAdjustments = (clone $expenseAdjustmentQuery)
-            ->join('expenses', 'expenses.id', '=', 'expense_adjustments.expense_id')
-            ->selectRaw('expenses.expense_date, SUM(expense_adjustments.amount) as total')
-            ->groupBy('expenses.expense_date')
-            ->pluck('total', 'expenses.expense_date');
-
-        $dailyCollections = collect(array_unique(array_merge(
-            $grossDaily->keys()->all(),
-            $dailyAdjustments->keys()->all(),
-            $dailyLibraryIncome->keys()->all(),
-            $dailyGrossExpenses->keys()->all(),
-            $dailyExpenseAdjustments->keys()->all()
-        )))
-            ->sort()
-            ->values()
-            ->map(function ($date) use ($grossDaily, $dailyAdjustments, $dailyLibraryIncome, $dailyGrossExpenses, $dailyExpenseAdjustments) {
-                $gross = (float) ($grossDaily[$date] ?? 0);
-                $adjustment = (float) ($dailyAdjustments[$date] ?? 0);
-                $membershipNet = max(0, $gross - $adjustment);
-                $library = (float) ($dailyLibraryIncome[$date] ?? 0);
-                $income = $membershipNet + $library;
-                $grossExpense = (float) ($dailyGrossExpenses[$date] ?? 0);
-                $expenseAdjustment = (float) ($dailyExpenseAdjustments[$date] ?? 0);
-                $expense = max(0, $grossExpense - $expenseAdjustment);
-
-                return (object) [
-                    'payment_date' => $date,
-                    'total' => $income,
-                    'membership_total' => $membershipNet,
-                    'library_total' => $library,
-                    'gross_total' => $gross,
-                    'adjustment_total' => $adjustment,
-                    'expense_total' => $expense,
-                    'cash_balance' => $income - $expense,
-                ];
-            });
-
-        $branches = Branch::query()
-            ->where('status', true)
-            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereKey($user->branch_id))
-            ->orderBy('name')
-            ->get();
-
-        return view('admin.reports.index', [
-            'metrics' => $metrics,
-            'incomeCategories' => $incomeCategories,
-            'dailyCollections' => $dailyCollections,
-            'from' => $from,
-            'to' => $to,
-            'branchId' => $branchId,
-            'branches' => $branches,
-            'isGlobalAdmin' => $user->isGlobalAdmin(),
-        ]);
+        $branches=Branch::query()->where('status',true)->when(! $user->isGlobalAdmin(),fn($q)=>$q->whereKey($user->branch_id))->orderBy('name')->get();
+        return view('admin.reports.index',compact('metrics','incomeCategories','dailyCollections','from','to','branchId','branches')+['isGlobalAdmin'=>$user->isGlobalAdmin()]);
     }
 }

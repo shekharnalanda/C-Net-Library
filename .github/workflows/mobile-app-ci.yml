@@ -38,6 +38,21 @@ jobs:
         working-directory: mobile_app
         run: flutter create --platforms=android --org com.mciedu.cnetlibrary --project-name cnetlibrary .
 
+      - name: Ensure Android internet permission
+        working-directory: mobile_app
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q 'android.permission.INTERNET' "$MANIFEST"; then
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST"
+          fi
+          grep -q 'android.permission.INTERNET' "$MANIFEST"
+          cat "$MANIFEST"
+
+      - name: Verify production API DNS and HTTPS
+        run: |
+          getent hosts cnetlibrary.mciedu.com
+          curl --fail --silent --show-error --location --max-time 20 https://cnetlibrary.mciedu.com/ >/dev/null
+
       - name: Install dependencies
         working-directory: mobile_app
         run: flutter pub get

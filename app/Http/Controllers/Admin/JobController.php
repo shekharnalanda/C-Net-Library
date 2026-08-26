@@ -1,82 +1,11 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
-
-use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Models\Job;
-use App\Services\AdminBranchScope;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
-
-class JobController extends Controller
-{
-    public function index(Request $request, AdminBranchScope $branchScope)
-    {
-        $query = $branchScope->apply(Job::query(), $request->user())
-            ->with('branch')
-            ->latest('id');
-
-        if ($request->filled('q')) {
-            $term = trim((string) $request->q);
-            $query->where(function ($q) use ($term) {
-                $q->where('title', 'like', "%{$term}%")
-                    ->orWhere('organization', 'like', "%{$term}%")
-                    ->orWhere('qualification', 'like', "%{$term}%")
-                    ->orWhere('location', 'like', "%{$term}%");
-            });
-        }
-
-        if ($request->filled('type')) {
-            $query->where('job_type', $request->type);
-        }
-
-        $branches = Branch::query()->where('status', true);
-        if (! $request->user()->isGlobalAdmin()) {
-            $branches->whereKey($request->user()->branch_id);
-        }
-
-        return view('admin.jobs.index', [
-            'jobs' => $query->paginate(25)->withQueryString(),
-            'branches' => $branches->orderBy('name')->get(),
-        ]);
-    }
-
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'branch_id' => ['nullable', 'exists:branches,id'],
-            'title' => ['required', 'string', 'max:255'],
-            'organization' => ['required', 'string', 'max:255'],
-            'job_type' => ['required', Rule::in(['government', 'private', 'internship', 'apprenticeship'])],
-            'category' => ['nullable', 'string', 'max:150'],
-            'qualification' => ['nullable', 'string', 'max:255'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'published_date' => ['nullable', 'date'],
-            'last_date' => ['nullable', 'date', 'after_or_equal:published_date'],
-            'summary' => ['nullable', 'string', 'max:5000'],
-            'official_url' => ['required', 'url', 'max:2048'],
-            'is_featured' => ['nullable', 'boolean'],
-            'status' => ['nullable', 'boolean'],
-        ]);
-
-        if (! $request->user()->isGlobalAdmin()) {
-            $data['branch_id'] = $request->user()->branch_id;
-        }
-
-        $scheme = strtolower((string) parse_url($data['official_url'], PHP_URL_SCHEME));
-        if (! in_array($scheme, ['http', 'https'], true)) {
-            throw ValidationException::withMessages([
-                'official_url' => 'Official job URLs must use HTTP or HTTPS.',
-            ]);
-        }
-
-        $data['is_featured'] = $request->boolean('is_featured');
-        $data['status'] = $request->has('status') ? $request->boolean('status') : true;
-
-        Job::create($data);
-
-        return back()->with('success', 'Job listing created successfully.');
-    }
+use App\Http\Controllers\Controller;use App\Models\Branch;use App\Models\Job;use App\Services\AdminBranchScope;use Illuminate\Http\Request;use Illuminate\Validation\Rule;use Illuminate\Validation\ValidationException;
+class JobController extends Controller{
+public function index(Request $r,AdminBranchScope $s){$q=$s->apply(Job::query(),$r->user())->with('branch')->withCount('savedByStudents')->latest('id');if($r->filled('q')){$t=trim((string)$r->q);$q->where(fn($x)=>$x->where('title','like',"%{$t}%")->orWhere('organization','like',"%{$t}%")->orWhere('qualification','like',"%{$t}%")->orWhere('location','like',"%{$t}%"));}if($r->filled('type'))$q->where('job_type',$r->type);$b=Branch::where('status',true)->when(!$r->user()->isGlobalAdmin(),fn($x)=>$x->whereKey($r->user()->branch_id))->orderBy('name')->get();return view('admin.jobs.index',['jobs'=>$q->paginate(25)->withQueryString(),'branches'=>$b]);}
+private function validated(Request $r,?Job $job=null):array{$d=$r->validate(['branch_id'=>['nullable','exists:branches,id'],'title'=>['required','string','max:255'],'organization'=>['required','string','max:255'],'job_type'=>['required',Rule::in(['government','private','internship','apprenticeship'])],'category'=>['nullable','string','max:150'],'qualification'=>['nullable','string','max:255'],'location'=>['nullable','string','max:255'],'published_date'=>['nullable','date'],'last_date'=>['nullable','date','after_or_equal:published_date'],'summary'=>['nullable','string','max:5000'],'official_url'=>['required','url','max:2048'],'is_featured'=>['nullable','boolean'],'status'=>['nullable','boolean']]);if(!$r->user()->isGlobalAdmin())$d['branch_id']=$r->user()->branch_id;$scheme=strtolower((string)parse_url($d['official_url'],PHP_URL_SCHEME));if(!in_array($scheme,['http','https'],true))throw ValidationException::withMessages(['official_url'=>'Official job URLs must use HTTP or HTTPS.']);$d['is_featured']=$r->boolean('is_featured');$d['status']=$r->boolean('status');return $d;}
+public function store(Request $r){$d=$this->validated($r);if(!$r->has('status'))$d['status']=true;Job::create($d);return back()->with('success','Job listing created successfully.');}
+public function update(Request $r,Job $job){$this->authorizeBranch($r,$job);$job->update($this->validated($r,$job));return back()->with('success','Job listing updated successfully.');}
+public function destroy(Request $r,Job $job){$this->authorizeBranch($r,$job);if($job->savedByStudents()->exists()){ $job->update(['status'=>false]);return back()->withErrors(['job'=>'This job is saved by students, so permanent delete is blocked. It has been hidden instead.']);}$job->delete();return back()->with('success','Unused job listing deleted.');}
+private function authorizeBranch(Request $r,Job $job):void{abort_unless($r->user()->isGlobalAdmin()||$job->branch_id===null||(int)$job->branch_id===(int)$r->user()->branch_id,403);}
 }

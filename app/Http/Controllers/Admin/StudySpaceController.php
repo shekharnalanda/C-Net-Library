@@ -34,9 +34,14 @@ class StudySpaceController extends Controller
     {
         $user=$request->user();
         $branches=Branch::query()->where('status',true)->when(!$user->isGlobalAdmin(),fn($q)=>$q->whereKey($user->branch_id))->orderBy('name')->get();
-        $branchIds=$branches->pluck('id');
-        $halls=StudyHall::query()->whereIn('branch_id',$branchIds)->withCount('seats')->with(['branch','seats'=>fn($q)=>$q->withCount('allocations')->orderBy('seat_no')])->orderBy('branch_id')->orderBy('name')->get();
-        return view('admin.study-space.seat-tools',compact('branches','halls'));
+        $allowedIds=$branches->pluck('id');
+        $selectedBranchId=$request->integer('branch_id') ?: null;
+        if(!$user->isGlobalAdmin()) $selectedBranchId=(int)$user->branch_id;
+        if($selectedBranchId && !$allowedIds->contains($selectedBranchId)) abort(403,'You cannot manage this branch.');
+        $hallBranchIds=$selectedBranchId ? collect([$selectedBranchId]) : $allowedIds;
+        $halls=StudyHall::query()->whereIn('branch_id',$hallBranchIds)->withCount('seats')->with(['branch','seats'=>fn($q)=>$q->withCount('allocations')->orderBy('seat_no')])->orderBy('branch_id')->orderBy('name')->get();
+        $selectedBranch=$selectedBranchId ? $branches->firstWhere('id',$selectedBranchId) : null;
+        return view('admin.study-space.seat-tools',compact('branches','halls','selectedBranchId','selectedBranch'));
     }
 
     public function storeHall(Request $r):RedirectResponse{$d=$r->validate(['branch_id'=>['required','exists:branches,id'],'name'=>['required','string','max:120'],'floor'=>['nullable','string','max:80'],'total_seats'=>['required','integer','min:1','max:1000'],'status'=>['nullable','boolean']]);AdminBranchScope::authorize($r,(int)$d['branch_id']);$d['status']=$r->boolean('status',true);StudyHall::create($d);return back()->with('success','Study hall created successfully. Add individual seat numbers below.');}

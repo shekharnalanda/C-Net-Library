@@ -13,7 +13,10 @@
             <h1 class="h3 mb-1">Review Admission</h1>
             <p class="text-muted mb-0">{{ $admission->application_no }}</p>
         </div>
-        <a href="{{ route('admin.admissions.index') }}" class="btn btn-outline-secondary">Back to Admissions</a>
+        <div class="d-flex gap-2">
+            <a href="{{ route('admin.study-space.index') }}" class="btn btn-outline-primary">Study Hall & Seats</a>
+            <a href="{{ route('admin.admissions.index') }}" class="btn btn-outline-secondary">Back to Admissions</a>
+        </div>
     </div>
 
     @if(session('success'))
@@ -52,10 +55,11 @@
         <div class="col-lg-7">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h2 class="h5 mb-3">Approve & Allocate Seat</h2>
+                    <h2 class="h5 mb-2">Approve Membership & Allocate Seat</h2>
+                    <p class="text-muted small">Select the study slot and matching fee plan. Available seats are checked for the full membership validity period before approval.</p>
 
                     @if($admission->status === 'converted')
-                        <div class="alert alert-info mb-0">This application has already been converted into a student record.</div>
+                        <div class="alert alert-info mb-0">This application has already been converted into a student record with membership and seat allocation.</div>
                     @else
                         <form method="POST" action="{{ route('admin.admissions.approve', $admission) }}" id="approval-form">
                             @csrf
@@ -67,6 +71,9 @@
                                     @foreach($studySlots as $slot)
                                         <option value="{{ $slot->id }}" @selected(old('study_slot_id', $admission->study_slot_id) == $slot->id)>
                                             {{ $slot->name }}
+                                            @if($slot->is_24x7) · 24×7
+                                            @elseif($slot->duration_hours) · {{ $slot->duration_hours }} hr
+                                            @endif
                                         </option>
                                     @endforeach
                                 </select>
@@ -74,14 +81,18 @@
 
                             <div class="mb-3">
                                 <label class="form-label">Fee Plan</label>
-                                <select name="fee_plan_id" class="form-select" required>
+                                <select name="fee_plan_id" id="fee_plan_id" class="form-select" required>
                                     <option value="">Select Fee Plan</option>
                                     @foreach($feePlans as $plan)
-                                        <option value="{{ $plan->id }}" @selected(old('fee_plan_id', $admission->fee_plan_id) == $plan->id)>
-                                            {{ $plan->name }} - ₹{{ number_format($plan->monthly_fee, 2) }}
+                                        <option value="{{ $plan->id }}"
+                                                data-slot="{{ $plan->study_slot_id }}"
+                                                data-validity="{{ $plan->validity_days }}"
+                                                @selected(old('fee_plan_id', $admission->fee_plan_id) == $plan->id)>
+                                            {{ $plan->name }} - ₹{{ number_format($plan->monthly_fee, 2) }} · {{ $plan->validity_days }} days
                                         </option>
                                     @endforeach
                                 </select>
+                                <div class="form-text">Only plans linked to the selected study slot are shown.</div>
                             </div>
 
                             <div class="row g-3">
@@ -91,12 +102,14 @@
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label">Seat</label>
+                                    <label class="form-label">Available Seat</label>
                                     <select name="seat_id" id="seat_id" class="form-select" required>
-                                        <option value="">Select slot first</option>
+                                        <option value="">Select slot and plan first</option>
                                     </select>
                                 </div>
                             </div>
+
+                            <div id="period_preview" class="alert alert-light border mt-3 mb-0 small">Select a fee plan to calculate the allocation period.</div>
 
                             <div class="row g-3 mt-1">
                                 <div class="col-md-6">
@@ -110,7 +123,7 @@
                                 </div>
                             </div>
 
-                            <button type="submit" class="btn btn-success mt-4">Approve Admission</button>
+                            <button type="submit" class="btn btn-success mt-4">Approve + Create Membership + Allocate Seat</button>
                         </form>
                     @endif
                 </div>
@@ -122,28 +135,72 @@
 @if($admission->status !== 'converted')
 <script>
 const slotSelect = document.getElementById('study_slot_id');
+const planSelect = document.getElementById('fee_plan_id');
 const seatSelect = document.getElementById('seat_id');
 const startDate = document.getElementById('start_date');
+const periodPreview = document.getElementById('period_preview');
+const allPlans = Array.from(planSelect.options);
+
+function addDays(dateText, days) {
+    const d = new Date(`${dateText}T00:00:00`);
+    d.setDate(d.getDate() + Math.max(1, Number(days)) - 1);
+    return d.toISOString().slice(0, 10);
+}
+
+function filterPlans() {
+    const slotId = slotSelect.value;
+    allPlans.forEach((option, index) => {
+        if (index === 0) return;
+        const visible = !!slotId && option.dataset.slot === slotId;
+        option.hidden = !visible;
+        option.disabled = !visible;
+    });
+
+    if (planSelect.selectedOptions[0]?.disabled) planSelect.value = '';
+    updatePeriod();
+}
+
+function updatePeriod() {
+    const plan = planSelect.selectedOptions[0];
+    const validity = Number(plan?.dataset.validity || 0);
+    const from = startDate.value;
+
+    if (!from || !validity) {
+        periodPreview.textContent = 'Select a fee plan to calculate the allocation period.';
+        return null;
+    }
+
+    const to = addDays(from, validity);
+    periodPreview.textContent = `Membership / seat allocation period: ${from} to ${to} (${validity} days)`;
+    return to;
+}
 
 async function loadSeats() {
     const slotId = slotSelect.value;
-    const date = startDate.value;
+    const plan = planSelect.selectedOptions[0];
+    const validity = Number(plan?.dataset.validity || 0);
+    const from = startDate.value;
 
-    if (!slotId || !date) {
-        seatSelect.innerHTML = '<option value="">Select slot first</option>';
+    if (!slotId || !planSelect.value || !from || !validity) {
+        seatSelect.innerHTML = '<option value="">Select slot and plan first</option>';
+        updatePeriod();
         return;
     }
 
+    const to = updatePeriod();
     seatSelect.innerHTML = '<option value="">Loading available seats...</option>';
 
     const params = new URLSearchParams({
         branch_id: '{{ $admission->branch_id }}',
         study_slot_id: slotId,
-        allocated_from: date
+        allocated_from: from,
+        allocated_to: to
     });
 
     try {
-        const response = await fetch(`{{ route('admin.seats.available') }}?${params.toString()}`);
+        const response = await fetch(`{{ route('admin.seats.available') }}?${params.toString()}`, {
+            headers: { 'Accept': 'application/json' }
+        });
         if (!response.ok) throw new Error('Unable to load seats');
 
         const seats = await response.json();
@@ -152,22 +209,24 @@ async function loadSeats() {
         seats.forEach(seat => {
             const option = document.createElement('option');
             option.value = seat.id;
-            option.textContent = `${seat.hall ?? 'Hall'} - ${seat.seat_no}`;
+            option.textContent = `${seat.hall ?? 'Study Hall'} · Seat ${seat.seat_no}`;
             seatSelect.appendChild(option);
         });
 
         if (seats.length === 0) {
-            seatSelect.innerHTML = '<option value="">No seat available for this slot</option>';
+            seatSelect.innerHTML = '<option value="">No seat available for this slot / period</option>';
         }
     } catch (error) {
         seatSelect.innerHTML = '<option value="">Could not load seats</option>';
     }
 }
 
-slotSelect.addEventListener('change', loadSeats);
+slotSelect.addEventListener('change', () => { filterPlans(); loadSeats(); });
+planSelect.addEventListener('change', loadSeats);
 startDate.addEventListener('change', loadSeats);
 
-if (slotSelect.value) loadSeats();
+filterPlans();
+if (slotSelect.value && planSelect.value) loadSeats();
 </script>
 @endif
 </body>

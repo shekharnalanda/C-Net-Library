@@ -18,4 +18,8 @@ Route::middleware(['web','auth','admin','admin.branch','permission:students.mana
         Route::delete('/students/{student}', [StudentController::class, 'destroy'])
             ->middleware('throttle:20,1')
             ->name('students.destroy');
+
+        Route::delete('/students/{student}/force', [StudentController::class, 'forceDestroy'])
+            ->middleware(['global-admin','throttle:5,1'])
+            ->name('students.force-destroy');
     });

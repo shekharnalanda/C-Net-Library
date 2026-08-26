@@ -88,7 +88,7 @@ class StudentController extends Controller
             'active_seat' => $activeSeat ? [
                 'allocation_id' => $activeSeat->id,
                 'seat_id' => $activeSeat->seat_id,
-                'seat_number' => $activeSeat->seat?->seat_number,
+                'seat_number' => $activeSeat->seat?->seat_no,
                 'study_hall' => $activeSeat->seat?->studyHall?->name,
                 'status' => $activeSeat->status,
             ] : null,

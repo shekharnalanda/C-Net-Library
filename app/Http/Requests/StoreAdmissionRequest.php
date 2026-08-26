@@ -15,6 +15,7 @@ class StoreAdmissionRequest extends FormRequest
     public function rules(): array
     {
         $branchId = $this->input('branch_id');
+        $studySlotId = $this->input('study_slot_id');
 
         return [
             'website' => ['nullable', 'string', 'max:0'],
@@ -37,11 +38,22 @@ class StoreAdmissionRequest extends FormRequest
             ],
             'fee_plan_id' => [
                 'nullable',
-                Rule::exists('fee_plans', 'id')->where(fn ($query) => $query
-                    ->where('branch_id', $branchId)
-                    ->where('status', true)),
+                Rule::exists('fee_plans', 'id')->where(function ($query) use ($branchId, $studySlotId) {
+                    $query->where('branch_id', $branchId)->where('status', true);
+                    if ($studySlotId) {
+                        $query->where('study_slot_id', $studySlotId);
+                    }
+                }),
             ],
             'wants_locker' => ['required', 'boolean'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'study_slot_id.exists' => 'Please select an active study slot belonging to the selected branch.',
+            'fee_plan_id.exists' => 'Please select an active fee plan matching the selected branch and study slot.',
         ];
     }
 }

@@ -52,29 +52,35 @@ class ReleaseSmokeCheck extends Command
         }
 
         $criticalRoutes = [
-            'home',
-            'login',
-            'admin.dashboard',
-            'admin.students.index',
-            'admin.attendance.index',
-            'admin.library.index',
-            'admin.reports.index',
-            'student.dashboard',
-            'student.id-card',
-            'digital-library.index',
-            'api.mobile.v1.login',
-            'api.mobile.v1.dashboard',
-            'api.mobile.v1.profile',
-            'api.mobile.v1.membership',
-            'api.mobile.v1.payments',
-            'api.mobile.v1.attendance',
-            'api.mobile.v1.seat-allocation',
-            'api.mobile.v1.books',
-            'api.mobile.v1.issued-books',
-            'api.mobile.v1.digital-resources',
-            'api.mobile.v1.jobs',
-            'api.mobile.v1.qr-member-id',
+            // Public website and admissions.
+            'home', 'login', 'admission.create', 'admission.store', 'enquiry.create',
+            'digital-library.index', 'jobs.index',
+
+            // Student portal.
+            'student.dashboard', 'student.id-card', 'student.saved-jobs.index',
+
+            // Core administration.
+            'admin.dashboard', 'admin.admissions.index', 'admin.enquiries.index',
+            'admin.students.index', 'admin.students.id-cards.bulk',
+            'admin.study-space.index', 'admin.seats.available', 'admin.lockers.index',
+            'admin.attendance.index', 'admin.attendance.scan',
+            'admin.expenses.index', 'admin.library.index', 'admin.digital-resources.index',
+            'admin.jobs.index', 'admin.communications.index', 'admin.staff.index',
+            'admin.reports.index', 'admin.settings.index', 'admin.cms.index', 'admin.security.index',
+
+            // Student mobile API.
+            'api.mobile.v1.login', 'api.mobile.v1.dashboard', 'api.mobile.v1.profile',
+            'api.mobile.v1.membership', 'api.mobile.v1.payments', 'api.mobile.v1.attendance',
+            'api.mobile.v1.seat-allocation', 'api.mobile.v1.books', 'api.mobile.v1.issued-books',
+            'api.mobile.v1.digital-resources', 'api.mobile.v1.jobs', 'api.mobile.v1.qr-member-id',
             'api.mobile.v1.support',
+
+            // Admin mobile API.
+            'api.mobile.v1.admin.login', 'api.mobile.v1.admin.logout',
+            'api.mobile.v1.admin.dashboard', 'api.mobile.v1.admin.students',
+            'api.mobile.v1.admin.enquiries', 'api.mobile.v1.admin.payments',
+            'api.mobile.v1.admin.attendance', 'api.mobile.v1.admin.books',
+            'api.mobile.v1.admin.book-issues', 'api.mobile.v1.admin.lockers',
         ];
 
         foreach ($criticalRoutes as $routeName) {
@@ -97,8 +103,7 @@ class ReleaseSmokeCheck extends Command
         }
 
         if ($failures === []) {
-            $this->info('Release smoke checks passed. This does not replace CI, release:preflight, migrations, or functional browser testing.');
-
+            $this->info('Release smoke checks passed for public, student, admin, study-space, locker and mobile API routes.');
             return self::SUCCESS;
         }
 
@@ -106,8 +111,7 @@ class ReleaseSmokeCheck extends Command
             $this->error($failure);
         }
 
-        $this->error('Release smoke checks failed. Keep the application closed to production traffic until these failures are resolved.');
-
+        $this->error('Release smoke checks failed. Do not treat the release as final until these failures are resolved.');
         return self::FAILURE;
     }
 }

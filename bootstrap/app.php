@@ -22,20 +22,18 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::group([], base_path('routes/lockers.php'));
             Route::group([], base_path('routes/branches.php'));
             Route::group([], base_path('routes/students.php'));
+            Route::group([], base_path('routes/slots.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [
-            SecurityHeaders::class,
-        ]);
-
+        $middleware->web(append: [SecurityHeaders::class]);
         $middleware->alias([
-            'admin' => EnsureAdmin::class,
-            'admin.branch' => EnsureBranchScope::class,
-            'global-admin' => EnsureGlobalAdmin::class,
-            'permission' => EnsurePermission::class,
-            'student' => EnsureStudent::class,
-            'mobile.auth' => AuthenticateMobileApi::class,
+            'admin'=>EnsureAdmin::class,
+            'admin.branch'=>EnsureBranchScope::class,
+            'global-admin'=>EnsureGlobalAdmin::class,
+            'permission'=>EnsurePermission::class,
+            'student'=>EnsureStudent::class,
+            'mobile.auth'=>AuthenticateMobileApi::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

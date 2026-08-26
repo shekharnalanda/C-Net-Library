@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Expense;
 use App\Models\ExpenseAdjustment;
+use App\Models\LibraryChargePayment;
+use App\Models\LockerPayment;
+use App\Models\Payment;
+use App\Models\PaymentAdjustment;
 use App\Services\AuditService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -31,7 +35,6 @@ class ExpenseController extends Controller
             ->when($request->filled('payment_mode'), fn ($query) => $query->where('payment_mode', $request->string('payment_mode')->toString()))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->string('search')->toString());
-
                 $query->where(function ($q) use ($search) {
                     $q->where('category', 'like', "%{$search}%")
                         ->orWhere('payee', 'like', "%{$search}%")
@@ -40,18 +43,12 @@ class ExpenseController extends Controller
                 });
             });
 
-        $expenses = (clone $baseQuery)
-            ->with(['branch', 'creator', 'adjustments.creator', 'payroll.staff'])
-            ->latest('expense_date')
-            ->latest('id')
-            ->paginate(30)
-            ->withQueryString();
-
+        $expenses = (clone $baseQuery)->with(['branch', 'creator', 'adjustments.creator', 'payroll.staff'])->latest('expense_date')->latest('id')->paginate(30)->withQueryString();
         $grossExpenses = (float) (clone $baseQuery)->sum('amount');
         $adjustments = (float) ExpenseAdjustment::query()
             ->whereHas('expense', function ($query) use ($from, $to, $branchId, $request) {
                 $query->whereDate('expense_date', '>=', $from->toDateString())
-            ->whereDate('expense_date', '<=', $to->toDateString())
+                    ->whereDate('expense_date', '<=', $to->toDateString())
                     ->when($branchId, fn ($expense) => $expense->where('branch_id', $branchId))
                     ->when($request->filled('category'), fn ($expense) => $expense->where('category', $request->string('category')->toString()))
                     ->when($request->filled('payment_mode'), fn ($expense) => $expense->where('payment_mode', $request->string('payment_mode')->toString()))
@@ -64,26 +61,38 @@ class ExpenseController extends Controller
                                 ->orWhere('description', 'like', "%{$search}%");
                         });
                     });
-            })
+            })->sum('amount');
+
+        $totalExpenses = max(0, $grossExpenses - $adjustments);
+
+        $membershipGross = (float) Payment::query()
+            ->whereDate('payment_date', '>=', $from->toDateString())
+            ->whereDate('payment_date', '<=', $to->toDateString())
+            ->whereIn('payment_status', ['paid', 'partial'])
+            ->when($branchId, fn ($q) => $q->whereHas('student', fn ($s) => $s->where('branch_id', $branchId)))
             ->sum('amount');
+        $membershipAdjustments = (float) PaymentAdjustment::query()
+            ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->when($branchId, fn ($q) => $q->whereHas('payment.student', fn ($s) => $s->where('branch_id', $branchId)))
+            ->sum('amount');
+        $membershipIncome = max(0, $membershipGross - $membershipAdjustments);
+        $libraryIncome = (float) LibraryChargePayment::query()
+            ->whereDate('payment_date', '>=', $from->toDateString())
+            ->whereDate('payment_date', '<=', $to->toDateString())
+            ->when($branchId, fn ($q) => $q->whereHas('bookIssue.student', fn ($s) => $s->where('branch_id', $branchId)))
+            ->sum('amount');
+        $lockerIncome = (float) LockerPayment::query()
+            ->where('status', 'paid')
+            ->whereDate('payment_date', '>=', $from->toDateString())
+            ->whereDate('payment_date', '<=', $to->toDateString())
+            ->when($branchId, fn ($q) => $q->whereHas('student', fn ($s) => $s->where('branch_id', $branchId)))
+            ->sum('amount');
+        $totalIncome = $membershipIncome + $libraryIncome + $lockerIncome;
 
-        $categoryTotals = (clone $baseQuery)
-            ->selectRaw('category, SUM(amount) as total')
-            ->groupBy('category')
-            ->orderByDesc('total')
-            ->get();
-
-        $categories = Expense::query()
-            ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
-            ->whereNotNull('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category');
-
+        $categoryTotals = (clone $baseQuery)->selectRaw('category, SUM(amount) as total')->groupBy('category')->orderByDesc('total')->get();
+        $categories = Expense::query()->when($branchId, fn ($query) => $query->where('branch_id', $branchId))->whereNotNull('category')->distinct()->orderBy('category')->pluck('category');
         $branches = Branch::query()->where('status', true);
-        if (! $request->user()->isGlobalAdmin()) {
-            $branches->whereKey($request->user()->branch_id);
-        }
+        if (! $request->user()->isGlobalAdmin()) $branches->whereKey($request->user()->branch_id);
 
         return view('admin.expenses.index', [
             'expenses' => $expenses,
@@ -94,100 +103,50 @@ class ExpenseController extends Controller
             'branchId' => $branchId,
             'grossExpenses' => $grossExpenses,
             'expenseAdjustments' => $adjustments,
-            'totalExpenses' => max(0, $grossExpenses - $adjustments),
+            'totalExpenses' => $totalExpenses,
             'categoryTotals' => $categoryTotals,
             'entryCount' => (clone $baseQuery)->count(),
+            'membershipIncome' => $membershipIncome,
+            'libraryIncome' => $libraryIncome,
+            'lockerIncome' => $lockerIncome,
+            'totalIncome' => $totalIncome,
+            'cashPosition' => $totalIncome - $totalExpenses,
         ]);
     }
 
     public function store(Request $request, AuditService $audit)
     {
         $data = $request->validate([
-            'branch_id' => ['nullable', 'exists:branches,id'],
-            'expense_date' => ['required', 'date', 'before_or_equal:today'],
-            'category' => ['required', 'string', 'max:120'],
-            'payee' => ['nullable', 'string', 'max:180'],
-            'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99'],
-            'payment_mode' => ['required', 'in:cash,upi,card,bank_transfer,other'],
-            'transaction_ref' => ['nullable', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:2000'],
+            'branch_id' => ['nullable', 'exists:branches,id'], 'expense_date' => ['required', 'date', 'before_or_equal:today'],
+            'category' => ['required', 'string', 'max:120'], 'payee' => ['nullable', 'string', 'max:180'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99'], 'payment_mode' => ['required', 'in:cash,upi,card,bank_transfer,other'],
+            'transaction_ref' => ['nullable', 'string', 'max:255'], 'description' => ['nullable', 'string', 'max:2000'],
         ]);
-
-        if (! $request->user()->isGlobalAdmin()) {
-            $data['branch_id'] = $request->user()->branch_id;
-        }
-
+        if (! $request->user()->isGlobalAdmin()) $data['branch_id'] = $request->user()->branch_id;
         $transactionRef = trim((string) ($data['transaction_ref'] ?? ''));
-        if ($transactionRef !== '' && Expense::query()->where('transaction_ref', $transactionRef)->exists()) {
-            throw ValidationException::withMessages([
-                'transaction_ref' => 'This expense transaction reference has already been recorded.',
-            ]);
-        }
-
+        if ($transactionRef !== '' && Expense::query()->where('transaction_ref', $transactionRef)->exists()) throw ValidationException::withMessages(['transaction_ref' => 'This expense transaction reference has already been recorded.']);
         try {
-            $expense = Expense::create([
-                ...$data,
-                'transaction_ref' => $transactionRef !== '' ? $transactionRef : null,
-                'created_by' => auth()->id(),
-            ]);
+            $expense = Expense::create([...$data, 'transaction_ref' => $transactionRef !== '' ? $transactionRef : null, 'created_by' => auth()->id()]);
         } catch (QueryException $exception) {
-            if ($transactionRef !== '' && in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
-                throw ValidationException::withMessages([
-                    'transaction_ref' => 'This expense transaction reference has already been recorded.',
-                ]);
-            }
-
+            if ($transactionRef !== '' && in_array((string) $exception->getCode(), ['23000', '23505'], true)) throw ValidationException::withMessages(['transaction_ref' => 'This expense transaction reference has already been recorded.']);
             throw $exception;
         }
-
-        $audit->log(
-            action: 'expense.created',
-            auditable: $expense,
-            newValues: $expense->only([
-                'branch_id', 'expense_date', 'category', 'payee', 'amount',
-                'payment_mode', 'transaction_ref', 'description',
-            ]),
-            request: $request,
-        );
-
+        $audit->log(action: 'expense.created', auditable: $expense, newValues: $expense->only(['branch_id','expense_date','category','payee','amount','payment_mode','transaction_ref','description']), request: $request);
         return back()->with('success', 'Expense recorded in cashbook.');
     }
 
     public function adjust(Request $request, Expense $expense, AuditService $audit)
     {
-        $data = $request->validate([
-            'type' => ['required', Rule::in(['reversal', 'correction', 'refund'])],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'reason' => ['required', 'string', 'max:1000'],
-        ]);
-
+        $data = $request->validate(['type' => ['required', Rule::in(['reversal', 'correction', 'refund'])], 'amount' => ['required', 'numeric', 'min:0.01'], 'reason' => ['required', 'string', 'max:1000']]);
         $adjustment = DB::transaction(function () use ($expense, $data) {
             $locked = Expense::query()->whereKey($expense->id)->lockForUpdate()->firstOrFail();
             $alreadyAdjusted = (float) $locked->adjustments()->sum('amount');
             $remaining = max(0, (float) $locked->amount - $alreadyAdjusted);
             $amount = (float) $data['amount'];
-
-            if ($amount > $remaining) {
-                throw ValidationException::withMessages([
-                    'amount' => 'Adjustment amount cannot exceed the remaining expense amount.',
-                ]);
-            }
-
-            return $locked->adjustments()->create([
-                'type' => $data['type'],
-                'amount' => $amount,
-                'reason' => $data['reason'],
-                'created_by' => auth()->id(),
-            ]);
+            if ($amount > $remaining) throw ValidationException::withMessages(['amount' => 'Adjustment amount cannot exceed the remaining expense amount.']);
+            return $locked->adjustments()->create(['type' => $data['type'], 'amount' => $amount, 'reason' => $data['reason'], 'created_by' => auth()->id()]);
         });
-
-        $audit->log(
-            action: 'expense.adjustment.created',
-            auditable: $adjustment,
-            newValues: $adjustment->only(['expense_id', 'type', 'amount', 'reason']),
-            request: $request,
-        );
-
+        $audit->log(action: 'expense.adjustment.created', auditable: $adjustment, newValues: $adjustment->only(['expense_id','type','amount','reason']), request: $request);
         return back()->with('success', 'Expense adjustment recorded. Original expense remains unchanged.');
     }
 }

@@ -15,10 +15,16 @@ class Branch extends Model
         'mobile',
         'email',
         'address',
+        'city',
+        'state',
+        'opening_time',
+        'closing_time',
+        'is_24x7',
         'status',
     ];
 
     protected $casts = [
+        'is_24x7' => 'boolean',
         'status' => 'boolean',
     ];
 

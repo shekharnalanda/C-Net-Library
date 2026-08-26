@@ -4,6 +4,9 @@
 /public/hot
 /public/storage
 /bootstrap/cache/*.php
+/storage/
+/error_log
+*.log
 /storage/*.key
 /storage/logs/*.log
 /storage/framework/cache/*

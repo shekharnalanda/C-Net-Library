@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Mobile;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Book;
+use App\Models\BookCopy;
 use App\Models\BookIssue;
 use App\Models\Enquiry;
 use App\Models\LockerAllocation;
@@ -27,6 +28,7 @@ class AdminController extends Controller
         $payments = Payment::query()->when(! $user->isGlobalAdmin(), fn ($q) => $q->whereHas('student', fn ($s) => $s->where('branch_id', $user->branch_id)));
         $issues = BookIssue::query()->when(! $user->isGlobalAdmin(), fn ($q) => $q->whereHas('student', fn ($s) => $s->where('branch_id', $user->branch_id)));
         $lockers = LockerAllocation::query()->when(! $user->isGlobalAdmin(), fn ($q) => $q->whereHas('student', fn ($s) => $s->where('branch_id', $user->branch_id)));
+        $bookCopies = BookCopy::query()->when(! $user->isGlobalAdmin(), fn ($q) => $q->where('branch_id', $user->branch_id));
 
         return response()->json([
             'admin' => $this->adminPayload($user),
@@ -35,7 +37,8 @@ class AdminController extends Controller
                 'active_students' => (clone $students)->where('status', 'active')->count(),
                 'enquiries' => (clone $enquiries)->count(),
                 'today_attendance' => (clone $attendance)->whereDate('check_in_at', today())->count(),
-                'books' => Book::query()->count(),
+                'book_copies' => (clone $bookCopies)->count(),
+                'available_book_copies' => (clone $bookCopies)->where('status', 'available')->count(),
                 'active_book_issues' => (clone $issues)->whereIn('status', ['issued', 'overdue'])->count(),
                 'active_locker_allocations' => (clone $lockers)->where('status', 'active')->count(),
             ],
@@ -75,8 +78,11 @@ class AdminController extends Controller
 
     public function books(Request $request): JsonResponse
     {
-        $this->admin($request);
-        return response()->json(Book::query()->latest('id')->paginate($this->perPage($request)));
+        $user = $this->admin($request);
+        return response()->json(Book::query()
+            ->withCount(['copies' => fn ($q) => $q->when(! $user->isGlobalAdmin(), fn ($c) => $c->where('branch_id', $user->branch_id))])
+            ->when(! $user->isGlobalAdmin(), fn ($q) => $q->whereHas('copies', fn ($c) => $c->where('branch_id', $user->branch_id)))
+            ->latest('id')->paginate($this->perPage($request)));
     }
 
     public function bookIssues(Request $request): JsonResponse

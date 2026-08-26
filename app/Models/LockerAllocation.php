@@ -15,6 +15,7 @@ class LockerAllocation extends Model
         'allocated_from',
         'allocated_to',
         'monthly_charge',
+        'paid_through',
         'status',
         'remarks',
     ];
@@ -23,6 +24,7 @@ class LockerAllocation extends Model
         'allocated_from' => 'date',
         'allocated_to' => 'date',
         'monthly_charge' => 'decimal:2',
+        'paid_through' => 'date',
     ];
 
     public function locker()
@@ -33,5 +35,10 @@ class LockerAllocation extends Model
     public function student()
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(LockerPayment::class);
     }
 }

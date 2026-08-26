@@ -23,6 +23,7 @@ class AuthenticatedSmokeTest extends TestCase
 
         foreach ([
             '/admin/dashboard',
+            '/admin/branches',
             '/admin/admissions',
             '/admin/enquiries',
             '/admin/students',
@@ -55,6 +56,7 @@ class AuthenticatedSmokeTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/dashboard')
             ->assertOk()
+            ->assertSee('Branch Management')
             ->assertSee('Study Hall & Seats')
             ->assertSee('Locker Management')
             ->assertSee('Admissions')

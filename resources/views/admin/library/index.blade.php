@@ -12,7 +12,7 @@
 <div class="wrap">
     <div class="top">
         <div><h1 style="margin:0">Physical Library</h1><div class="muted">Books, reservations, issue/return, losses and charge collection</div></div>
-        <div class="nav"><a class="btn light" href="{{ route('admin.students.index') }}">Students</a><a class="btn light" href="{{ route('admin.reports.index') }}">Reports</a><a class="btn" href="{{ route('admin.dashboard') }}">Dashboard</a></div>
+        <div class="nav"><a class="btn green" href="{{ route('admin.library-inventory.index') }}">Inventory Management</a><a class="btn light" href="{{ route('admin.students.index') }}">Students</a><a class="btn light" href="{{ route('admin.reports.index') }}">Reports</a><a class="btn" href="{{ route('admin.dashboard') }}">Dashboard</a></div>
     </div>
 
     @if(session('success'))<div class="card" style="background:#f0fdf4;border-color:#86efac">{{ session('success') }}</div>@endif

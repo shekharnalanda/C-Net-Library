@@ -32,115 +32,353 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('C-Net Library'),
+        actions: [
+          TextButton(
+            onPressed: () => _openLogin(context, 'student'),
+            child: const Text('Student Login'),
+          ),
+          IconButton(
+            onPressed: () => _openLogin(context, 'admin'),
+            tooltip: 'Admin / Staff Login',
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 28),
+          children: [
+            _Hero(onStudentLogin: () => _openLogin(context, 'student')),
+            _Section(
+              title: 'A disciplined space for serious preparation',
+              subtitle:
+                  'Quiet study spaces, flexible memberships, books, digital learning, attendance support and career updates—all connected through one platform.',
+              child: const Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _InfoChip(Icons.schedule_outlined, 'Flexible study slots'),
+                  _InfoChip(Icons.how_to_reg_outlined, 'Online admission'),
+                  _InfoChip(Icons.dashboard_outlined, 'Student portal'),
+                  _InfoChip(Icons.lock_outline, 'Locker facility'),
+                ],
+              ),
+            ),
+            const _Section(
+              title: 'Study plans for different routines',
+              subtitle:
+                  'Choose the duration and monthly plan that suits your daily preparation. Slot timing can be fixed or flexible according to the available plan.',
+              child: _CardGrid(
+                items: [
+                  _FeatureData(Icons.timer_outlined, 'Hourly Study Slots', 'Multiple hourly durations with fixed or flexible timing.'),
+                  _FeatureData(Icons.calendar_month_outlined, 'Monthly Plans', 'Membership plans connected with study-slot duration and validity.'),
+                  _FeatureData(Icons.event_seat_outlined, 'Managed Seats', 'Hall-wise seat inventory and controlled seat allocation.'),
+                  _FeatureData(Icons.lock_outline, 'Locker Plans', 'Hall-wise locker inventory, allocation and fee tracking.'),
+                ],
+              ),
+            ),
+            const _Section(
+              title: 'Library & learning services',
+              subtitle:
+                  'The physical library, digital resources and student services work together so preparation stays organised.',
+              child: _CardGrid(
+                items: [
+                  _FeatureData(Icons.menu_book_outlined, 'Physical Library', 'Books with managed issue, return, reservation and due-date tracking.'),
+                  _FeatureData(Icons.cloud_outlined, 'Digital Library', 'Notes, ebooks, papers, videos and study resources for members.'),
+                  _FeatureData(Icons.fact_check_outlined, 'Attendance', 'QR and attendance records help students track study activity.'),
+                  _FeatureData(Icons.work_outline, 'Career Support', 'Current job opportunities and useful career information.'),
+                ],
+              ),
+            ),
+            const _Section(
+              title: 'Our library branches',
+              subtitle: 'C-Net Library services are managed branch-wise so halls, seats, lockers, students and reports stay organised.',
+              child: Column(
+                children: [
+                  _BranchCard(
+                    name: 'C-Net Library - Main Branch',
+                    code: 'CNL-MAIN',
+                    description: 'Main C-Net Library study halls, seats, library services and memberships.',
+                  ),
+                  SizedBox(height: 12),
+                  _BranchCard(
+                    name: 'MCI Library',
+                    code: 'CNL-MCI',
+                    description: 'MCI branch with its own halls, seats, lockers and branch-wise student management.',
+                  ),
+                ],
+              ),
+            ),
+            _Section(
+              title: 'Membership & admission',
+              subtitle:
+                  'New students can submit an admission request, choose a branch and study plan, and then receive membership access after approval.',
+              child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+                  padding: const EdgeInsets.all(18),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const CircleAvatar(
-                        radius: 54,
-                        child: Icon(Icons.local_library_rounded, size: 62),
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        'C-Net Library',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Study • Library • Digital Learning',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Membership, study seats, books, digital resources, attendance and library services in one place.',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 28),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text('Login', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 6),
-                              const Text('Choose how you want to continue.'),
-                              const SizedBox(height: 18),
-                              FilledButton.icon(
-                                onPressed: () => _openLogin(context, 'student'),
-                                icon: const Icon(Icons.school_outlined),
-                                label: const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 13),
-                                  child: Text('Student Login'),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                onPressed: () => _openLogin(context, 'admin'),
-                                icon: const Icon(Icons.admin_panel_settings_outlined),
-                                label: const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 13),
-                                  child: Text('Admin / Staff Login'),
-                                ),
-                              ),
-                            ],
-                          ),
+                      const _Step(number: '1', title: 'Choose branch & plan', text: 'Select the library branch, slot duration and suitable monthly plan.'),
+                      const _Step(number: '2', title: 'Submit admission', text: 'Provide student details for management review.'),
+                      const _Step(number: '3', title: 'Membership activation', text: 'After approval, use the Student Login for dashboard, attendance, payments, seat and library activity.'),
+                      const SizedBox(height: 14),
+                      FilledButton.icon(
+                        onPressed: () => _openLogin(context, 'student'),
+                        icon: const Icon(Icons.login),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('Already a Member? Student Login'),
                         ),
-                      ),
-                      const SizedBox(height: 22),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 18,
-                        runSpacing: 10,
-                        children: const [
-                          _Feature(icon: Icons.event_seat_outlined, label: 'Study Seats'),
-                          _Feature(icon: Icons.menu_book_outlined, label: 'Books'),
-                          _Feature(icon: Icons.cloud_outlined, label: 'Digital Library'),
-                          _Feature(icon: Icons.qr_code_2, label: 'QR Member ID'),
-                        ],
-                      ),
-                      const SizedBox(height: 28),
-                      const Text(
-                        'Powered by MCI Educational Group',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12),
                       ),
                     ],
                   ),
                 ),
               ),
-            );
-          },
+            ),
+            _Section(
+              title: 'Student mobile facilities',
+              subtitle: 'After login, students can access their own records and library services from the app.',
+              child: const _CardGrid(
+                items: [
+                  _FeatureData(Icons.badge_outlined, 'Membership', 'View membership status, validity and plan details.'),
+                  _FeatureData(Icons.payments_outlined, 'Payments', 'Review fee and payment records.'),
+                  _FeatureData(Icons.event_seat_outlined, 'Seat / Study Slot', 'View current seat and study allocation.'),
+                  _FeatureData(Icons.qr_code_2, 'QR Member ID', 'Use the member QR for supported library operations.'),
+                  _FeatureData(Icons.assignment_return_outlined, 'Issued Books', 'Track issued books, status and due dates.'),
+                  _FeatureData(Icons.support_agent_outlined, 'Support / Enquiry', 'Send an enquiry or support message from the app.'),
+                ],
+              ),
+            ),
+            _Section(
+              title: 'Secure management access',
+              subtitle:
+                  'Authorised administrators and staff can use the dedicated mobile management area for operational information.',
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text('Admin mobile access includes students, enquiries, payments, attendance, books, book issues and locker information.'),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () => _openLogin(context, 'admin'),
+                        icon: const Icon(Icons.admin_panel_settings_outlined),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('Admin / Staff Login'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
+                    children: [
+                      Icon(Icons.local_library_rounded, size: 42, color: theme.colorScheme.primary),
+                      const SizedBox(height: 10),
+                      Text('C-Net Library', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 4),
+                      const Text('Focused Study • Books • Digital Learning • Career Support', textAlign: TextAlign.center),
+                      const SizedBox(height: 8),
+                      const Text('Powered by MCI Educational Group', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _Feature extends StatelessWidget {
-  const _Feature({required this.icon, required this.label});
+class _Hero extends StatelessWidget {
+  const _Hero({required this.onStudentLogin});
+  final VoidCallback onStudentLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.primaryContainer,
+            theme.colorScheme.surfaceContainerHighest,
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 36,
+            backgroundColor: theme.colorScheme.surface,
+            child: Icon(Icons.local_library_rounded, size: 42, color: theme.colorScheme.primary),
+          ),
+          const SizedBox(height: 18),
+          Text('Study with focus. Build a stronger routine.', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          const Text(
+            'C-Net Library brings focused study spaces, flexible plans, physical and digital library services, attendance, lockers and student support into one organised system.',
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: onStudentLogin,
+            icon: const Icon(Icons.school_outlined),
+            label: const Text('Student Login'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.subtitle, required this.child});
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip(this.icon, this.label);
   final IconData icon;
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
+    return Chip(avatar: Icon(icon, size: 18), label: Text(label));
+  }
+}
+
+class _FeatureData {
+  const _FeatureData(this.icon, this.title, this.text);
+  final IconData icon;
+  final String title;
+  final String text;
+}
+
+class _CardGrid extends StatelessWidget {
+  const _CardGrid({required this.items});
+  final List<_FeatureData> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns = constraints.maxWidth >= 620;
+        final width = twoColumns ? (constraints.maxWidth - 12) / 2 : constraints.maxWidth;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: items
+              .map(
+                (item) => SizedBox(
+                  width: width,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(item.icon, size: 30),
+                          const SizedBox(height: 10),
+                          Text(item.title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 5),
+                          Text(item.text),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _BranchCard extends StatelessWidget {
+  const _BranchCard({required this.name, required this.code, required this.description});
+  final String name;
+  final String code;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.apartment_outlined)),
+        title: Text(name),
+        subtitle: Text('$code\n$description'),
+        isThreeLine: true,
+      ),
+    );
+  }
+}
+
+class _Step extends StatelessWidget {
+  const _Step({required this.number, required this.title, required this.text});
+  final String number;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(radius: 16, child: Text(number)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(text),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

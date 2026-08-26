@@ -7,6 +7,8 @@ use App\Models\Admission;
 use App\Models\Expense;
 use App\Models\ExpenseAdjustment;
 use App\Models\LibraryChargePayment;
+use App\Models\LockerAllocation;
+use App\Models\LockerPayment;
 use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Seat;
@@ -27,12 +29,10 @@ class DashboardController extends Controller
             ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $user->branch_id)));
 
         $todayGross = (float) (clone $payments)->sum('amount');
-
         $todayAdjustments = (float) PaymentAdjustment::query()
             ->whereDate('created_at', today())
             ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('payment.student', fn ($student) => $student->where('branch_id', $user->branch_id)))
             ->sum('amount');
-
         $todayMembershipIncome = max(0, $todayGross - $todayAdjustments);
 
         $todayLibraryIncome = (float) LibraryChargePayment::query()
@@ -40,22 +40,30 @@ class DashboardController extends Controller
             ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('bookIssue.student', fn ($student) => $student->where('branch_id', $user->branch_id)))
             ->sum('amount');
 
-        $todayTotalIncome = $todayMembershipIncome + $todayLibraryIncome;
+        $todayLockerIncome = (float) LockerPayment::query()
+            ->where('status', 'paid')
+            ->whereDate('payment_date', today())
+            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $user->branch_id)))
+            ->sum('amount');
 
-        $todayExpenseQuery = $branchScope->apply(Expense::query(), $user)
-            ->whereDate('expense_date', today());
+        $todayTotalIncome = $todayMembershipIncome + $todayLibraryIncome + $todayLockerIncome;
+
+        $todayExpenseQuery = $branchScope->apply(Expense::query(), $user)->whereDate('expense_date', today());
         $todayGrossExpenses = (float) (clone $todayExpenseQuery)->sum('amount');
-
         $todayExpenseAdjustments = (float) ExpenseAdjustment::query()
             ->whereDate('created_at', today())
             ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('expense', fn ($expense) => $expense->where('branch_id', $user->branch_id)))
             ->sum('amount');
-
         $todayNetExpenses = max(0, $todayGrossExpenses - $todayExpenseAdjustments);
 
-        $seatQuery = Seat::query()
-            ->where('status', true)
+        $seatQuery = Seat::query()->where('status', true)
             ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('studyHall', fn ($hall) => $hall->where('branch_id', $user->branch_id)));
+
+        $lockerDue = LockerAllocation::query()
+            ->where('status', 'active')
+            ->where(fn ($q) => $q->whereNull('paid_through')->orWhereDate('paid_through', '<', today()))
+            ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $user->branch_id)))
+            ->count();
 
         $data = [
             'active_students' => $branchScope->apply(Student::query(), $user)->where('status', 'active')->count(),
@@ -65,14 +73,14 @@ class DashboardController extends Controller
             'today_collection' => $todayMembershipIncome,
             'today_membership_income' => $todayMembershipIncome,
             'today_library_income' => $todayLibraryIncome,
+            'today_locker_income' => $todayLockerIncome,
             'today_total_income' => $todayTotalIncome,
             'today_gross_expenses' => $todayGrossExpenses,
             'today_expense_adjustments' => $todayExpenseAdjustments,
             'today_expenses' => $todayNetExpenses,
             'today_cash_position' => $todayTotalIncome - $todayNetExpenses,
-            'pending_admissions' => $branchScope->apply(Admission::query(), $user)
-                ->whereIn('status', ['new', 'under_review'])
-                ->count(),
+            'locker_payment_due' => $lockerDue,
+            'pending_admissions' => $branchScope->apply(Admission::query(), $user)->whereIn('status', ['new', 'under_review'])->count(),
             'renewals_due' => StudentMembership::query()
                 ->where('status', 'active')
                 ->when(! $user->isGlobalAdmin(), fn ($query) => $query->whereHas('student', fn ($student) => $student->where('branch_id', $user->branch_id)))

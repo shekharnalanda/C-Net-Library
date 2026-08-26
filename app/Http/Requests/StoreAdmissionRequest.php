@@ -41,6 +41,7 @@ class StoreAdmissionRequest extends FormRequest
                     ->where('branch_id', $branchId)
                     ->where('status', true)),
             ],
+            'wants_locker' => ['required', 'boolean'],
         ];
     }
 }

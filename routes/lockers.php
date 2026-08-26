@@ -9,6 +9,7 @@ Route::middleware(['web', 'auth', 'admin', 'admin.branch', 'permission:students.
     ->group(function () {
         Route::get('/lockers', [LockerController::class, 'index'])->name('lockers.index');
         Route::post('/lockers', [LockerController::class, 'store'])->middleware('throttle:30,1')->name('lockers.store');
+        Route::post('/lockers/bulk', [LockerController::class, 'bulkStore'])->middleware('throttle:20,1')->name('lockers.bulk');
         Route::patch('/lockers/{locker}', [LockerController::class, 'update'])->middleware('throttle:30,1')->name('lockers.update');
         Route::delete('/lockers/{locker}', [LockerController::class, 'destroy'])->middleware('throttle:20,1')->name('lockers.destroy');
         Route::post('/lockers/allocations', [LockerController::class, 'allocate'])->middleware('throttle:60,1')->name('lockers.allocations.store');

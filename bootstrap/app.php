@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function (): void {
             Route::group([], base_path('routes/lockers.php'));
+            Route::group([], base_path('routes/branches.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

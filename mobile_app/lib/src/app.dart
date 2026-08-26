@@ -56,7 +56,6 @@ class _CNetLibraryAppState extends State<CNetLibraryApp> {
       _signedIn = true;
       _role = role;
     });
-    if (Navigator.of(context).canPop()) Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   void _signedOut() {

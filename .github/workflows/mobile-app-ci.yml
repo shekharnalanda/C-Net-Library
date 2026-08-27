@@ -6,10 +6,14 @@ on:
       - mobile-app
     paths:
       - 'mobile_app/**'
+      - 'public/images/cnet-library-logo.png'
+      - 'public/images/cnet-library-icon.png'
       - '.github/workflows/mobile-app-ci.yml'
   pull_request:
     paths:
       - 'mobile_app/**'
+      - 'public/images/cnet-library-logo.png'
+      - 'public/images/cnet-library-icon.png'
       - '.github/workflows/mobile-app-ci.yml'
   workflow_dispatch:
 
@@ -34,6 +38,15 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
+      - name: Install official C-Net Library branding assets
+        run: |
+          test -f public/images/cnet-library-logo.png
+          test -f public/images/cnet-library-icon.png
+          mkdir -p mobile_app/assets
+          cp public/images/cnet-library-logo.png mobile_app/assets/cnet-library-logo.png
+          cp public/images/cnet-library-icon.png mobile_app/assets/cnet-library-icon.png
+          test -s mobile_app/assets/cnet-library-logo.png
+
       - name: Generate Android platform scaffold
         working-directory: mobile_app
         run: flutter create --platforms=android --org com.mciedu.cnetlibrary --project-name cnetlibrary .
@@ -46,7 +59,6 @@ jobs:
             sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST"
           fi
           grep -q 'android.permission.INTERNET' "$MANIFEST"
-          cat "$MANIFEST"
 
       - name: Verify production API DNS and HTTPS
         run: |

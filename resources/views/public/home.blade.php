@@ -21,6 +21,26 @@
 @media(max-width:960px){.menuBtn{display:block}.links{display:none;position:absolute;top:76px;left:0;right:0;background:#fff;padding:18px 22px;border-bottom:1px solid #e5e7eb;flex-direction:column;align-items:stretch;box-shadow:0 12px 24px rgba(15,23,42,.08)}.links.open{display:flex}.links a{padding:7px 0}.heroGrid{grid-template-columns:1fr}.cards,.features{grid-template-columns:1fr 1fr}.jobs,.testimonials,.gallery{grid-template-columns:1fr 1fr}.hero h1{font-size:44px}}
 @media(max-width:620px){.container{padding:0 17px}.hero{padding:55px 0}.hero h1{font-size:37px}.hero p{font-size:17px}.cards,.features,.jobs,.testimonials,.gallery,.contactGrid,.footerGrid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}.section{padding:54px 0}.section h2{font-size:30px}.cta{align-items:flex-start;flex-direction:column;padding:28px}.mobileCta{display:block;position:fixed;bottom:14px;left:14px;right:14px;z-index:45}.mobileCta .btn{width:100%;box-shadow:0 8px 24px rgba(15,23,42,.25)}body{padding-bottom:68px}}
 </style>
+@verbatim
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "EducationalOrganization",
+  "name": "C-Net Library",
+  "url": "https://cnetlibrary.mciedu.com/",
+  "logo": "https://cnetlibrary.mciedu.com/images/cnet-library-logo.png",
+  "description": "C-Net Library offers focused study spaces, flexible memberships, books, digital resources and career support in Bihar Sharif, Nalanda.",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Bihar Sharif",
+    "addressRegion": "Bihar",
+    "postalCode": "803101",
+    "addressCountry": "IN"
+  }
+}
+</script>
+@endverbatim
+
 </head><body>
 <nav class="nav"><div class="container navin"><a class="brand" href="{{ route('home') }}" aria-label="C-Net Library Home"><img src="{{ asset('images/cnet-library-logo.png') }}" alt="C-Net Library" style="display:block;width:220px;max-width:44vw;height:auto"></a><button class="menuBtn" type="button" aria-expanded="false" aria-controls="mainNav" onclick="toggleMenu(this)">Menu</button><div class="links" id="mainNav"><a href="{{ route('home') }}">Home</a><a href="#plans">Plans</a><a href="#facilities">Facilities</a><a href="{{ route('digital-library.index') }}">Digital Library</a><a href="{{ route('jobs.index') }}">Jobs</a><a href="#faq">FAQ</a><a href="#contact">Contact</a><a href="{{ route('enquiry.create') }}">Enquiry</a><a href="{{ route('login') }}">Student Login</a><a class="btn alt" href="{{ route('login') }}">Admin Login</a><a class="btn" href="{{ route('admission.create') }}">Join Now</a></div></div></nav>
 <section class="hero"><div class="container heroGrid"><div><span class="eyebrow">A disciplined space for serious preparation</span><h1>{{ $home?->title ?: 'Study with focus. Build a stronger routine.' }}</h1><p>{{ $home?->excerpt ?: 'Quiet study spaces, flexible plans, books, digital learning, attendance support and career updates—all connected through one student platform.' }}</p><div class="heroActions"><a class="btn" href="{{ route('admission.create') }}">Apply for Membership</a><a class="btn alt" href="{{ route('enquiry.create') }}">Ask About a Plan</a></div><div class="trust"><span>✓ Flexible study slots</span><span>✓ Online admission</span><span>✓ Student portal</span></div></div><div class="seatCard"><div class="muted">Today's shift-wise availability</div><div class="seatNumber">{{ $availableSeatSlots }}</div><strong>seat-slots available</strong><div class="stats"><div class="stat"><strong>{{ $totalSeats }}</strong><div class="muted">Seats</div></div><div class="stat"><strong>{{ $occupiedSeatSlots }}</strong><div class="muted">Occupied</div></div><div class="stat"><strong>{{ $totalSeatSlots ? round(($occupiedSeatSlots/$totalSeatSlots)*100) : 0 }}%</strong><div class="muted">Occupancy</div></div></div><div style="margin-top:18px"><a class="btn" style="width:100%" href="{{ route('admission.create') }}">Start Admission</a></div></div></div></section>

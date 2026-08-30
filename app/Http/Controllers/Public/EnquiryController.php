@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Enquiry;
+use App\Services\CentralSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -20,7 +21,7 @@ class EnquiryController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, CentralSyncService $centralSync): RedirectResponse
     {
         $data = $request->validate([
             'website' => ['nullable', 'string', 'max:0'],
@@ -63,7 +64,27 @@ class EnquiryController extends Controller
         $data['enquiry_no'] = $this->generateEnquiryNo();
         $data['status'] = 'new';
 
-        Enquiry::create($data);
+        $enquiry = Enquiry::create($data);
+        $branch = $enquiry->branch_id ? Branch::find($enquiry->branch_id) : null;
+
+        $centralSync->enquiry([
+            'business_code' => config('services.mci_central.business_code'),
+            'source_reference_id' => 'library-enquiry-'.$enquiry->enquiry_no,
+            'source_site' => config('app.url', 'https://cnetlibrary.mciedu.com'),
+            'name' => $enquiry->name,
+            'phone' => $enquiry->mobile,
+            'email' => $enquiry->email,
+            'subject' => 'C-Net Library Enquiry',
+            'message' => $enquiry->message ?: 'Library enquiry',
+            'category' => 'general',
+            'course_service' => $enquiry->interested_plan ?: 'Library Membership',
+            'metadata' => [
+                'enquiry_no' => $enquiry->enquiry_no,
+                'branch_id' => $enquiry->branch_id,
+                'branch_name' => $branch?->name,
+                'source' => $enquiry->source,
+            ],
+        ]);
 
         return back()->with('success', 'Your enquiry has been submitted successfully.');
     }

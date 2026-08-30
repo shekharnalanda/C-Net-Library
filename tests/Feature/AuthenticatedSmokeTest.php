@@ -32,18 +32,22 @@ class AuthenticatedSmokeTest extends TestCase
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
 
-        $this->actingAs($admin)
-            ->get('/admin/dashboard')
-            ->assertOk()
-            ->assertSeeText('Branch Management')
-            ->assertSeeText('Study Hall & Seats')
-            ->assertSeeText('Locker Management')
-            ->assertSeeText('Admissions')
-            ->assertSeeText('Students & Memberships')
-            ->assertSeeText('Cashbook')
-            ->assertSeeText('Physical Library')
-            ->assertSeeText('Digital Library')
-            ->assertSeeText('Reports & Analytics');
+        $response = $this->actingAs($admin)->get('/admin/dashboard')->assertOk();
+        $text = html_entity_decode(strip_tags($response->getContent()), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        foreach ([
+            'Branch Management',
+            'Study Hall & Seats',
+            'Locker Management',
+            'Admissions',
+            'Students & Memberships',
+            'Cashbook',
+            'Physical Library',
+            'Digital Library',
+            'Reports & Analytics',
+        ] as $label) {
+            $this->assertStringContainsString($label, $text);
+        }
     }
 
     public function test_student_middleware_rejects_admin_user(): void

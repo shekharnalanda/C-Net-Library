@@ -69,7 +69,7 @@ class AdminPrivacyHardeningTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee('student@example.com');
-        $response->assertSee('s******@example.com');
+        $response->assertSee('s***@example.com');
     }
 
     public function test_admin_portal_responses_are_private_no_store_and_noindex(): void

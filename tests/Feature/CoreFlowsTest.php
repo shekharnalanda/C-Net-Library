@@ -39,6 +39,7 @@ class CoreFlowsTest extends TestCase
             'email' => 'admission-test@example.com',
             'study_slot_id' => $slot->id,
             'fee_plan_id' => $plan->id,
+            'wants_locker' => false,
         ]);
 
         $response->assertRedirect('/admission');
@@ -123,106 +124,32 @@ class CoreFlowsTest extends TestCase
     {
         Storage::fake('local');
         Storage::disk('local')->put('digital-resources/public-note.txt', 'Public resource');
-
-        $resource = DigitalResource::create([
-            'title' => 'Public Note',
-            'slug' => 'public-note',
-            'resource_type' => 'notes',
-            'file_path' => 'digital-resources/public-note.txt',
-            'access_type' => 'public',
-            'download_allowed' => true,
-            'status' => true,
-        ]);
-
+        $resource = DigitalResource::create(['title'=>'Public Note','slug'=>'public-note','resource_type'=>'notes','file_path'=>'digital-resources/public-note.txt','access_type'=>'public','download_allowed'=>true,'status'=>true]);
         $this->get('/digital-library/resources/'.$resource->id)->assertOk();
-
-        $this->assertDatabaseHas('digital_resource_logs', [
-            'digital_resource_id' => $resource->id,
-            'student_id' => null,
-            'action' => 'view',
-        ]);
+        $this->assertDatabaseHas('digital_resource_logs',['digital_resource_id'=>$resource->id,'student_id'=>null,'action'=>'view']);
     }
 
     public function test_member_resource_requires_student_with_active_membership(): void
     {
         Storage::fake('local');
         Storage::disk('local')->put('digital-resources/member-note.txt', 'Member resource');
-
-        $resource = DigitalResource::create([
-            'title' => 'Member Note',
-            'slug' => 'member-note',
-            'resource_type' => 'notes',
-            'file_path' => 'digital-resources/member-note.txt',
-            'access_type' => 'members',
-            'download_allowed' => true,
-            'status' => true,
-        ]);
-
-        $this->get('/digital-library/resources/'.$resource->id)
-            ->assertSessionHasErrors('resource');
-
+        $resource = DigitalResource::create(['title'=>'Member Note','slug'=>'member-note','resource_type'=>'notes','file_path'=>'digital-resources/member-note.txt','access_type'=>'members','download_allowed'=>true,'status'=>true]);
+        $this->get('/digital-library/resources/'.$resource->id)->assertSessionHasErrors('resource');
         $branch = Branch::query()->where('status', true)->firstOrFail();
         $slot = StudySlot::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
         $plan = FeePlan::query()->where('branch_id', $branch->id)->where('status', true)->firstOrFail();
-
-        $user = User::create([
-            'name' => 'Member Student',
-            'email' => 'member-student@example.com',
-            'password' => 'password123',
-            'role' => 'student',
-            'status' => true,
-        ]);
-
-        $student = Student::create([
-            'branch_id' => $branch->id,
-            'user_id' => $user->id,
-            'student_code' => 'CNL-TEST-MEMBER',
-            'qr_token' => (string) Str::uuid(),
-            'name' => 'Member Student',
-            'mobile' => '6666666666',
-            'joining_date' => today(),
-            'status' => 'active',
-        ]);
-
-        StudentMembership::create([
-            'student_id' => $student->id,
-            'fee_plan_id' => $plan->id,
-            'study_slot_id' => $slot->id,
-            'start_date' => today(),
-            'expiry_date' => today()->addDays(30),
-            'base_fee' => $plan->monthly_fee,
-            'discount' => 0,
-            'final_fee' => $plan->monthly_fee,
-            'status' => 'active',
-        ]);
-
-        $this->actingAs($user)
-            ->get('/digital-library/resources/'.$resource->id)
-            ->assertOk();
-
-        $this->assertDatabaseHas('digital_resource_logs', [
-            'digital_resource_id' => $resource->id,
-            'student_id' => $student->id,
-            'action' => 'view',
-        ]);
+        $user = User::create(['name'=>'Member Student','email'=>'member-student@example.com','password'=>'password123','role'=>'student','status'=>true]);
+        $student = Student::create(['branch_id'=>$branch->id,'user_id'=>$user->id,'student_code'=>'CNL-TEST-MEMBER','qr_token'=>(string) Str::uuid(),'name'=>'Member Student','mobile'=>'6666666666','joining_date'=>today(),'status'=>'active']);
+        StudentMembership::create(['student_id'=>$student->id,'fee_plan_id'=>$plan->id,'study_slot_id'=>$slot->id,'start_date'=>today(),'expiry_date'=>today()->addDays(30),'base_fee'=>$plan->monthly_fee,'discount'=>0,'final_fee'=>$plan->monthly_fee,'status'=>'active']);
+        $this->actingAs($user)->get('/digital-library/resources/'.$resource->id)->assertOk();
+        $this->assertDatabaseHas('digital_resource_logs',['digital_resource_id'=>$resource->id,'student_id'=>$student->id,'action'=>'view']);
     }
 
     public function test_download_restriction_is_enforced_server_side(): void
     {
         Storage::fake('local');
         Storage::disk('local')->put('digital-resources/no-download.txt', 'Read only');
-
-        $resource = DigitalResource::create([
-            'title' => 'Read Only Resource',
-            'slug' => 'read-only-resource',
-            'resource_type' => 'notes',
-            'file_path' => 'digital-resources/no-download.txt',
-            'access_type' => 'public',
-            'download_allowed' => false,
-            'status' => true,
-        ]);
-
-        $this->get('/digital-library/resources/'.$resource->id.'?download=1')
-            ->assertForbidden();
+        $resource = DigitalResource::create(['title'=>'Read Only Resource','slug'=>'read-only-resource','resource_type'=>'notes','file_path'=>'digital-resources/no-download.txt','access_type'=>'public','download_allowed'=>false,'status'=>true]);
+        $this->get('/digital-library/resources/'.$resource->id.'?download=1')->assertForbidden();
     }
 }

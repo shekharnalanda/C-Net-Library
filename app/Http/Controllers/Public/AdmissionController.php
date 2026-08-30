@@ -9,6 +9,7 @@ use App\Models\Branch;
 use App\Models\FeePlan;
 use App\Models\StudySlot;
 use App\Services\ApplicationNumberService;
+use App\Services\CentralSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -25,7 +26,8 @@ class AdmissionController extends Controller
 
     public function store(
         StoreAdmissionRequest $request,
-        ApplicationNumberService $applicationNumbers
+        ApplicationNumberService $applicationNumbers,
+        CentralSyncService $centralSync
     ): RedirectResponse {
         $data = $request->validated();
         unset($data['website']);
@@ -58,6 +60,33 @@ class AdmissionController extends Controller
         $data['status'] = 'new';
 
         $admission = Admission::create($data);
+        $branch = Branch::find($admission->branch_id);
+        $studySlot = $admission->study_slot_id ? StudySlot::find($admission->study_slot_id) : null;
+        $feePlan = $admission->fee_plan_id ? FeePlan::find($admission->fee_plan_id) : null;
+
+        $centralSync->admission([
+            'business_code' => config('services.mci_central.business_code'),
+            'source_reference_id' => 'library-admission-'.$admission->application_no,
+            'source_site' => config('app.url', 'https://cnetlibrary.mciedu.com'),
+            'application_reference' => $admission->application_no,
+            'applicant_name' => $admission->name,
+            'phone' => $admission->mobile,
+            'email' => $admission->email,
+            'course_program' => $feePlan?->name ?: ($studySlot?->name ?: 'Library Membership'),
+            'status' => $admission->status,
+            'payment_status' => 'unpaid',
+            'submitted_at' => ($admission->created_at ?: now())->toIso8601String(),
+            'metadata' => [
+                'branch_id' => $admission->branch_id,
+                'branch_name' => $branch?->name,
+                'study_slot_id' => $admission->study_slot_id,
+                'study_slot' => $studySlot?->name,
+                'fee_plan_id' => $admission->fee_plan_id,
+                'fee_plan' => $feePlan?->name,
+                'father_name' => $admission->father_name,
+                'address' => $admission->address,
+            ],
+        ]);
 
         return redirect()
             ->route('admission.create')

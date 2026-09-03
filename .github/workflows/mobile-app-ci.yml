@@ -104,8 +104,8 @@ jobs:
       - name: Configure release signing
         if: github.event_name != 'pull_request'
         env:
-          STORE_PASSWORD: ${{ secrets.CNET_LIBRARY_KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.CNET_LIBRARY_KEY_PASSWORD }}
+          CNET_STORE_PASSWORD: ${{ secrets.CNET_LIBRARY_KEYSTORE_PASSWORD }}
+          CNET_KEY_PASSWORD: ${{ secrets.CNET_LIBRARY_KEY_PASSWORD }}
         working-directory: mobile_app
         run: |
           python3 - <<'PY'
@@ -128,9 +128,6 @@ jobs:
           p.write_text(s)
           PY
           grep -q 'signingConfigs.getByName("cnetRelease")' android/app/build.gradle.kts
-        env:
-          CNET_STORE_PASSWORD: ${{ secrets.CNET_LIBRARY_KEYSTORE_PASSWORD }}
-          CNET_KEY_PASSWORD: ${{ secrets.CNET_LIBRARY_KEY_PASSWORD }}
 
       - name: Install dependencies
         working-directory: mobile_app

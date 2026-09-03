@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureBranchScope;
 use App\Http\Middleware\EnsureGlobalAdmin;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureStudent;
+use App\Http\Middleware\InjectMobileAppInstaller;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -25,7 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [SecurityHeaders::class]);
+        $middleware->web(append: [SecurityHeaders::class, InjectMobileAppInstaller::class]);
         $middleware->alias(['admin'=>EnsureAdmin::class,'admin.branch'=>EnsureBranchScope::class,'global-admin'=>EnsureGlobalAdmin::class,'permission'=>EnsurePermission::class,'student'=>EnsureStudent::class,'mobile.auth'=>AuthenticateMobileApi::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

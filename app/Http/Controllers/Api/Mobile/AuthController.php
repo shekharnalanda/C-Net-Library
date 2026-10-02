@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MobileApiToken;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\LibraryStudentSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -36,6 +37,7 @@ class AuthController extends Controller
 
         if (! $user || ! $user->status || $user->role !== 'student' || ! Hash::check($validated['password'], $user->password)) {
             RateLimiter::hit($key, 60);
+
             return response()->json(['message' => 'Invalid login credentials or inactive account.'], 422);
         }
 
@@ -46,12 +48,14 @@ class AuthController extends Controller
 
         if (! $student) {
             RateLimiter::hit($key, 60);
+
             return response()->json(['message' => 'Invalid login credentials or inactive account.'], 422);
         }
 
         RateLimiter::clear($key);
 
         $plainToken = Str::random(80);
+        app(LibraryStudentSessionService::class)->claim($student, $plainToken);
         MobileApiToken::query()->create([
             'user_id' => $user->id,
             'name' => $validated['device_name'] ?? 'mobile-app',
@@ -75,6 +79,10 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
+        $student = Student::where('user_id', $request->user()->id)->first();
+        if ($student) {
+            app(LibraryStudentSessionService::class)->release($student, $request->bearerToken());
+        }
         $request->attributes->get('mobile_api_token')?->delete();
 
         return response()->json(['message' => 'Logged out successfully.']);

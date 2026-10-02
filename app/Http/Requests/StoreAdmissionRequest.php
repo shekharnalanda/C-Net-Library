@@ -27,17 +27,19 @@ class StoreAdmissionRequest extends FormRequest
             'father_name' => ['nullable', 'string', 'max:255'],
             'dob' => ['nullable', 'date', 'before_or_equal:today'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
-            'mobile' => ['required', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'mobile' => ['required', 'string', 'regex:/^[0-9]{10}$/'],
+            'email' => ['required', 'email', 'max:255'],
+            'photo' => ['required_without:photo_camera', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:min_width=150,min_height=150,max_width=6000,max_height=6000'],
+            'photo_camera' => ['required_without:photo', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:min_width=150,min_height=150,max_width=6000,max_height=6000'],
             'address' => ['nullable', 'string', 'max:2000'],
             'study_slot_id' => [
-                'nullable',
+                'required',
                 Rule::exists('study_slots', 'id')->where(fn ($query) => $query
                     ->where('branch_id', $branchId)
                     ->where('status', true)),
             ],
             'fee_plan_id' => [
-                'nullable',
+                'required',
                 Rule::exists('fee_plans', 'id')->where(function ($query) use ($branchId, $studySlotId) {
                     $query->where('branch_id', $branchId)->where('status', true);
                     if ($studySlotId) {
@@ -45,6 +47,10 @@ class StoreAdmissionRequest extends FormRequest
                     }
                 }),
             ],
+            'preferred_seat_id' => ['required', 'integer', 'exists:seats,id'],
+            'preferred_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today', 'before_or_equal:'.today()->addYear()->toDateString()],
+            'preferred_start_time' => ['nullable', 'date_format:H:i'],
+            'preferred_end_time' => ['nullable', 'date_format:H:i'],
             'wants_locker' => ['required', 'boolean'],
         ];
     }
@@ -52,6 +58,8 @@ class StoreAdmissionRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'photo.required_without' => 'कृपया कैमरे से फोटो लें या मोबाइल से विद्यार्थी की फोटो चुनें।',
+            'photo_camera.required_without' => 'विद्यार्थी की फोटो आवश्यक है।',
             'study_slot_id.exists' => 'Please select an active study slot belonging to the selected branch.',
             'fee_plan_id.exists' => 'Please select an active fee plan matching the selected branch and study slot.',
         ];

@@ -7,6 +7,7 @@ use App\Models\PaymentAdjustment;
 use App\Models\Student;
 use App\Services\QrCodeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -37,8 +38,10 @@ class DashboardController extends Controller
         $activeSeat = $student->seatAllocations->firstWhere('status', 'active');
         $studyMinutes = (int) $student->attendances->sum('study_minutes');
 
+        $feeReminders = DB::table('library_portal_mail')->where('student_id', $student->id)->where('event_key', 'like', 'fee:%')->latest('id')->limit(2)->get();
+
         return response()
-            ->view('student.dashboard', compact('student', 'membership', 'paid', 'due', 'activeSeat', 'studyMinutes'))
+            ->view('student.dashboard', compact('student', 'membership', 'paid', 'due', 'activeSeat', 'studyMinutes', 'feeReminders'))
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('X-Robots-Tag', 'noindex, nofollow,noarchive');

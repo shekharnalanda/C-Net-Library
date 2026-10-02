@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
+use App\Models\User;
+use App\Services\LibraryStudentSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -43,21 +46,33 @@ class LoginController extends Controller
             'status' => true,
         ];
 
-        if (! Auth::attempt($attemptCredentials, $remember)) {
+        $candidate = User::where('email', $email)->where('status', true)->first();
+        if ($candidate?->role === 'student' && Hash::check($credentials['password'], $candidate->password)) {
+            $student = Student::where('user_id', $candidate->id)->where('status', 'active')->first();
+            if (! $student) {
+                return back()->withErrors(['email' => 'Invalid login credentials or inactive account.']);
+            }
+            $token = $request->session()->get('library_device_token') ?: bin2hex(random_bytes(32));
+            app(LibraryStudentSessionService::class)->claim($student, $token);
+            Auth::guard('library_student')->login($candidate, false);
+            $request->session()->put('library_device_token', $token);
+            $request->session()->regenerate();
+            RateLimiter::clear($key);
+
+            return redirect()->route('student.dashboard');
+        }
+        if (! $candidate || $candidate->role === 'student' || ! Auth::guard('web')->attempt($attemptCredentials, $remember)) {
             RateLimiter::hit($key, 60);
 
-            return back()->withErrors([
-                'email' => 'Invalid login credentials or inactive account.',
-            ])->onlyInput('email');
+            return back()->withErrors(['email' => 'Invalid login credentials or inactive account.'])->onlyInput('email');
         }
-
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
         if ($user?->role === 'student' && ! Student::query()
             ->where('user_id', $user->id)
             ->where('status', 'active')
             ->exists()) {
             Auth::logout();
-            $request->session()->invalidate();
+            $request->session()->regenerate();
             $request->session()->regenerateToken();
             RateLimiter::hit($key, 60);
 
@@ -102,7 +117,7 @@ class LoginController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         Auth::logout();
-        $request->session()->invalidate();
+        $request->session()->regenerate();
         $request->session()->regenerateToken();
 
         return redirect()->route('login');

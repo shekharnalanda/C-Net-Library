@@ -22,7 +22,7 @@ class AuthenticatedSmokeTest extends TestCase
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
 
         foreach ([
-            '/admin/dashboard','/admin/branches','/admin/admissions','/admin/enquiries','/admin/students','/admin/study-space','/admin/available-seats','/admin/lockers','/admin/attendance','/admin/attendance/scan','/admin/cashbook','/admin/library','/admin/digital-library','/admin/jobs','/admin/communications','/admin/staff','/admin/reports','/admin/settings','/admin/cms','/admin/security',
+            '/admin/dashboard', '/admin/branches', '/admin/admissions', '/admin/enquiries', '/admin/students', '/admin/study-space', '/admin/available-seats', '/admin/lockers', '/admin/attendance', '/admin/attendance/scan', '/admin/cashbook', '/admin/library', '/admin/digital-library', '/admin/jobs', '/admin/communications', '/admin/staff', '/admin/reports', '/admin/settings', '/admin/cms', '/admin/security',
         ] as $uri) {
             $this->actingAs($admin)->get($uri)->assertOk();
         }
@@ -53,6 +53,6 @@ class AuthenticatedSmokeTest extends TestCase
     public function test_student_middleware_rejects_admin_user(): void
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
-        $this->actingAs($admin)->get('/student/dashboard')->assertForbidden();
+        $this->actingAs($admin)->get('/student/dashboard')->assertRedirect(route('student.login'));
     }
 }

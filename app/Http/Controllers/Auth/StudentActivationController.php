@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
+use App\Services\LibraryStudentSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +32,9 @@ class StudentActivationController extends Controller
             ],
         ]);
 
+        $device = $request->session()->get('library_device_token') ?: bin2hex(random_bytes(32));
+        app(LibraryStudentSessionService::class)->claim($student, $device);
+        $request->session()->put('library_device_token', $device);
         $student->user->update(['password' => $data['password']]);
         $student->update([
             'portal_activation_token' => null,
@@ -38,7 +42,7 @@ class StudentActivationController extends Controller
             'portal_activated_at' => now(),
         ]);
 
-        Auth::login($student->user);
+        Auth::guard('library_student')->login($student->user);
         $request->session()->regenerate();
 
         return redirect()->route('student.dashboard')

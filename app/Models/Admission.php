@@ -20,15 +20,18 @@ class Admission extends Model
         'mobile',
         'email',
         'address',
+        'photo',
         'study_slot_id',
         'fee_plan_id',
         'wants_locker',
+        'preferred_seat_id', 'preferred_start_date', 'preferred_start_time', 'preferred_end_time',
         'status',
         'remarks',
     ];
 
     protected $casts = [
         'dob' => 'date',
+        'preferred_start_date' => 'date',
         'wants_locker' => 'boolean',
     ];
 

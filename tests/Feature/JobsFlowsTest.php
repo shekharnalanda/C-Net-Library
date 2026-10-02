@@ -69,17 +69,17 @@ class JobsFlowsTest extends TestCase
             'status' => true,
         ]);
 
-        $this->actingAs($user)->post(route('student.saved-jobs.store', $job))->assertRedirect();
-        $this->actingAs($user)->post(route('student.saved-jobs.store', $job))->assertRedirect();
+        $this->libraryStudentSession($user)->post(route('student.saved-jobs.store', $job))->assertRedirect();
+        $this->libraryStudentSession($user)->post(route('student.saved-jobs.store', $job))->assertRedirect();
 
         $this->assertDatabaseCount('saved_jobs', 1);
         $this->assertDatabaseHas('saved_jobs', ['student_id' => $student->id, 'job_id' => $job->id]);
 
-        $this->actingAs($user)->get(route('student.saved-jobs.index'))
+        $this->libraryStudentSession($user)->get(route('student.saved-jobs.index'))
             ->assertOk()
             ->assertSee('Saved Job');
 
-        $this->actingAs($user)->delete(route('student.saved-jobs.destroy', $job))->assertRedirect();
+        $this->libraryStudentSession($user)->delete(route('student.saved-jobs.destroy', $job))->assertRedirect();
         $this->assertDatabaseMissing('saved_jobs', ['student_id' => $student->id, 'job_id' => $job->id]);
     }
 
@@ -105,8 +105,8 @@ class JobsFlowsTest extends TestCase
             'status' => false,
         ]);
 
-        $this->actingAs($user)->post(route('student.saved-jobs.store', $expired))->assertNotFound();
-        $this->actingAs($user)->post(route('student.saved-jobs.store', $inactive))->assertNotFound();
+        $this->libraryStudentSession($user)->post(route('student.saved-jobs.store', $expired))->assertNotFound();
+        $this->libraryStudentSession($user)->post(route('student.saved-jobs.store', $inactive))->assertNotFound();
     }
 
     public function test_admin_rejects_non_http_official_job_url(): void

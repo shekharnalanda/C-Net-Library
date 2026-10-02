@@ -67,10 +67,10 @@ class AuthenticationSecurityTest extends TestCase
 
         $user->update(['status' => false]);
 
-        $response = $this->actingAs($user)->get(route('student.dashboard'));
+        $response = $this->actingAs($user, 'library_student')->get(route('student.dashboard'));
 
-        $response->assertRedirect(route('login'));
-        $this->assertGuest();
+        $response->assertRedirect(route('student.login'));
+        $this->assertGuest('library_student');
     }
 
     public function test_student_activation_rejects_weak_password_and_keeps_token_active(): void

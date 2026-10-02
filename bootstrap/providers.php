@@ -1,6 +1,11 @@
 <?php
 
+use App\Providers\LibraryPortalFlowServiceProvider;
+use App\Providers\LibraryPracticeServiceProvider;
+use App\Providers\SeatScheduleServiceProvider;
+
 return [
-    App\Providers\SeatScheduleServiceProvider::class,
-    App\Providers\LibraryPracticeServiceProvider::class,
+    SeatScheduleServiceProvider::class,
+    LibraryPracticeServiceProvider::class,
+    LibraryPortalFlowServiceProvider::class,
 ];

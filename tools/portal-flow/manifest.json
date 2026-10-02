@@ -232,10 +232,11 @@
       "path": "resources/views/public/admission.blade.php",
       "original_blobs": [
         "adbb68a36582839e966ca5c7c9573218f9e48b80",
-        "af977896270d724e0cb44cc341316a340f6076e8"
+        "af977896270d724e0cb44cc341316a340f6076e8",
+        "06d577f103c35b649000bcff318a0c213bb15efa"
       ],
-      "blob": "06d577f103c35b649000bcff318a0c213bb15efa",
-      "sha256": "2fc21f6fcaeb6b953fe9c3f6f9287501750dc221ead90b6dbf6f2fab913a0a63"
+      "blob": "f01148b74233b2f30d906519ad514ef431712a68",
+      "sha256": "3390f858ba510a9c376fab5ca03f81cf94f3a33b9c58f1b99950adda7d1e39dd"
     },
     {
       "path": "resources/views/student/dashboard.blade.php",
@@ -287,6 +288,14 @@
       ],
       "blob": "029a9f007a8cc95d58a4a0a681844ef555c8a31c",
       "sha256": "6859531887785ff4bde21a8128fa4fe64d701c4be5ab11c125faa0a5465df835"
+    },
+    {
+      "path": "app/Services/LibraryCampusSlotSetup.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "ae6de2b1597f688bdbd060bb69a2a2709b866e15",
+      "sha256": "f6cec59239ea5824cfa9cf350a3a14108d5671f58a4e69f65a93db40778831b8"
     }
   ],
   "tests": [

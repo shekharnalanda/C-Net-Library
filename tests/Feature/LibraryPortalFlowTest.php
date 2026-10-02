@@ -14,6 +14,7 @@ use App\Models\StudyHall;
 use App\Models\StudySlot;
 use App\Models\User;
 use App\Services\AdmissionApprovalService;
+use App\Services\LibraryCampusSlotSetup;
 use App\Services\LibraryPortalMailService;
 use App\Services\LibraryStudentSessionService;
 use App\Services\SettingsService;
@@ -82,6 +83,57 @@ class LibraryPortalFlowTest extends TestCase
         $s = $this->student();
         $m = $this->member($s);
         SeatAllocation::create(['student_id' => $s->id, 'student_membership_id' => $m->id, 'seat_id' => $this->seat->id, 'study_slot_id' => $this->slot->id, 'allocated_from' => '2026-10-01', 'allocated_to' => '2026-11-10', 'start_time' => $from, 'end_time' => $to, 'status' => 'active']);
+    }
+
+    public function test_missing_mci_catalog_is_copied_then_public_availability_uses_only_mci_seats(): void
+    {
+        $target = Branch::factory()->create(['name' => 'MCI Library Campus', 'status' => true]);
+        $hall = StudyHall::factory()->create(['branch_id' => $target->id]);
+        $seat = Seat::factory()->create(['study_hall_id' => $hall->id, 'seat_no' => 'M-18']);
+        $this->occupy('10:00', '14:00');
+        $sourceFee = $this->plan->getAttributes();
+        $result = app(LibraryCampusSlotSetup::class)->repair();
+        $this->assertSame(1, $result['added_slots']);
+        $this->assertSame(1, $result['added_plans']);
+        $slot = StudySlot::where('branch_id', $target->id)->sole();
+        $plan = FeePlan::where('branch_id', $target->id)->sole();
+        $this->assertSame($slot->id, $plan->study_slot_id);
+        $this->assertEquals($sourceFee['monthly_fee'], $plan->monthly_fee);
+        $this->getJson(route('admission.availability', ['branch_id' => $target->id, 'study_slot_id' => $slot->id, 'fee_plan_id' => $plan->id, 'start_date' => '2026-10-05']))
+            ->assertOk()->assertJsonPath('times.10.available', 1)->assertJsonPath('times.10.seats.0.id', $seat->id);
+        $this->get('/admission')->assertOk()->assertSee('data-campus="'.$target->id.'"', false)->assertSee('MCI Library Campus');
+        $again = app(LibraryCampusSlotSetup::class)->repair();
+        $this->assertSame(0, $again['added_slots']);
+        $this->assertSame(0, $again['added_plans']);
+        $this->assertDatabaseCount('seat_allocations', 1);
+        $this->assertDatabaseCount('students', 1);
+    }
+
+    public function test_existing_mci_duration_and_price_are_not_overwritten(): void
+    {
+        $target = Branch::factory()->create(['name' => 'MCI Library Campus', 'status' => true]);
+        $slot = StudySlot::factory()->create(['branch_id' => $target->id, 'duration_hours' => 4, 'is_24x7' => false, 'status' => true]);
+        $plan = FeePlan::factory()->create(['branch_id' => $target->id, 'study_slot_id' => $slot->id, 'monthly_fee' => 975, 'status' => true]);
+        $result = app(LibraryCampusSlotSetup::class)->repair();
+        $this->assertSame(0, $result['added_slots']);
+        $this->assertSame(0, $result['added_plans']);
+        $this->assertEquals(975, $plan->fresh()->monthly_fee);
+        $this->assertDatabaseCount('study_slots', 2);
+        $this->assertDatabaseCount('fee_plans', 2);
+    }
+
+    public function test_ambiguous_campus_repair_rolls_back_without_changing_configuration(): void
+    {
+        Branch::factory()->create(['name' => 'MCI Library Campus', 'status' => true]);
+        Branch::factory()->create(['name' => 'Other Campus', 'status' => true]);
+        try {
+            app(LibraryCampusSlotSetup::class)->repair();
+            $this->fail('Ambiguous campuses should stop.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('exactly two', $e->getMessage());
+        }
+        $this->assertDatabaseCount('study_slots', 1);
+        $this->assertDatabaseCount('fee_plans', 1);
     }
 
     public function test_partial_portal_migration_can_resume_without_losing_students_or_existing_leases(): void

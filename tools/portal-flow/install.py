@@ -51,7 +51,7 @@ def check_entries(source,root,entries):
 def main():
     if os.getuid()==0 or pathlib.Path.home()!=HOME:
         raise RuntimeError('Use the mcied45x cPanel Terminal.')
-    if len(sys.argv)!=2:
+    if len(sys.argv) not in [2,3] or (len(sys.argv)==3 and sys.argv[2]!='--repair-campus-slots'):
         raise RuntimeError('The pinned Test Series source directory is required.')
     sources={'library':SOURCE,'tests':pathlib.Path(sys.argv[1]).resolve()}
     for site,root in ROOTS.items():
@@ -66,9 +66,9 @@ def main():
     os.chmod(str(PRIVATE),0o700)
     with (PRIVATE/'install.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        install(sources)
+        install(sources,repair_campus=len(sys.argv)==3)
 
-def install(sources):
+def install(sources,repair_campus=False):
     backup=pathlib.Path(tempfile.mkdtemp(prefix=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S-'),dir=str(PRIVATE)))
     log=backup/'install.log'
     manifest=json.loads((SOURCE/'tools/portal-flow/manifest.json').read_text())
@@ -117,6 +117,9 @@ def install(sources):
         migration='database/migrations/2026_10_02_083000_add_library_portal_flow.php'
         print('Adding admission selection fields, session leases and email queue; existing records are preserved ...',flush=True)
         run([PHP,'artisan','migrate','--path='+migration,'--force','--no-interaction'],ROOTS['library'],log,timeout=300)
+        if repair_campus:
+            print('Adding missing MCI campus durations and fee plans from existing C-Net setup ...',flush=True)
+            run([PHP,str(helpers/'repair-campus.php'),str(ROOTS['library']),str(backup/'database')],ROOTS['library'],log)
         # Existing bridge identity and credentials are preserved.
         for site,root in ROOTS.items():
             run([PHP,str(helpers/'verify.php'),str(root),site],root,log)
@@ -128,6 +131,7 @@ def install(sources):
         print('APPLIED | admission availability | mobile-number initial login | approval email | reports',flush=True)
         print('APPLIED | separate admin/student login | student single session | test portal session enforced',flush=True)
         print('VERIFIED | routes | schema | page/report rendering | reminders=25,28 | cutoff=10',flush=True)
+        if repair_campus:print('APPLIED | both campus duration/fee setup | existing campus settings preserved',flush=True)
         print('No library enrollments, seats or paid test packages were deleted.',flush=True)
         print('PRIVATE_BACKUP='+str(backup),flush=True)
         print('STUDENT_LOGIN=https://cnetlibrary.mciedu.com/student-login',flush=True)

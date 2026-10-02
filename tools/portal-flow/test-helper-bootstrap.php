@@ -29,7 +29,7 @@ file_put_contents($fixture.'/vendor/autoload.php', '<?php');
 file_put_contents($fixture.'/bootstrap/app.php', '<?php return new PortalHelperTestApplication;');
 $failures = 0;
 try {
-    foreach (['preflight.php', 'backup.php', 'verify.php'] as $helper) {
+    foreach (['preflight.php', 'backup.php', 'verify.php', 'repair-campus.php'] as $helper) {
         $argv = [__DIR__.'/'.$helper, $fixture, 'library'];
         try {
             require $argv[0];

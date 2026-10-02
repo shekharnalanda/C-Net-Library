@@ -61,6 +61,13 @@ class PortalInstallerTest(unittest.TestCase):
   self.private.mkdir();log=self.private/'install.log'
   def process(command,*,cwd,stdout,stderr,timeout,env):return subprocess.CompletedProcess(command,0)
   with patch.object(m.subprocess,'run',side_effect=process):m.run(['php','artisan','up'],self.roots['library'],log)
+ def test_campus_repair_only_runs_after_verified_backup_and_is_explicit(self):
+  with patch.object(m.sys,'argv',['install.py',str(self.sources['tests']),'--repair-campus-slots']):self.install()
+  commands=[' '.join(c) for c,r in self.calls]
+  backup=next(i for i,c in enumerate(commands) if 'backup.php' in c)
+  repair=next(i for i,c in enumerate(commands) if 'repair-campus.php' in c)
+  verify=next(i for i,c in enumerate(commands) if 'verify.php' in c)
+  self.assertLess(backup,repair);self.assertLess(repair,verify)
  def test_silent_php_failure_still_records_step_and_exit_code(self):
   self.private.mkdir();log=self.private/'install.log'
   with patch.object(m.subprocess,'run',return_value=subprocess.CompletedProcess(['php'],1)):

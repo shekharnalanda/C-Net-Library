@@ -53,6 +53,19 @@ class HomeController extends Controller
         $occupiedSeatSlots = min($totalSeatSlots, $occupiedSeatSlots);
         $availableSeatSlots = max(0, $totalSeatSlots - $occupiedSeatSlots);
 
+        $capacityLabel='seat-slots';
+        if(app(\App\Services\SeatFeeReleaseService::class)->enabled()) {
+            $rows=app(\App\Services\SeatScheduleService::class)->rows(today()->toDateString());
+            $enabled=array_filter($rows,fn($row)=>$row['enabled']);
+            $totalSeats=count($enabled);
+            $totalSeatSlots=$totalSeats*24;
+            $freeMinutes=0;
+            foreach($enabled as $row) foreach($row['free'] as [$start,$end]) $freeMinutes+=$end-$start;
+            $availableSeatSlots=round($freeMinutes/60,1);
+            $occupiedSeatSlots=round($totalSeatSlots-$availableSeatSlots,1);
+            $capacityLabel='seat-hours';
+        }
+
         $jobs = Job::query()
             ->where('status', true)
             ->where(function ($query) {
@@ -76,7 +89,7 @@ class HomeController extends Controller
         ];
 
         return view('public.home', compact(
-            'home', 'plans', 'totalSeats', 'totalSeatSlots', 'occupiedSeatSlots', 'availableSeatSlots',
+            'capacityLabel', 'home', 'plans', 'totalSeats', 'totalSeatSlots', 'occupiedSeatSlots', 'availableSeatSlots',
             'jobs', 'faqs', 'testimonials', 'gallery', 'contact'
         ));
     }

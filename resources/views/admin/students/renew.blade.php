@@ -60,13 +60,14 @@
                 <select name="study_slot_id" id="study_slot_id" required>
                     <option value="">Select Slot</option>
                     @foreach ($studySlots as $slot)
-                        <option value="{{ $slot->id }}" @selected(old('study_slot_id', $student->activeMembership?->study_slot_id) == $slot->id)>
+                        <option value="{{ $slot->id }}" data-duration="{{ $slot->duration_hours }}" data-start="{{ $slot->start_time ? substr($slot->start_time,0,5) : '' }}" data-full="{{ $slot->is_24x7?1:0 }}" @selected(old('study_slot_id', $student->activeMembership?->study_slot_id) == $slot->id)>
                             {{ $slot->name }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
+<div class="field"><label>Actual daily start (IST)</label><input class="form-control" type="time" name="start_time" value="{{ old('start_time',request('start_time')) }}"><small>Choose your daily starting hour. Required for flexible slots.</small></div><div class="field"><label>Daily end (IST)</label><input class="form-control" type="time" name="end_time" readonly value="{{ old('end_time',request('end_time')) }}"><small>Calculated from the purchased hours; may end next day.</small></div>
             <div>
                 <label for="seat_id">Seat</label>
                 <select name="seat_id" id="seat_id">
@@ -101,5 +102,6 @@
         </div>
     </form>
 </div>
+@include('admin.seats.time-script')
 </body>
 </html>

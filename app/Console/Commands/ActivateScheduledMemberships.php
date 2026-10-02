@@ -67,6 +67,10 @@ class ActivateScheduledMemberships extends Command
                                 );
                             }
 
+                            $pending->refresh();
+                            if($pending->status!=='pending') return false;
+                            app(\App\Services\SeatFeeReleaseService::class)->assertMembership($pending,(int)$pending->study_slot_id,$pending->start_date->toDateString(),app(\App\Services\SeatFeeReleaseService::class)->holdUntil($pending->expiry_date->toDateString()));
+
                             $previousMemberships = StudentMembership::query()
                                 ->where('student_id', $pending->student_id)
                                 ->where('status', 'active')

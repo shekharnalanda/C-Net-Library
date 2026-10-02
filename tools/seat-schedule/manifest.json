@@ -1,0 +1,185 @@
+[
+  {
+    "path": "app/Providers/SeatScheduleServiceProvider.php",
+    "original_blob": null,
+    "blob": "59b2b50464eb5d3eb08c08b07346dba12e902a4e",
+    "sha256": "943f27abe392ef2efc1d9e89e39cbf971e80a811364b5414ea82b4b051454df6"
+  },
+  {
+    "path": "app/Services/SeatScheduleService.php",
+    "original_blob": null,
+    "blob": "4d24fe5d8c944295e3bb17fb22bdb6fd0f73ad37",
+    "sha256": "abf750971ae03b53e81987e34f6a5b13be9d1807fc4cf549ee67823de2519f6c"
+  },
+  {
+    "path": "app/Services/AdmissionApprovalService.php",
+    "original_blob": "5f3b9ad51f76bcf2a5bf5cc38b7aa7817a61b6a1",
+    "blob": "e422ee00c019e3b184482f47087b99d8313410fc",
+    "sha256": "9f975535dc27d99be022c86cef77239b4224a94f8627ab9859492472fee60e64",
+    "normalized_original_blob": "5f3b9ad51f76bcf2a5bf5cc38b7aa7817a61b6a1"
+  },
+  {
+    "path": "app/Services/MembershipRenewalService.php",
+    "original_blob": "46fb9b3d8947ee478a96966add0ac2b8ee16a98f",
+    "blob": "182e8a42fc85bc62bdea4df5d7ffd646d177c333",
+    "sha256": "dd5080a0d4ea053ec15fbb840815a9002169f13c61484983bdc0a1451af81e3f",
+    "normalized_original_blob": "46fb9b3d8947ee478a96966add0ac2b8ee16a98f"
+  },
+  {
+    "path": "app/Services/SeatAllocationService.php",
+    "original_blob": "85dda1f4c879aa04add81621c32c19807793ec88",
+    "blob": "0fb8a2d2f5dcd87649fbc75ed1ad5f12568e90b3",
+    "sha256": "9e748084109461cc5a1befa3391c8d031ec603c35046eaaca9897137ff391107",
+    "normalized_original_blob": "85dda1f4c879aa04add81621c32c19807793ec88"
+  },
+  {
+    "path": "app/Services/DailySeatWindow.php",
+    "original_blob": null,
+    "blob": "4a1f840cb1449b30154c9a63f437bc455ffcde22",
+    "sha256": "8fa26009f36007ea9b5514c330b54ce3b7ae3f769d5e23d4ab4f01d2bc842c7d"
+  },
+  {
+    "path": "app/Services/SeatFeeReleaseService.php",
+    "original_blob": null,
+    "blob": "843e25b466e09c3d4460f98d2b611a037b9add48",
+    "sha256": "49dc1849644562b5cec6e160f7923c16aac6ba5ddb5611241dfebe8ecbefbc48"
+  },
+  {
+    "path": "app/Console/Commands/ReleaseUnpaidSeats.php",
+    "original_blob": null,
+    "blob": "5f932302f42194ea4de2ac5a9f841a0cba934a31",
+    "sha256": "8dd2c8aa3d905363f31ae59a32e4f3c2f15d6122203d6ff13e191dcdba44ee67"
+  },
+  {
+    "path": "app/Console/Commands/ConfigureSeatScheduling.php",
+    "original_blob": null,
+    "blob": "ccf2985e613241d2f1c845180f5db1dea7430b06",
+    "sha256": "cb37f7d96a4fb5d44829eb68da603f8612cff9f6d7b5b2cae88608e6d2a14b31"
+  },
+  {
+    "path": "app/Console/Commands/ResetEnrollments.php",
+    "original_blob": null,
+    "blob": "a66e5531f1cc4c3a234bdbdbcf923f1ca92248bf",
+    "sha256": "98dd4f00a2c4d0745f2d7e29e01b536af5e742ebf89b9c222eeef6dfa9c67d80"
+  },
+  {
+    "path": "app/Console/Commands/ExpireDueMemberships.php",
+    "original_blob": "1fdbad42043478292a91f4db3e2fd4b19c747c7b",
+    "blob": "9c2a3511a3aeab4c66d70dcd1d8709ea1cac06b0",
+    "sha256": "b067a6feffbd32df353558becdf45984e5ea17c9e4e7cffac27b05044529bb67",
+    "normalized_original_blob": "1fdbad42043478292a91f4db3e2fd4b19c747c7b"
+  },
+  {
+    "path": "app/Console/Commands/ActivateScheduledMemberships.php",
+    "original_blob": "59f676521bca0e652823a0136107fa9ab757f58b",
+    "blob": "91f3fc017861715b61f220201ff02bfa9610b12f",
+    "sha256": "737f3fc2ad14c5842ef9a2ad023791955fc0a086901b359ceeda46a85c31940f",
+    "normalized_original_blob": "59f676521bca0e652823a0136107fa9ab757f58b"
+  },
+  {
+    "path": "app/Http/Controllers/SeatScheduleController.php",
+    "original_blob": null,
+    "blob": "aec13e58f0f59202c06d9e6220da4c789dd96428",
+    "sha256": "cb79b7887cbc0a04444fafbce49ad199a15f117ca91611e602ee30af6173c5fc"
+  },
+  {
+    "path": "app/Http/Requests/RenewMembershipRequest.php",
+    "original_blob": "594a9b59aaa942870e58dd0d1f6c032b9c20e775",
+    "blob": "4944fd3867eee700b9058c92021e0cfbb3a12a26",
+    "sha256": "1d5e8a5ab8509c9af8dfc62a113c702cc46f6ec94402614348ec037d5379eb28",
+    "normalized_original_blob": "594a9b59aaa942870e58dd0d1f6c032b9c20e775"
+  },
+  {
+    "path": "app/Http/Requests/ApproveAdmissionRequest.php",
+    "original_blob": "788ce64c317803f641b9a37c35fe14fa5be7625a",
+    "blob": "6552893c68ea7ab2c491ff06731ac1879f7b1d4f",
+    "sha256": "e84b400ddd1bb906d5d89308b4fb8bab522b84b453a76b4eefe322ed6ce0068d",
+    "normalized_original_blob": "788ce64c317803f641b9a37c35fe14fa5be7625a"
+  },
+  {
+    "path": "app/Http/Controllers/Public/HomeController.php",
+    "original_blob": "ef2097621c36ca5a0d4e85e653574beb6faad159",
+    "blob": "35a94891fe52b178a741ebf4b8180519923e9888",
+    "sha256": "a640689b7966c75f90ef4769d3ea226ba5a377486eef9747b22e19b475ea905f",
+    "normalized_original_blob": "ef2097621c36ca5a0d4e85e653574beb6faad159"
+  },
+  {
+    "path": "app/Http/Controllers/Admin/SeatAvailabilityController.php",
+    "original_blob": "766878d91dace7d6aee1f0ba321091d4f942a269",
+    "blob": "7299124c56bfce3a89c3099c86fc9b724ee715b8",
+    "sha256": "0d1fd8e17175b5021a86667a00e6e6aef60aadab04a2a47045f7a5a7b85737b6",
+    "normalized_original_blob": "766878d91dace7d6aee1f0ba321091d4f942a269"
+  },
+  {
+    "path": "app/Http/Controllers/Admin/StudySpaceController.php",
+    "original_blob": "da4c8fd92031b85304142ff49251a66b2d3c6483",
+    "blob": "4378685838849ced8075dfcd63f335bdad5103ad",
+    "sha256": "d9398898840087a562da2467ef7392a41c09859858055cc482f83994ca6929d8",
+    "normalized_original_blob": "da4c8fd92031b85304142ff49251a66b2d3c6483"
+  },
+  {
+    "path": "bootstrap/providers.php",
+    "original_blob": null,
+    "blob": "0e94a5714e396ff56e49294e6d56179130ba0e3d",
+    "sha256": "cbdd4deb4b6834ee9763607c757db83256ec95f1c5ee5014718385752278d6d1"
+  },
+  {
+    "path": "resources/views/seat-report.blade.php",
+    "original_blob": null,
+    "blob": "644e5c80569bc605a9ef44233d38a50a74aff1ee",
+    "sha256": "f75105125e8cf023d662feb13d42dd73b5a2a6086b0f8972203ad080499c2cbd"
+  },
+  {
+    "path": "resources/views/public/home.blade.php",
+    "original_blob": "1b46e04bd1d3ea5c52f5f0fea2ac22a06698a9a4",
+    "blob": "10aa281341cca139dc4d3441ba0f934c625b5455",
+    "sha256": "434dae2c54c905d75c28e262dcecde40525e68406f399f11e539bfff60465344",
+    "normalized_original_blob": "1b46e04bd1d3ea5c52f5f0fea2ac22a06698a9a4"
+  },
+  {
+    "path": "resources/views/admin/students/renew.blade.php",
+    "original_blob": "cca7d4408c512103f4381dba25e3ee97e8a67543",
+    "blob": "171234d896636bd60a2dcef1fbdad39432ae1115",
+    "sha256": "759ab95be56be8a6c2bde6bcc5eeb53f1d2617a59d6ee1bd575a2e6a1040d3fc",
+    "normalized_original_blob": "cca7d4408c512103f4381dba25e3ee97e8a67543"
+  },
+  {
+    "path": "resources/views/admin/study-space/index.blade.php",
+    "original_blob": "58d0999481888925a6e0f6c6f8dc20ce6144b1d0",
+    "blob": "d170b55657eee3905a1be295746c359e7f62a463",
+    "sha256": "fd94898b463f872d4877c7459851d6cc5af347a93ec4d2b60734fc3fddf94bb4",
+    "normalized_original_blob": "58d0999481888925a6e0f6c6f8dc20ce6144b1d0"
+  },
+  {
+    "path": "resources/views/admin/seats/available.blade.php",
+    "original_blob": "6b642da5aeb3247d966f4a77098342b8d90d7ff4",
+    "blob": "fb217decb62b2825abccaf4fab73ed4a30e77042",
+    "sha256": "9b0d1df2ff3b4b2b15cc61bec099b3a620a76eea1f36248060881d78acb8ba97",
+    "normalized_original_blob": "6b642da5aeb3247d966f4a77098342b8d90d7ff4"
+  },
+  {
+    "path": "resources/views/admin/seats/time-script.blade.php",
+    "original_blob": null,
+    "blob": "82456d5f7a43cacd74300c5caab09d0a3cbc18ae",
+    "sha256": "9fc3fe213a9d74f89fafa61fe0611400a0b17f1e0c6160f5065c6b4e8be76b99"
+  },
+  {
+    "path": "resources/views/admin/admissions/show.blade.php",
+    "original_blob": "89c51cfc63015714b1132d7dffbe4828bf3ddfeb",
+    "blob": "dda812ff2659f293d19847458dd1d5d8d89aafe6",
+    "sha256": "e9b249da85d0e572c1230d3318e54f375da530d7bcecf3d5119d971d6c6e6827",
+    "normalized_original_blob": "5bdcd87d9245acf59ff1af4b3aebc0e865ad3a80"
+  },
+  {
+    "path": "routes/seat-schedule.php",
+    "original_blob": null,
+    "blob": "9d997dc294e375cbba1d66487a6ed0a8bf0c6f3b",
+    "sha256": "15a817878dfd458b37edad9e202b4fea4a46a1a783387737316c5b1d43ae74ab"
+  },
+  {
+    "path": "tests/Feature/SeatScheduleIntegrationTest.php",
+    "original_blob": null,
+    "blob": "c6a8d4d8b7240ed6e70a4bc0322b9bcf6b8598fa",
+    "sha256": "5ae41f39bebda1936400a385fecdfcebc132efcf87e2534fd66b7c63177208c0"
+  }
+]

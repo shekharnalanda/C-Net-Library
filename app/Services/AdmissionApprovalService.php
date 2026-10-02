@@ -81,15 +81,24 @@ class AdmissionApprovalService
                 ]);
             }
 
+            if (!$feePlan->status || !$slot->status || ($seat && (!$seat->status || !$seat->studyHall?->status))) {
+                throw ValidationException::withMessages(['seat_id'=>'Choose an active seat, slot and fee plan.']);
+            }
+            if ($feePlan->study_slot_id && (int)$feePlan->study_slot_id !== (int)$slot->id) {
+                throw ValidationException::withMessages(['fee_plan_id'=>'The fee plan must match the selected study slot.']);
+            }
+
             $startDate = isset($data['start_date']) ? Carbon::parse($data['start_date'])->startOfDay() : today();
             $expiryDate = $startDate->copy()->addDays(max(1, (int) $feePlan->validity_days) - 1);
+            [$startTime,$endTime]=$this->seatAllocationService->resolveTimes($slot,$data);
+            $heldUntil=app(SeatFeeReleaseService::class)->holdUntil($expiryDate->toDateString());
 
             $this->seatAllocationService->assertAvailable(
                 seatId: $seat->id,
                 allocatedFrom: $startDate->toDateString(),
-                allocatedTo: $expiryDate->toDateString(),
-                startTime: $slot->start_time,
-                endTime: $slot->end_time,
+                allocatedTo: $heldUntil,
+                startTime: $startTime,
+                endTime: $endTime,
             );
 
             $studentCode = $this->generateStudentCode($branchId);
@@ -164,9 +173,9 @@ class AdmissionApprovalService
                 'seat_id' => $seat->id,
                 'study_slot_id' => $slot->id,
                 'allocated_from' => $startDate->toDateString(),
-                'allocated_to' => $expiryDate->toDateString(),
-                'start_time' => $slot->start_time,
-                'end_time' => $slot->end_time,
+                'allocated_to' => $heldUntil,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
                 'status' => 'active',
                 'remarks' => $data['remarks'] ?? null,
             ]);

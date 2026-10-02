@@ -36,7 +36,7 @@
             <select id="study_slot_id" name="study_slot_id" required>
                 <option value="">Select Study Slot</option>
                 @foreach($slots as $slot)
-                    <option value="{{ $slot->id }}" data-branch="{{ $slot->branch_id }}" @selected((string) request('study_slot_id') === (string) $slot->id)>
+                    <option value="{{ $slot->id }}" data-duration="{{ $slot->duration_hours }}" data-start="{{ $slot->start_time ? substr($slot->start_time,0,5) : '' }}" data-full="{{ $slot->is_24x7?1:0 }}" data-branch="{{ $slot->branch_id }}" @selected((string) request('study_slot_id') === (string) $slot->id)>
                         {{ $slot->name }}
                         @if($slot->is_24x7) · 24×7
                         @elseif($slot->start_time && $slot->end_time) · {{ substr($slot->start_time,0,5) }}–{{ substr($slot->end_time,0,5) }}
@@ -54,9 +54,10 @@
             <label for="allocated_to">To</label>
             <input id="allocated_to" type="date" name="allocated_to" value="{{ $to }}" required>
         </div>
-        <button class="btn" type="submit">Check Availability</button>
+<div class="field"><label>Actual daily start (IST)</label><input class="form-control" type="time" name="start_time" value="{{ old('start_time',request('start_time')) }}"><small>Choose your daily starting hour. Required for flexible slots.</small></div><div class="field"><label>Daily end (IST)</label><input class="form-control" type="time" name="end_time" readonly value="{{ old('end_time',request('end_time')) }}"><small>Calculated from the purchased hours; may end next day.</small></div><button class="btn" type="submit">Check Availability</button>
     </form>
 
+    @if($errors->any())<div class="card">{{ $errors->first() }}</div>@endif
     <div class="card">
         @if($seats === null)
             <div class="empty">Select a branch and study slot to view available seats.</div>
@@ -84,6 +85,7 @@
         @endif
     </div>
 </div>
+@include('admin.seats.time-script')
 <script>
     const branch = document.getElementById('branch_id');
     const slot = document.getElementById('study_slot_id');

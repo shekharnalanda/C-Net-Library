@@ -16,6 +16,11 @@ class ExpireDueMemberships extends Command
 
     public function handle(): int
     {
+        $seatPolicy=app(\App\Services\SeatFeeReleaseService::class);
+        if($seatPolicy->enabled()) {
+            $this->info('Released overdue seat allocations: '.$seatPolicy->releaseDue());
+            return self::SUCCESS;
+        }
         $expired = 0;
         $skipped = 0;
 

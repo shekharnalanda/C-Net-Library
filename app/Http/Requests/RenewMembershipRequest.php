@@ -18,6 +18,8 @@ class RenewMembershipRequest extends FormRequest
             'study_slot_id' => ['required', 'exists:study_slots,id'],
             'seat_id' => ['nullable', 'exists:seats,id'],
             'start_date' => ['nullable', 'date'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time' => ['nullable', 'date_format:H:i'],
             'discount' => ['nullable', 'numeric', 'min:0'],
             'remarks' => ['nullable', 'string', 'max:2000'],
         ];

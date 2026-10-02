@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Public\AdmissionController;
 use App\Services\LibraryPracticeBridge;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel;
@@ -7,6 +8,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ViewErrorBag;
 
 [$script,$root,$site] = $argv;
@@ -26,7 +28,7 @@ if ($site === 'library') {
             throw new RuntimeException('Portal table missing.');
         }
     }
-    if (! Schema::hasColumn('admissions', 'preferred_seat_id')) {
+    if (! Schema::hasColumn('admissions', 'preferred_seat_id') || ! Schema::hasColumn('admissions', 'photo')) {
         throw new RuntimeException('Admission selection migration missing.');
     }
     $guard = Route::getRoutes()->getByName('student.dashboard')->gatherMiddleware();
@@ -38,6 +40,15 @@ if ($site === 'library') {
     }
     if (is_file($root.'/routes/mci-account-recovery.php') && ! Route::has('mci.recovery')) {
         throw new RuntimeException('Previously installed account recovery route was not preserved.');
+    }
+    $admission = app(AdmissionController::class)->create()->render();
+    $disk = Storage::disk('public');
+    $disk->makeDirectory('student-photos');
+    if (! $disk->exists('student-photos') || realpath($root.'/public/storage') !== realpath($disk->path(''))) {
+        throw new RuntimeException('Student photo storage/public link requires review.');
+    }
+    if (! str_contains($admission, 'photoCamera') || ! str_contains($admission, 'photoGallery') || ! is_file($root.'/public/js/admission-photo.js')) {
+        throw new RuntimeException('Admission photo controls missing.');
     }
     $login = view('auth.student-login')->render();
     if (! str_contains($login, 'Student Login')) {

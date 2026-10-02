@@ -12,6 +12,8 @@ use App\Services\ApplicationNumberService;
 use App\Services\CentralSyncService;
 use App\Services\LibraryAdmissionAvailability;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AdmissionController extends Controller
@@ -32,7 +34,7 @@ class AdmissionController extends Controller
     ): RedirectResponse {
         $data = $request->validated();
         app(LibraryAdmissionAvailability::class)->assertSelection($data);
-        unset($data['website']);
+        unset($data['website'], $data['photo'], $data['photo_camera']);
 
         $data['name'] = trim((string) $data['name']);
         $data['father_name'] = isset($data['father_name']) && $data['father_name'] !== ''
@@ -61,7 +63,17 @@ class AdmissionController extends Controller
         $data['application_no'] = $applicationNumbers->generate();
         $data['status'] = 'new';
 
-        $admission = Admission::create($data);
+        $photo = $request->file('photo_camera') ?: $request->file('photo');
+        $data['photo'] = $photo->store('student-photos', 'public');
+        if (! $data['photo']) {
+            throw ValidationException::withMessages(['photo' => 'फोटो सेव नहीं हो सकी। कृपया दोबारा प्रयास करें।']);
+        }
+        try {
+            $admission = Admission::create($data);
+        } catch (\Throwable $e) {
+            Storage::disk('public')->delete($data['photo']);
+            throw $e;
+        }
         $branch = Branch::find($admission->branch_id);
         $studySlot = $admission->study_slot_id ? StudySlot::find($admission->study_slot_id) : null;
         $feePlan = $admission->fee_plan_id ? FeePlan::find($admission->fee_plan_id) : null;

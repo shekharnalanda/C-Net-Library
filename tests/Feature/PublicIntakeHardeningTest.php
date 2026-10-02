@@ -10,6 +10,7 @@ use App\Models\Seat;
 use App\Models\StudyHall;
 use App\Models\StudySlot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class PublicIntakeHardeningTest extends TestCase
@@ -29,7 +30,7 @@ class PublicIntakeHardeningTest extends TestCase
             'mobile' => '9000011000',
             'study_slot_id' => $slot->id,
             'fee_plan_id' => $plan->id,
-            'wants_locker' => false,
+            'wants_locker' => false, 'photo' => UploadedFile::fake()->image('student.jpg', 300, 400),
         ]);
 
         $response->assertSessionHasErrors(['study_slot_id']);
@@ -56,7 +57,7 @@ class PublicIntakeHardeningTest extends TestCase
             'name' => 'Repeat Applicant',
             'mobile' => '9000011001',
             'email' => 'repeat@example.test', 'study_slot_id' => $slot->id, 'fee_plan_id' => $plan->id, 'preferred_seat_id' => $seat->id, 'preferred_start_date' => today()->toDateString(), 'preferred_start_time' => '10:00', 'preferred_end_time' => '14:00',
-            'wants_locker' => false,
+            'wants_locker' => false, 'photo' => UploadedFile::fake()->image('student.jpg', 300, 400),
         ]);
 
         $response->assertRedirect(route('admission.create'));

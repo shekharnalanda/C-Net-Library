@@ -30,7 +30,7 @@ class PortalInstallerTest(unittest.TestCase):
   with patch.object(m,'run',side_effect=self.fake_run),patch.object(m.subprocess,'run',side_effect=self.cron):m.main()
  def test_success_migrates_library_only_preserves_bridge_and_never_resets(self):
   self.install();self.assertEqual('private existing identity',self.bridge.read_text());self.assertTrue(all((r/'app/Portal.php').read_text()=='reviewed '+s for s,r in self.roots.items()))
-  commands=[c for c,r in self.calls];self.assertFalse(any('reset' in ' '.join(c) for c in commands));self.assertEqual(1,sum('migrate' in c for c in commands));self.assertTrue(any('migrate' in c and r==self.roots['library'] and '--path=database/migrations/2026_10_02_083000_add_library_portal_flow.php' in c for c,r in self.calls))
+  commands=[c for c,r in self.calls];self.assertFalse(any('reset' in ' '.join(c) for c in commands));self.assertEqual(2,sum('migrate' in c for c in commands));self.assertTrue(any('migrate' in c and r==self.roots['library'] and '--path=database/migrations/2026_10_02_083000_add_library_portal_flow.php' in c for c,r in self.calls))
  def test_unreviewed_live_file_stops_before_maintenance(self):
   (self.roots['tests']/'app/Portal.php').write_text('unreviewed')
   with self.assertRaisesRegex(RuntimeError,'Live file'):self.install()

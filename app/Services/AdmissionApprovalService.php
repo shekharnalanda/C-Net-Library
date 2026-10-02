@@ -145,6 +145,7 @@ class AdmissionApprovalService
                 'mobile' => $lockedAdmission->mobile,
                 'email' => $lockedAdmission->email,
                 'address' => $lockedAdmission->address,
+                'photo' => $lockedAdmission->photo,
                 'joining_date' => $startDate->toDateString(),
                 'status' => 'active',
             ]);

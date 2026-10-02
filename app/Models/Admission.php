@@ -20,6 +20,7 @@ class Admission extends Model
         'mobile',
         'email',
         'address',
+        'photo',
         'study_slot_id',
         'fee_plan_id',
         'wants_locker',

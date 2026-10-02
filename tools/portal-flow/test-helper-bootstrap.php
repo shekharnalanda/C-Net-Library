@@ -29,8 +29,8 @@ file_put_contents($fixture.'/vendor/autoload.php', '<?php');
 file_put_contents($fixture.'/bootstrap/app.php', '<?php return new PortalHelperTestApplication;');
 $failures = 0;
 try {
-    foreach (['preflight.php', 'backup.php', 'verify.php', 'repair-campus.php'] as $helper) {
-        $argv = [__DIR__.'/'.$helper, $fixture, 'library'];
+    foreach (['preflight.php', 'backup.php', 'verify.php', 'repair-campus.php', 'mail-inspect.php', 'mail-probe.php', 'portal-check.php', 'retry-welcome.php'] as $helper) {
+        $argv = [__DIR__.'/'.$helper, $fixture, 'library', 'owner@example.test'];
         try {
             require $argv[0];
             throw new RuntimeException('Expected bootstrap checkpoint was not reached.');

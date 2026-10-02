@@ -23,12 +23,14 @@ use Illuminate\Database\MySqlConnection;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -202,12 +204,12 @@ class LibraryPortalFlowTest extends TestCase
 
     public function test_selection_is_saved_and_stale_or_foreign_seat_cannot_be_submitted(): void
     {
-        $this->post('/admission', $this->payload())->assertSessionHasNoErrors();
+        $this->post('/admission', array_merge($this->payload(), ['photo' => UploadedFile::fake()->image('student.jpg', 300, 400)]))->assertSessionHasNoErrors();
         $this->assertDatabaseHas('admissions', ['preferred_seat_id' => $this->seat->id, 'preferred_start_time' => '10:00']);
         $this->occupy('10:00', '14:00');
-        $this->post('/admission', array_merge($this->payload(), ['mobile' => '9234567890']))->assertSessionHasErrors('preferred_seat_id');
+        $this->post('/admission', array_merge($this->payload(), ['mobile' => '9234567890', 'photo' => UploadedFile::fake()->image('student.jpg', 300, 400)]))->assertSessionHasErrors('preferred_seat_id');
         $foreign = Seat::factory()->create();
-        $this->post('/admission', array_merge($this->payload(), ['preferred_seat_id' => $foreign->id]))->assertSessionHasErrors('preferred_seat_id');
+        $this->post('/admission', array_merge($this->payload(), ['preferred_seat_id' => $foreign->id, 'photo' => UploadedFile::fake()->image('student.jpg', 300, 400)]))->assertSessionHasErrors('preferred_seat_id');
     }
 
     public function test_available_durations_are_not_fabricated_and_twenty_four_hour_needs_whole_day(): void
@@ -229,6 +231,73 @@ class LibraryPortalFlowTest extends TestCase
         $this->assertDatabaseHas('library_portal_mail', ['student_id' => $s->id, 'status' => 'sent']);
         $this->post('/student-login', ['student_code' => $s->student_code, 'password' => '9123456789'])->assertRedirect(route('student.dashboard'));
         $this->assertAuthenticatedAs($s->user, 'library_student');
+    }
+
+    public function test_camera_and_gallery_photos_reach_student_and_digital_id_for_both_campuses(): void
+    {
+        Storage::fake('public');
+        $mci = Branch::factory()->create(['name' => 'MCI Library Campus']);
+        app(LibraryCampusSlotSetup::class)->repair();
+        foreach ([[$this->campus, 'photo'], [$mci, 'photo_camera']] as [$campus, $field]) {
+            $slot = StudySlot::where('branch_id', $campus->id)->firstOrFail();
+            $plan = FeePlan::where('branch_id', $campus->id)->firstOrFail();
+            $hall = StudyHall::factory()->create(['branch_id' => $campus->id]);
+            $seat = Seat::factory()->create(['study_hall_id' => $hall->id]);
+            $payload = array_merge($this->payload(), ['branch_id' => $campus->id, 'study_slot_id' => $slot->id, 'fee_plan_id' => $plan->id, 'preferred_seat_id' => $seat->id, 'email' => 'student-'.$campus->id.'@example.test', $field => UploadedFile::fake()->image('face.jpg', 300, 400)]);
+            $this->post('/admission', $payload)->assertSessionHasNoErrors()->assertRedirect('/admission');
+            $admission = Admission::where('branch_id', $campus->id)->latest('id')->firstOrFail();
+            Storage::disk('public')->assertExists($admission->photo);
+            $student = app(AdmissionApprovalService::class)->approve($admission, ['fee_plan_id' => $plan->id, 'study_slot_id' => $slot->id, 'seat_id' => $seat->id, 'start_date' => '2026-10-05', 'start_time' => '10:00']);
+            $this->assertSame($admission->photo, $student->photo);
+            $this->libraryStudentSession($student->user)->get('/student/id-card')->assertOk()->assertSee('storage/'.$student->photo, false);
+            $this->post('/student/logout');
+        }
+    }
+
+    public function test_photo_is_required_and_invalid_or_oversized_uploads_do_not_create_admission(): void
+    {
+        Storage::fake('public');
+        $this->post('/admission', $this->payload())->assertSessionHasErrors(['photo', 'photo_camera']);
+        foreach ([UploadedFile::fake()->create('bad.php', 10, 'text/plain'), UploadedFile::fake()->image('tiny.png', 50, 50), UploadedFile::fake()->image('large.jpg', 300, 400)->size(3000)] as $file) {
+            $this->post('/admission', array_merge($this->payload(), ['photo' => $file]))->assertSessionHasErrors('photo');
+        }
+        $this->assertDatabaseCount('admissions', 0);
+        $this->assertCount(0, Storage::disk('public')->allFiles());
+    }
+
+    public function test_hosted_mail_configuration_is_private_and_invalid_config_does_not_send(): void
+    {
+        $dir = sys_get_temp_dir().'/library-mail-test-'.bin2hex(random_bytes(6));
+        mkdir($dir, 0700);
+        $path = $dir.'/mail.json';
+        config(['library-practice.portal_mail_path' => $path]);
+        file_put_contents($path, json_encode(['sender' => 'no-reply@mciedu.com']));
+        chmod($path, 0600);
+        try {
+            app(LibraryPortalMailService::class)->configureTransport();
+            $this->assertSame('library_portal_hosted', config('mail.default'));
+            $this->assertSame('no-reply@mciedu.com', config('mail.from.address'));
+            chmod($path, 0644);
+            clearstatcache(true, $path);
+            $student = $this->student();
+            app(LibraryPortalMailService::class)->enqueue($student, 'test-mail', 'Subject', 'Body');
+            $this->assertSame(0, app(LibraryPortalMailService::class)->deliver());
+            $this->assertDatabaseHas('library_portal_mail', ['event_key' => 'test-mail', 'status' => 'pending', 'error_code' => 'MAIL_CONFIGURATION_INVALID', 'attempts' => 0]);
+        } finally {
+            unlink($path);
+            rmdir($dir);
+        }
+    }
+
+    public function test_mail_failures_record_safe_reason_without_exposing_smtp_credentials(): void
+    {
+        $student = $this->student();
+        Mail::shouldReceive('raw')->once()->andThrow(new \RuntimeException('Failed to authenticate on SMTP server using secret-password'));
+        app(LibraryPortalMailService::class)->welcome($student);
+        $row = DB::table('library_portal_mail')->where('student_id', $student->id)->first();
+        $this->assertSame('MAIL_AUTH_FAILED', $row->error_code);
+        $this->assertStringNotContainsString('secret-password', json_encode($row));
+        $this->assertSame(now()->addMinutes(5)->format('Y-m-d H:i:s'), $row->next_attempt_at);
     }
 
     public function test_one_active_student_session_blocks_another_and_logout_releases_only_student(): void

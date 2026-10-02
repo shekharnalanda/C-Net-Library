@@ -35,10 +35,11 @@
     {
       "path": "app/Services/AdmissionApprovalService.php",
       "original_blobs": [
-        "e422ee00c019e3b184482f47087b99d8313410fc"
+        "e422ee00c019e3b184482f47087b99d8313410fc",
+        "5886d3c954bf31f61dc0136321e25ec81121ac56"
       ],
-      "blob": "5886d3c954bf31f61dc0136321e25ec81121ac56",
-      "sha256": "62c98cb8ec4558c991b173163f5c8e82f93fd83077db29d38f969c8e05604182"
+      "blob": "c9d30fb85fe8558fa4960bcf4c73eea824e3e7fe",
+      "sha256": "6fe9479f25cae9f63075b082a42c36ca02f6987cc3a5ebd6f91200b564c0dbea"
     },
     {
       "path": "app/Services/LibraryAdmissionAvailability.php",
@@ -51,18 +52,20 @@
     {
       "path": "app/Services/LibraryPortalMailService.php",
       "original_blobs": [
-        null
+        null,
+        "2529783d4c37fe53ceb52a6c46985d96359b6b82"
       ],
-      "blob": "2529783d4c37fe53ceb52a6c46985d96359b6b82",
-      "sha256": "db26ec79036c737d5bdd52492d578db6a30688975e79c19a7ce33fe8ecdff5e2"
+      "blob": "be6905caf368a4d71bef3d53c3e92086e9416d37",
+      "sha256": "efb527146ea0805b5bfc2102dc0354cb73c74ed18c43686ad95901e2e4c1e568"
     },
     {
       "path": "app/Models/Admission.php",
       "original_blobs": [
-        "672a0b30e1d3944100f45cd10c5a484b82880c88"
+        "672a0b30e1d3944100f45cd10c5a484b82880c88",
+        "c0ef2614532b7b16be3b8ca6c926730014843b94"
       ],
-      "blob": "c0ef2614532b7b16be3b8ca6c926730014843b94",
-      "sha256": "07899521910331510a78c9f08aadeed8cdac17f479c380e2a269b5065b7a63f9"
+      "blob": "ccb67014292df9901acb6a15064ce6793d70e20c",
+      "sha256": "a70bbe376a89fa761a66e470c788d55793e098950d54020a210ad3f8dd44da5a"
     },
     {
       "path": "app/Console/Commands/SendLibraryFeeReminders.php",
@@ -83,10 +86,11 @@
     {
       "path": "app/Http/Requests/StoreAdmissionRequest.php",
       "original_blobs": [
-        "ba002d69d17cb5d2962cb361a053481fd4896b38"
+        "ba002d69d17cb5d2962cb361a053481fd4896b38",
+        "66e852321f037adf82380c5d7b3e862047ec8aee"
       ],
-      "blob": "66e852321f037adf82380c5d7b3e862047ec8aee",
-      "sha256": "28796264008ce9517b80ba0ea5bb03db1e10b46d850774285134bfec532dc6bd"
+      "blob": "734a86ecd94b20220e6385bdaf848cafcf62cad0",
+      "sha256": "b1438f9db8fa6affb629a9be9d45582b7c7a9ff70e14d7516f70b56cef24864d"
     },
     {
       "path": "app/Http/Middleware/EnsureStudent.php",
@@ -139,10 +143,11 @@
     {
       "path": "app/Http/Controllers/Public/AdmissionController.php",
       "original_blobs": [
-        "bb3c9d26599b8985da82acf1e63a7b66cf477f22"
+        "bb3c9d26599b8985da82acf1e63a7b66cf477f22",
+        "ca6c474911a796d599c22c2f97ca2b1eb962c490"
       ],
-      "blob": "ca6c474911a796d599c22c2f97ca2b1eb962c490",
-      "sha256": "0bcd219484a4557d1092688e178213b773f6b09e2d39014fd996f4b4c0a87f12"
+      "blob": "5d45dc1a138264f43e23d670cdeb68e80056320e",
+      "sha256": "8b91f861db66839d21fd29134c739279ae08dbc528da191a9a0d7764d0552322"
     },
     {
       "path": "app/Http/Controllers/Auth/StudentActivationController.php",
@@ -204,10 +209,11 @@
     {
       "path": "resources/views/admin/student-report.blade.php",
       "original_blobs": [
-        null
+        null,
+        "24486c064b2976673b50fdd04be8f8efb32920ab"
       ],
-      "blob": "24486c064b2976673b50fdd04be8f8efb32920ab",
-      "sha256": "bd9fd820867861601f6af33e9117bf82db02256567b3b5a975933e75b18146e2"
+      "blob": "25bf85cb9fa10a369104df8a8be67b9ec7116e25",
+      "sha256": "3ffa34a1a24b1e0177c3ce48f5a35bc822bb6399b5bbe79a007799e971c23e18"
     },
     {
       "path": "resources/views/auth/login.blade.php",
@@ -233,10 +239,11 @@
       "original_blobs": [
         "adbb68a36582839e966ca5c7c9573218f9e48b80",
         "af977896270d724e0cb44cc341316a340f6076e8",
-        "06d577f103c35b649000bcff318a0c213bb15efa"
+        "06d577f103c35b649000bcff318a0c213bb15efa",
+        "f01148b74233b2f30d906519ad514ef431712a68"
       ],
-      "blob": "f01148b74233b2f30d906519ad514ef431712a68",
-      "sha256": "3390f858ba510a9c376fab5ca03f81cf94f3a33b9c58f1b99950adda7d1e39dd"
+      "blob": "18d4c8ca69c53ba58a0abc08eff48ceb03d2c779",
+      "sha256": "fd8573998992147e5753f4c255dd1b45b98254445e6b09d1a513895ada8ecdb5"
     },
     {
       "path": "resources/views/student/dashboard.blade.php",
@@ -249,10 +256,11 @@
     {
       "path": "resources/views/admin/admissions/show.blade.php",
       "original_blobs": [
-        "dda812ff2659f293d19847458dd1d5d8d89aafe6"
+        "dda812ff2659f293d19847458dd1d5d8d89aafe6",
+        "2a89f1a29c7f12a2038352a87b9aa1eb10a14e21"
       ],
-      "blob": "2a89f1a29c7f12a2038352a87b9aa1eb10a14e21",
-      "sha256": "51b007eedf326936d17fe551b54e3f37bf21355a567491e1e511efc08f4f836d"
+      "blob": "791d2fc78741298cf5f2a7eb9a40ad65f1535b03",
+      "sha256": "40f7bc432afaba07f20477486e75afecf454105974bca9a3020d30d0c21d5089"
     },
     {
       "path": "routes/library-practice.php",
@@ -296,6 +304,22 @@
       ],
       "blob": "ae6de2b1597f688bdbd060bb69a2a2709b866e15",
       "sha256": "f6cec59239ea5824cfa9cf350a3a14108d5671f58a4e69f65a93db40778831b8"
+    },
+    {
+      "path": "public/js/admission-photo.js",
+      "original_blobs": [
+        null
+      ],
+      "blob": "65af356795e712b67ebf2f1145afb9847ea5fdcf",
+      "sha256": "50f637623f19f3b2f6132cbf3b8034ca6f8c20c480cb4337e162a429b7db7d3e"
+    },
+    {
+      "path": "database/migrations/2026_10_02_103500_add_admission_photo.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "e851f8d7ca633a49866ee9e498cc6c64c0dcdb24",
+      "sha256": "e49d2fb030a8c5da8b5b3b5da56deef5e25208d90211bc00a148c556e6572a06"
     }
   ],
   "tests": [
@@ -318,10 +342,19 @@
     {
       "path": "app/Http/Controllers/LibraryPracticeController.php",
       "original_blobs": [
-        "008cbf547e3abd0babe3bc441aeaa29441e8c122"
+        "008cbf547e3abd0babe3bc441aeaa29441e8c122",
+        "b16bc48a1a608b180de3cbfaa81f2e25d029aeb2"
       ],
-      "blob": "b16bc48a1a608b180de3cbfaa81f2e25d029aeb2",
-      "sha256": "7b199fe39cb8ff55a55cc4408d1f0abeee60ea2095686cd355bd9fb428ca7cc8"
+      "blob": "16c8f2b5175747711c378b111ccf8c2d431f30c0",
+      "sha256": "c630f3897d0b0862590d8d2e5dbffdd3ebcb7b72f9b8db2d4e9f0ee219a7736e"
+    },
+    {
+      "path": "app/Http/Middleware/EnsureLibraryPracticeSession.php",
+      "original_blobs": [
+        "0bef3a7f372ed9801c011b2c0e7a10bae3358d45"
+      ],
+      "blob": "3477232be6b69f0ea2e8ee7f79176fe4505ffdd7",
+      "sha256": "5fc6c475a0eed439c95a5be329cde046339e9b5b4615fc327a5297d154911bdd"
     }
   ]
 }

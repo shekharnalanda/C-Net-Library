@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\SeatAllocationService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -46,7 +47,7 @@ class CoreFlowsTest extends TestCase
             'study_slot_id' => $slot->id,
             'fee_plan_id' => $plan->id,
             'preferred_seat_id' => $seat->id, 'preferred_start_date' => today()->toDateString(), 'preferred_start_time' => $start ? substr($start, 0, 5) : null, 'preferred_end_time' => $end ? substr($end, 0, 5) : null,
-            'wants_locker' => false,
+            'wants_locker' => false, 'photo' => UploadedFile::fake()->image('student.jpg', 300, 400),
         ]);
 
         $response->assertRedirect('/admission');

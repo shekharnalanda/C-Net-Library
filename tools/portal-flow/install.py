@@ -117,6 +117,9 @@ def install(sources,repair_campus=False):
         migration='database/migrations/2026_10_02_083000_add_library_portal_flow.php'
         print('Adding admission selection fields, session leases and email queue; existing records are preserved ...',flush=True)
         run([PHP,'artisan','migrate','--path='+migration,'--force','--no-interaction'],ROOTS['library'],log,timeout=300)
+        run([PHP,'artisan','migrate','--path=database/migrations/2026_10_02_103500_add_admission_photo.php','--force','--no-interaction'],ROOTS['library'],log,timeout=300)
+        if not os.path.lexists(str(ROOTS['library']/'public/storage')):
+            run([PHP,'artisan','storage:link','--no-interaction'],ROOTS['library'],log)
         if repair_campus:
             print('Adding missing MCI campus durations and fee plans from existing C-Net setup ...',flush=True)
             run([PHP,str(helpers/'repair-campus.php'),str(ROOTS['library']),str(backup/'database')],ROOTS['library'],log)
@@ -128,6 +131,7 @@ def install(sources,repair_campus=False):
         for site in list(reversed(maintenance)):
             run([PHP,'artisan','up'],ROOTS[site],log)
             maintenance.remove(site)
+        print('APPLIED | admission photo upload/camera | digital ID photo transfer | email diagnostics ready' ,flush=True)
         print('APPLIED | admission availability | mobile-number initial login | approval email | reports',flush=True)
         print('APPLIED | separate admin/student login | student single session | test portal session enforced',flush=True)
         print('VERIFIED | routes | schema | page/report rendering | reminders=25,28 | cutoff=10',flush=True)

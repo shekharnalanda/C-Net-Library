@@ -35,6 +35,11 @@ use App\Http\Controllers\Student\DashboardController as StudentDashboardControll
 use App\Http\Controllers\Student\SavedJobController;
 use Illuminate\Support\Facades\Route;
 
+// Keep the previously installed email/password recovery module available.
+if (is_file(__DIR__.'/mci-account-recovery.php')) {
+    require __DIR__.'/mci-account-recovery.php';
+}
+
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/page/{page:slug}', [HomeController::class, 'page'])->name('public.page');
 Route::get('/digital-library', [PublicDigitalLibraryController::class, 'index'])->name('digital-library.index');

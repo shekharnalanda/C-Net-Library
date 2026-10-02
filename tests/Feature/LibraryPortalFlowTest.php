@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -78,6 +79,16 @@ class LibraryPortalFlowTest extends TestCase
         $s = $this->student();
         $m = $this->member($s);
         SeatAllocation::create(['student_id' => $s->id, 'student_membership_id' => $m->id, 'seat_id' => $this->seat->id, 'study_slot_id' => $this->slot->id, 'allocated_from' => '2026-10-01', 'allocated_to' => '2026-11-10', 'start_time' => $from, 'end_time' => $to, 'status' => 'active']);
+    }
+
+    public function test_existing_recovery_link_and_expired_form_notice_remain_on_both_login_pages(): void
+    {
+        Route::get('/account-recovery', fn () => 'Existing recovery')->name('mci.recovery');
+        Route::getRoutes()->refreshNameLookups();
+        $this->withSession(['error' => 'Fresh form required'])->get('/login')
+            ->assertOk()->assertSee('/account-recovery')->assertSee('Fresh form required')->assertSee('/student-login');
+        $this->withSession(['error' => 'Fresh form required'])->get('/student-login')
+            ->assertOk()->assertSee('/account-recovery')->assertSee('Fresh form required');
     }
 
     public function test_duration_shows_booked_and_free_times_without_contact_details(): void

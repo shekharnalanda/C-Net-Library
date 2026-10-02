@@ -212,18 +212,21 @@
     {
       "path": "resources/views/auth/login.blade.php",
       "original_blobs": [
-        "6ab414df6e36c5ba35c5f8c0c71a654c3f76f7a4"
+        "6ab414df6e36c5ba35c5f8c0c71a654c3f76f7a4",
+        "2b134a09395bf19531e51cfeac5bde0480a1a21f",
+        "0def89f5ab04df48d00ee0870b29589cf3d9769c"
       ],
-      "blob": "2b134a09395bf19531e51cfeac5bde0480a1a21f",
-      "sha256": "8134c7c54f1465d3366079fa81957dba7f25a8d1a2883729e6fa64b552fb22e4"
+      "blob": "dd7a67ca850649644394c6e0e77ea9d8409c48fb",
+      "sha256": "367a814212aab0aa8b221978ef48cf520d1e3d465b25d3200bd818b618ec3cdb"
     },
     {
       "path": "resources/views/auth/student-login.blade.php",
       "original_blobs": [
-        null
+        null,
+        "94731ddb44a967d779ce56597d86664260ad89a8"
       ],
-      "blob": "94731ddb44a967d779ce56597d86664260ad89a8",
-      "sha256": "60bfa407bc9a169cbc203fd66a29b720a88721acd140019f46e82ca87fab073a"
+      "blob": "ba14f56a9f925380f5aa70c47ae69508813d1f9d",
+      "sha256": "2274f8ecd2f36b804bed29e27b3a16f9e62ac90bd4beff071649fad25b8e2ba6"
     },
     {
       "path": "resources/views/public/admission.blade.php",
@@ -269,10 +272,12 @@
     {
       "path": "routes/web.php",
       "original_blobs": [
-        "a48f2b214e30257825d7af56f88a81570692bd4c"
+        "a48f2b214e30257825d7af56f88a81570692bd4c",
+        "3112a2ee4d36b3ace699e562b030d751e9e72e78",
+        "f732f9ca68a25096bb1992896f7b7f8b4fe5a5c4"
       ],
-      "blob": "3112a2ee4d36b3ace699e562b030d751e9e72e78",
-      "sha256": "cca2f098983ae1c416d51c3f8d89630b2c98f4fbea9d33476ca35a1efd422abe"
+      "blob": "92eaae11959bf2b66645188a46180c3becc37963",
+      "sha256": "66af3b311728dcf9a9a46427daebbc491ae5f0bfe6f417166d0c12a84f849ec9"
     },
     {
       "path": "database/migrations/2026_10_02_083000_add_library_portal_flow.php",

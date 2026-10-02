@@ -25,6 +25,10 @@
         <h1>Portal Login</h1>
         <p>Student, Admin & Staff Login</p>
 
+        @if (session('error'))
+            <div class="error">{{ session('error') }}</div>
+        @endif
+
         @if ($errors->any())
             <div class="error">{{ $errors->first() }}</div>
         @endif
@@ -46,6 +50,9 @@
 
             <button type="submit">Login</button>
         </form>
+        @if (\Illuminate\Support\Facades\Route::has('mci.recovery'))
+            <p style="margin-top:16px"><a href="{{ route('mci.recovery') }}">Forgot password / login email or ID?</a></p>
+        @endif
         <a class="back" href="{{ route('home') }}">← Back to Home</a>
     </div>
 </body>

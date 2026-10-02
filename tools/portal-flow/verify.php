@@ -35,6 +35,9 @@ if ($site === 'library') {
     if (config('auth.guards.library_student.driver') !== 'session') {
         throw new RuntimeException('Student session guard missing.');
     }
+    if (is_file($root.'/routes/mci-account-recovery.php') && ! Route::has('mci.recovery')) {
+        throw new RuntimeException('Previously installed account recovery route was not preserved.');
+    }
     $login = view('auth.student-login')->render();
     if (! str_contains($login, 'Student Login')) {
         throw new RuntimeException('Login page rendering failed.');

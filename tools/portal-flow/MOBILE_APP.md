@@ -12,6 +12,8 @@ Fetch the reviewed branch `codex/library-admission-single-login-20261002`, extra
 
 The private report also checks the existing APK's ZIP CRC, manifest/DEX entries and signing-file/block markers. These checks do not prove signature validity or Android compatibility. The APK is preserved and no new unsigned APK is distributed.
 
+Public HTTP checks identify themselves as `MCI-Portal-Check/1.0`, the same client accepted by the previous hosted diagnostics, send a content-specific Accept header and request canonical URLs without probe query parameters. Home and admission HTTP preflights run before maintenance or file replacement. Any rejected response still blocks deployment; the failed path and HTTP status are saved in the private log. Server security rules remain enabled. The first mobile deployment was rolled back after a HTTP 406 on the former default urllib request; the precise hosting rule has not been identified.
+
 ## Verification
 
 Automated tests cover manifest and PNG dimensions, no-APK installer rendering, admin/POST exclusion, one-use prompt and dismissal, manual instructions, installed state, offline privacy, cache isolation, repeat installation, unknown live edits and rollback with/without a route cache. A real Android/iPhone installation and subsequent student login still need live phone confirmation after deployment.

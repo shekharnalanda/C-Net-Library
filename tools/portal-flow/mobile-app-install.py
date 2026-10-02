@@ -10,7 +10,8 @@ import subprocess
 import sys
 import tempfile
 import time
-from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 import zipfile
 
 SOURCE = Path(__file__).resolve().parents[2]
@@ -88,6 +89,38 @@ def apk_check(root=None):
     return result
 
 
+def public_response(base, path, mime):
+    # Match the identified diagnostic client already accepted by the hosted site.
+    # Do not append probe query parameters or use urllib's anonymous default profile.
+    accept = 'text/javascript, application/javascript' if mime == 'javascript' else mime
+    request = Request(base + path, headers={
+        'User-Agent': 'MCI-Portal-Check/1.0',
+        'Accept': accept + ', */*;q=0.1',
+        'Cache-Control': 'no-cache',
+    })
+    try:
+        with urlopen(request, timeout=20) as response:
+            body = response.read(1048577)
+            if response.status != 200 or response.geturl() != base + path or mime not in response.headers.get('Content-Type', '') or len(body) > 1048576:
+                raise RuntimeError('Public app response requires review: ' + path)
+            return body
+    except HTTPError as error:
+        code = error.code
+        error.close()
+        raise RuntimeError('Public app request blocked: ' + path + ' | HTTP ' + str(code))
+    except URLError:
+        raise RuntimeError('Public app network check failed: ' + path)
+
+
+def public_preflight(base=URL):
+    # Establish that this server's HTTP check is accepted before changing any files.
+    for path in ['/', '/admission']:
+        body = public_response(base, path, 'text/html').lower()
+        if b'<html' not in body or (path == '/admission' and b'<form' not in body):
+            raise RuntimeError('Public page preflight requires review: ' + path)
+        print('PUBLIC_PREFLIGHT_OK | ' + path, flush=True)
+
+
 def public_check(base=URL):
     checks = [('/', 'text/html', b'data-cnet-app-installer'),
               ('/student-login', 'text/html', b'rel="manifest"'),
@@ -98,14 +131,13 @@ def public_check(base=URL):
               ('/library-app-sw.js', 'javascript', b'cnet-library-app-shell-v1'),
               ('/library-app-offline.html', 'text/html', b'C-Net Library')]
     for path, mime, marker in checks:
-        with urlopen(base + path + '?appcheck=' + str(int(time.time())), timeout=20) as response:
-            body = response.read(1048577)
-            if response.status != 200 or response.geturl().split('?')[0] != base + path or mime not in response.headers.get('Content-Type', '') or marker not in body or len(body) > 1048576:
-                raise RuntimeError('Public app verification failed: ' + path)
-            if path.endswith('.webmanifest'):
-                manifest = json.loads(body.decode('utf-8'))
-                if manifest['start_url'] != '/student-login' or manifest['scope'] != '/':
-                    raise RuntimeError('Public app entry requires review.')
+        body = public_response(base, path, mime)
+        if marker not in body:
+            raise RuntimeError('Public app verification failed: ' + path)
+        if path.endswith('.webmanifest'):
+            manifest = json.loads(body.decode('utf-8'))
+            if manifest['start_url'] != '/student-login' or manifest['scope'] != '/':
+                raise RuntimeError('Public app entry requires review.')
         print('PUBLIC_APP_OK | ' + path, flush=True)
 
 
@@ -137,6 +169,7 @@ def main():
             run([PHP, str(ROOT / 'artisan')] + list(args))
         try:
             run([PHP, str(SOURCE / 'tools/portal-flow/mobile-app-check.php'), str(ROOT), 'preflight'])
+            public_preflight()
             for entry in entries:
                 relative = entry['path']; target = ROOT / relative
                 for_php = relative.endswith('.php')
@@ -168,7 +201,8 @@ def main():
             print('PRIVATE_BACKUP=' + str(backup))
             print('APP_URL=' + URL + '/')
             print('A real phone install still needs confirmation. Seats, students, fees and test packages were not changed.')
-        except Exception:
+        except Exception as error:
+            log.write(('FAILURE | ' + str(error) + '\n').encode('utf-8')); log.flush()
             if changed:
                 if not down:
                     artisan('down', '--retry=5'); down = True
@@ -186,7 +220,8 @@ def main():
                 artisan('view:clear')
             if down:
                 artisan('up')
-            print('STOPPED | library app files restored | no database changes | private log: ' + str(backup / 'install.log'))
+            state = 'library app files restored' if changed else 'library files not changed'
+            print('STOPPED | ' + state + ' | no database changes | private log: ' + str(backup / 'install.log'))
             raise
 
 

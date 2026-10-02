@@ -53,7 +53,7 @@ def install_locked(options):
         if data is not None:
             destination=backup/'files'/name;destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(data)
             if destination.read_bytes()!=data:raise RuntimeError('File backup verification failed.')
-    cron=subprocess.run(['crontab','-l'],capture_output=True,text=True)
+    cron=subprocess.run(['crontab','-l'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
     if cron.returncode not in [0,1] or cron.returncode==1 and cron.stdout.strip():raise RuntimeError('Cron inventory unavailable.')
     old_cron=cron.stdout if cron.returncode==0 else ''
     (backup/'crontab.txt').write_text(old_cron)
@@ -84,7 +84,7 @@ def install_locked(options):
         run([PHP,'artisan','seats:configure-monthly-cutoff'],log)
         run([PHP,'artisan','memberships:release-unpaid-seats'],log)
         if new_cron!=old_cron:
-            result=subprocess.run(['crontab','-'],input=new_cron,text=True,capture_output=True)
+            result=subprocess.run(['crontab','-'],input=new_cron,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
             if result.returncode:raise RuntimeError('Library scheduler installation failed.')
             cron_changed=True
         run([PHP,'artisan','route:cache'],log)
@@ -110,7 +110,7 @@ def install_locked(options):
             if copied:
                 try:run([PHP,'artisan','optimize:clear'],log)
                 except Exception:pass
-            if cron_changed:subprocess.run(['crontab','-'],input=old_cron,text=True,capture_output=True)
+            if cron_changed:subprocess.run(['crontab','-'],input=old_cron,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
             print('STOPPED | files restored; enrollment reset did not complete. Private report: '+str(log),flush=True)
         else:
             print('STOPPED | enrollment reset completed and is backed up. New seat code retained; inspect private report: '+str(log),flush=True)

@@ -18,7 +18,12 @@ class InstallerSafetyTest(unittest.TestCase):
         self.calls.append(command)
         if 'merge-providers.php' in ' '.join(command):pathlib.Path(command[-1]).write_text('<?php return [];')
         if 'maintenance:reset-enrollments' in command and getattr(self,'fail_reset',False):raise RuntimeError('Injected reset failure')
-    def process(self,command,**kw):
+    # Match Python 3.6's supported keyword surface instead of accepting arbitrary
+    # modern arguments; deployment tests must catch compatibility regressions.
+    def process(self,command,*,input=None,stdout=None,stderr=None,universal_newlines=False):
+        self.assertEqual(subprocess.PIPE,stdout)
+        self.assertEqual(subprocess.PIPE,stderr)
+        self.assertTrue(universal_newlines)
         if command==['crontab','-l']:return subprocess.CompletedProcess(command,0,'# existing cron\n','')
         return subprocess.CompletedProcess(command,0,'','')
     def run_install(self):
@@ -36,5 +41,23 @@ class InstallerSafetyTest(unittest.TestCase):
         self.run_install();self.assertFalse(any('maintenance:reset-enrollments' in c for c in self.calls));self.assertIn('reviewed update',self.target.read_text())
     def test_success_records_one_time_reset(self):
         self.run_install();marker=json.loads((self.private/'seat-schedule-enrollment-reset-completed.json').read_text());self.assertEqual('RESET_COMPLETED',marker['status']);self.assertEqual(1,sum('maintenance:reset-enrollments' in c for c in self.calls))
+
+    def test_python36_style_pipe_capture_handles_real_process_input_and_output(self):
+        # Execute a real subprocess with precisely the options used for cron.
+        result=subprocess.run([module.sys.executable,'-c','import sys; print(sys.stdin.read()); sys.stderr.write("diagnostic")'],input='saved cron',stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
+        self.assertEqual(0,result.returncode)
+        self.assertEqual('saved cron\n',result.stdout)
+        self.assertEqual('diagnostic',result.stderr)
+
+    def test_cron_install_failure_occurs_after_reset_and_keeps_reset_marker(self):
+        def fail_write(command,*,input=None,stdout=None,stderr=None,universal_newlines=False):
+            result=self.process(command,input=input,stdout=stdout,stderr=stderr,universal_newlines=universal_newlines)
+            if command==['crontab','-']:return subprocess.CompletedProcess(command,1,'','write denied')
+            return result
+        with patch.object(module,'run',side_effect=self.run_command),patch.object(module.subprocess,'run',side_effect=fail_write):
+            with self.assertRaisesRegex(RuntimeError,'scheduler installation failed'):module.main()
+        self.assertTrue((self.private/'seat-schedule-enrollment-reset-completed.json').exists())
+        self.assertIn('reviewed update',self.target.read_text())
+        self.assertTrue(any('up' in c for c in self.calls))
 
 if __name__=='__main__':unittest.main()

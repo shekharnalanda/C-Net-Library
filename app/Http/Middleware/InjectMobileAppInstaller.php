@@ -13,14 +13,7 @@ class InjectMobileAppInstaller
         /** @var Response $response */
         $response = $next($request);
 
-        if (! $request->isMethod('get') || $request->path() !== '/' || ! method_exists($response, 'getContent')) {
-            return $response;
-        }
-
-        $apkRelativePath = 'downloads/C-Net-Library.apk';
-        $apkPath = public_path($apkRelativePath);
-
-        if (! is_file($apkPath)) {
+        if (! $request->isMethod('get') || ! $request->is('/', 'admission', 'student-login', 'student/*') || $response->getStatusCode() !== 200 || ! method_exists($response, 'getContent')) {
             return $response;
         }
 
@@ -30,24 +23,23 @@ class InjectMobileAppInstaller
         }
 
         $html = (string) $response->getContent();
-        if ($html === '' || str_contains($html, 'data-cnet-app-installer')) {
+        if ($html === '' || ! str_contains($html, '</head>') || ! str_contains($html, '</body>') || str_contains($html, 'data-cnet-app-installer')) {
             return $response;
         }
-
-        $sizeMb = number_format(filesize($apkPath) / 1048576, 1);
-        $downloadUrl = asset($apkRelativePath);
-
-        $installer = <<<HTML
-<div data-cnet-app-installer style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(255,255,255,.18)">
-  <strong style="display:block;font-size:16px;margin-bottom:7px">C-Net Library Mobile App</strong>
-  <div style="font-size:13px;opacity:.86;margin-bottom:12px">Android app • {$sizeMb} MB • Direct secure download</div>
-  <a href="{$downloadUrl}" download="C-Net-Library.apk" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#ffffff;color:#0f766e;text-decoration:none;font-weight:800;padding:11px 16px;border-radius:10px;border:1px solid #ffffff">📱 Download &amp; Install App</a>
-  <div style="font-size:12px;opacity:.72;margin-top:9px">Android may ask permission to install apps downloaded from your browser. Allow it for this download, then open the APK to install.</div>
-</div>
+        $metadata = <<<'HTML'
+<link rel="manifest" href="/library-app.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="C-Net Library">
+<link rel="apple-touch-icon" href="/library-app/icon/180.png">
+<script src="/js/library-app-install.js?v=20261002" defer></script>
 HTML;
-
-        $html = str_replace('</footer>', $installer.'</footer>', $html);
+        $html = str_replace('</head>', $metadata.'</head>', $html);
+        $installer = view('public.app-installer')->render();
+        $target = str_contains($html, '</footer>') ? '</footer>' : '</body>';
+        $html = str_replace($target, $installer.$target, $html);
         $response->setContent($html);
+        $response->headers->remove('Content-Length');
 
         return $response;
     }

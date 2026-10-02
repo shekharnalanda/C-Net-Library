@@ -25,6 +25,7 @@ class LibraryPortalFlowServiceProvider extends ServiceProvider
         $this->app['router']->pushMiddlewareToGroup('web', SelectLibraryPortal::class);
         Authenticate::redirectUsing(fn ($r) => $r->is('student/*') ? route('student.login') : route('login'));
         $this->loadRoutesFrom(base_path('routes/library-portal-flow.php'));
+        $this->loadRoutesFrom(base_path('routes/library-app.php'));
         $this->app->make(ExceptionHandler::class)->renderable(function (AuthenticationException $e, Request $r) {
             if (! $r->expectsJson() && $r->is('student/*')) {
                 return redirect()->route('student.login');

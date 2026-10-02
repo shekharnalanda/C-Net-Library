@@ -3,10 +3,11 @@
     {
       "path": "app/Providers/LibraryPortalFlowServiceProvider.php",
       "original_blobs": [
-        null
+        null,
+        "64af73e78400b0ff3b8b6b5cf9cae2ee14248463"
       ],
-      "blob": "64af73e78400b0ff3b8b6b5cf9cae2ee14248463",
-      "sha256": "71825d7036bb006ae87f62733899832cb1775d24f85be07b712dac80d739691d"
+      "blob": "5040d3deae9d937f7f07d62d655056dffd8744e2",
+      "sha256": "64b6e2f0e9170f5c425a1876d3aecb8660ef3f9be398fc1cc064e34eb5ef0786"
     },
     {
       "path": "app/Services/LibrarySpreadsheet.php",
@@ -320,6 +321,62 @@
       ],
       "blob": "e851f8d7ca633a49866ee9e498cc6c64c0dcdb24",
       "sha256": "e49d2fb030a8c5da8b5b3b5da56deef5e25208d90211bc00a148c556e6572a06"
+    },
+    {
+      "path": "app/Http/Middleware/InjectMobileAppInstaller.php",
+      "blob": "247792a51076c71237ed71777e0b50c2114f53ed",
+      "original_blobs": [
+        "72418e78a769aa8f1ea3b8ee15710a0d15ee428b"
+      ],
+      "sha256": "7586f32c2142b7f4d60ba8c7f1ca37b77106aa9ba00d2297dfd260f6453b4591"
+    },
+    {
+      "path": "app/Http/Controllers/LibraryAppController.php",
+      "blob": "e0f19ba991d6a70695b231ec4dafb07009cee08c",
+      "original_blobs": [
+        null
+      ],
+      "sha256": "57879c671199d10ea59944ae9639a1b3da047ae83d1124b023d7ad3e9ee873e3"
+    },
+    {
+      "path": "resources/views/public/app-installer.blade.php",
+      "blob": "6c62426d3ae35642473ec75cbbab5f83c374a92e",
+      "original_blobs": [
+        null
+      ],
+      "sha256": "0cfe1edee9d1e14d4d09f375aab3b973101a287bc641334d72fb17508c11e905"
+    },
+    {
+      "path": "routes/library-app.php",
+      "blob": "4b4744daf7615def79b3f547a766c39559538576",
+      "original_blobs": [
+        null
+      ],
+      "sha256": "06c92c52179736314323c7ac994a6700fe911c71ee3b87eef23bb6e76baf1a19"
+    },
+    {
+      "path": "public/js/library-app-install.js",
+      "blob": "fb111f513a451c96f55c9ded69a96e230831dc46",
+      "original_blobs": [
+        null
+      ],
+      "sha256": "8920c6040183ed3947f7390c972867f9f8bbf3f22ba9dc420d277cf21ab5319d"
+    },
+    {
+      "path": "public/library-app-sw.js",
+      "blob": "88fcc7fbd489ce5571208f47e7dbe75dddce47a6",
+      "original_blobs": [
+        null
+      ],
+      "sha256": "064fb9c46dfd756fef8cc2fc62199ac146b50db03b6b377d32297e0fbae36832"
+    },
+    {
+      "path": "public/library-app-offline.html",
+      "blob": "4c2dcf221b1127aae34b73fbcf96c4a4b1feea08",
+      "original_blobs": [
+        null
+      ],
+      "sha256": "77ba5d51e43c11cff1cb91f89bed5daa6b8f8f23da76c5d935567ae97f41d478"
     }
   ],
   "tests": [

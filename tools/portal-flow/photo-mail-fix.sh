@@ -32,7 +32,7 @@ for SITE in library tests; do
   fi
   git -C "$R" cat-file -e "$S^{commit}"
 done
-git -C "$L" archive "$LS" app bootstrap config resources routes database public/js/admission-photo.js tools/portal-flow | tar -xf - -C "$W/library"
+git -C "$L" archive "$LS" app bootstrap config resources routes database public/js public/library-app-sw.js public/library-app-offline.html tools/portal-flow | tar -xf - -C "$W/library"
 git -C "$T" archive "$TS" app bootstrap config resources routes | tar -xf - -C "$W/tests"
 python3 "$W/library/tools/portal-flow/install.py" "$W/tests"
 python3 "$W/library/tools/portal-flow/diagnose.py"

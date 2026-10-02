@@ -1,0 +1,182 @@
+{
+  "library": [
+    {
+      "path": "app/Services/LibraryPracticeBridge.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "bf94d5ea88fc1fbd0fbd18820cf43e1cc3f6b909",
+      "sha256": "1860361aa837a647237898339707d2b979e5852f54851eba079075c31a045765"
+    },
+    {
+      "path": "app/Http/Controllers/Student/LibraryPracticeController.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "79e8454d6a3c46864f398e47b1cc2d7b0923d419",
+      "sha256": "4f96babcf9bc3090706cf3c3ba5ceb4992dafa4ee147437f0bb6b5fba3da1137"
+    },
+    {
+      "path": "app/Providers/LibraryPracticeServiceProvider.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "ba0537246865c86b61133ba55cfc171a0159a831",
+      "sha256": "8f460c47be8817f464d43d90c427b8ac429edf28b1f75d2a6d56589d326ca338"
+    },
+    {
+      "path": "config/library-practice.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "aa6129099bf8f9bf923234d56e28c6768e7a1eed",
+      "sha256": "f6c84549793b777a55dcd2f22da45632c50212ee49c41ee85fc1b9037cf39225"
+    },
+    {
+      "path": "routes/library-practice.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "de3034a0fabe42f10148987c457f592d856e01aa",
+      "sha256": "f2cda1a12830830f1af1b530a4bcf78adcff9d8665d046410aae2702cfb636a2"
+    },
+    {
+      "path": "resources/views/student/library-practice.blade.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "5a46e996e35c1b5dc4ceb6d612e4a6be9244ffb5",
+      "sha256": "2f2cc939403f5a53497cb8672acf2f05b5936fab075624f728b86c854f10c49f"
+    },
+    {
+      "path": "resources/views/student/dashboard.blade.php",
+      "original_blobs": [
+        "b68154703580247eea0a47a034b7d9da2b6fe359"
+      ],
+      "blob": "f62d3c961ff085cf0e0225f36640595c66810be8",
+      "sha256": "22348fa7dbec95c06add568632e94fad7df657137388c881b9242d66ade249cc"
+    }
+  ],
+  "tests": [
+    {
+      "path": "app/Services/LibraryPracticeBridge.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "bf94d5ea88fc1fbd0fbd18820cf43e1cc3f6b909",
+      "sha256": "1860361aa837a647237898339707d2b979e5852f54851eba079075c31a045765"
+    },
+    {
+      "path": "app/Services/LibraryPracticeService.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "975dd7a21927eeee903b06f888beaca96e9f3b60",
+      "sha256": "09879f2c1b21b5fca2b7346735f8338c89e377ae03e489645f7e31089490b7c5"
+    },
+    {
+      "path": "app/Http/Controllers/LibraryPracticeController.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "008cbf547e3abd0babe3bc441aeaa29441e8c122",
+      "sha256": "8e7f055f459a4e43d2c0bd84bb5b68d6baca3c087388000e1c4301188d818502"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/LibraryPracticeReportController.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "cec53ccb04c1623f10afa8671b56e31749bc7132",
+      "sha256": "3c70ada9a362dde1e6799316b3daf312e3eff4be7924985a7a44ceee92069ebe"
+    },
+    {
+      "path": "app/Http/Middleware/EnsureLibraryPracticeSession.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "0bef3a7f372ed9801c011b2c0e7a10bae3358d45",
+      "sha256": "704dcedf49abcf58d955c2816ce465a1c21393a84cd9f8ce0f7ce654a792d0dd"
+    },
+    {
+      "path": "app/Providers/LibraryPracticeServiceProvider.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "ba0537246865c86b61133ba55cfc171a0159a831",
+      "sha256": "8f460c47be8817f464d43d90c427b8ac429edf28b1f75d2a6d56589d326ca338"
+    },
+    {
+      "path": "config/library-practice.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "aa6129099bf8f9bf923234d56e28c6768e7a1eed",
+      "sha256": "f6c84549793b777a55dcd2f22da45632c50212ee49c41ee85fc1b9037cf39225"
+    },
+    {
+      "path": "routes/library-practice.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "987c3b5f95ea545d55f07906017c147770a77af9",
+      "sha256": "badbe122009af32ba12a88d0fc42881d679eabe05adbf1e178a21cde79812425"
+    },
+    {
+      "path": "database/migrations/2026_10_02_071244_create_library_practice_tables.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "ccf261cc18567646562d8f49660b43cee53982d5",
+      "sha256": "5c2297143fbc7867ea8105ff0e1ce58ac9521f88982b8490210f62cd613f37ab"
+    },
+    {
+      "path": "resources/views/library-practice/layout.blade.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "ff2aedac11577d9ee2829563e29fe18efb6c4090",
+      "sha256": "7f0ebc958a6a50f15dc2c40e388e1543a17e2f029c0afb858e0b1a7c6b2c9f85"
+    },
+    {
+      "path": "resources/views/library-practice/index.blade.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "751196979718dabb79d89ad2a9f47c9a8b086065",
+      "sha256": "f3051348a2d02a50bd7da12528f605002016cf34b9a05c24907f851a953e5c73"
+    },
+    {
+      "path": "resources/views/library-practice/exam.blade.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "f89c0f78b3ff3bf3b4a2f0d13575a60b941c28a6",
+      "sha256": "2a4e5648fdf47812236957b103a2f74f8b2be438b4a5dc41b1c0bde40e112534"
+    },
+    {
+      "path": "resources/views/library-practice/result.blade.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "5e370b6d600443dbfd53c1c1a76bbf76f9d1add9",
+      "sha256": "0a3b40ad247a43fea277f23be8f410838959c83d6cae35977a765ab0037ea8b3"
+    },
+    {
+      "path": "resources/views/admin/library-practice.blade.php",
+      "original_blobs": [
+        null
+      ],
+      "blob": "268b93ae5578ffadcbc8261112dc61f5ba8d74dc",
+      "sha256": "a3d9085d930d24a2137f8b3e3a5c914c89744fd8dd3b85930c6f2efdf81f3f3d"
+    },
+    {
+      "path": "resources/views/admin/dashboard.blade.php",
+      "original_blobs": [
+        "9d443025686cd158ec37e0dc4bed19faded32a3f"
+      ],
+      "blob": "d395a711647bd0ba11cfe51058e290e8d992dc34",
+      "sha256": "8b2d8eff1b854d60f14e7120e1becaf7ec169843450aaf1f2d7cc5138f0f91cc"
+    }
+  ]
+}

@@ -1,12 +1,13 @@
 <?php
 
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
 [$script,$root,$directory] = $argv;
 require $root.'/vendor/autoload.php';
 $app = require $root.'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
-use Illuminate\Contracts\Console\Kernel;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 if (is_link($directory) || str_starts_with($directory, $root.'/public')) {
     throw new RuntimeException('Database backup must be private.');

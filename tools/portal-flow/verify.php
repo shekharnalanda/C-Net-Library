@@ -1,9 +1,5 @@
 <?php
 
-[$script,$root,$site] = $argv;
-require $root.'/vendor/autoload.php';
-$app = require $root.'/bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
 use App\Services\LibraryPracticeBridge;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel;
@@ -12,6 +8,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ViewErrorBag;
+
+[$script,$root,$site] = $argv;
+require $root.'/vendor/autoload.php';
+$app = require $root.'/bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 view()->share('errors', new ViewErrorBag);
 if ($site === 'library') {

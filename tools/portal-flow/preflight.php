@@ -1,14 +1,15 @@
 <?php
 
-[$script,$root,$site] = $argv;
-require $root.'/vendor/autoload.php';
-$app = require $root.'/bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
 use App\Services\LibraryPracticeBridge;
 use App\Services\SettingsService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+
+[$script,$root,$site] = $argv;
+require $root.'/vendor/autoload.php';
+$app = require $root.'/bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 $expected = $site === 'library' ? 'cnetlibrary.mciedu.com' : 'test.mciedu.com';
 if (parse_url((string) config('app.url'), PHP_URL_HOST) !== $expected || PHP_VERSION_ID < 80300) {

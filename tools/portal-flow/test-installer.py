@@ -61,4 +61,9 @@ class PortalInstallerTest(unittest.TestCase):
   self.private.mkdir();log=self.private/'install.log'
   def process(command,*,cwd,stdout,stderr,timeout,env):return subprocess.CompletedProcess(command,0)
   with patch.object(m.subprocess,'run',side_effect=process):m.run(['php','artisan','up'],self.roots['library'],log)
+ def test_silent_php_failure_still_records_step_and_exit_code(self):
+  self.private.mkdir();log=self.private/'install.log'
+  with patch.object(m.subprocess,'run',return_value=subprocess.CompletedProcess(['php'],1)):
+   with self.assertRaisesRegex(RuntimeError,'preflight.php'):m.run([m.PHP,'/source/preflight.php','root','library'],self.roots['library'],log)
+  self.assertIn('STEP | library | preflight.php',log.read_text());self.assertIn('EXIT_CODE=1',log.read_text())
 if __name__=='__main__':unittest.main()

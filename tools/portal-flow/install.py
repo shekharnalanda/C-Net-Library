@@ -13,10 +13,16 @@ def blob(data):
     return hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
 
 def run(command,root,log,timeout=180):
+    step=pathlib.Path(command[1]).name if len(command)>1 else pathlib.Path(command[0]).name
+    actual=list(command)
+    if command[0]==PHP and len(command)>1 and command[1].endswith('.php'):
+        actual=[PHP,str(SOURCE/'tools/portal-flow/run-helper.php')]+command[1:]
     with log.open('ab') as stream:
-        result=subprocess.run(command,cwd=str(root),stdout=stream,stderr=subprocess.STDOUT,timeout=timeout,env=dict(os.environ,APP_DEBUG='false'))
+        stream.write(('STEP | '+root.name+' | '+step+'\n').encode());stream.flush()
+        result=subprocess.run(actual,cwd=str(root),stdout=stream,stderr=subprocess.STDOUT,timeout=timeout,env=dict(os.environ,APP_DEBUG='false'))
+        stream.write(('EXIT_CODE='+str(result.returncode)+'\n').encode());stream.flush()
     if result.returncode:
-        raise RuntimeError('Deployment step failed. Private log: '+str(log))
+        raise RuntimeError('Deployment step failed: '+step+'. Private log: '+str(log))
 
 def check_entries(source,root,entries):
     result=[]

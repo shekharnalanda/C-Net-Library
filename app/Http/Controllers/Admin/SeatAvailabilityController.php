@@ -28,7 +28,7 @@ class SeatAvailabilityController extends Controller
             ->orderBy('branch_id')
             ->orderBy('start_time')
             ->orderBy('name')
-            ->get(['id', 'branch_id', 'name', 'start_time', 'end_time', 'is_24x7', 'is_flexible']);
+            ->get(['id', 'branch_id', 'name', 'start_time', 'end_time', 'is_24x7', 'is_flexible', 'duration_hours']);
 
         if (! $request->filled('branch_id') || ! $request->filled('study_slot_id')) {
             return view('admin.seats.available', [
@@ -45,6 +45,8 @@ class SeatAvailabilityController extends Controller
         $data = $request->validate([
             'branch_id' => ['required', 'exists:branches,id'],
             'study_slot_id' => ['required', 'exists:study_slots,id'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time' => ['nullable', 'date_format:H:i'],
             'allocated_from' => ['nullable', 'date'],
             'allocated_to' => ['nullable', 'date', 'after_or_equal:allocated_from'],
         ]);
@@ -58,39 +60,23 @@ class SeatAvailabilityController extends Controller
 
         $from = $data['allocated_from'] ?? now()->toDateString();
         $to = $data['allocated_to'] ?? now()->addDays(30)->toDateString();
-        $startTime = $slot->start_time;
-        $endTime = $slot->end_time;
-
-        $seats = Seat::query()
-            ->whereHas('studyHall', fn ($query) => $query->where('branch_id', $data['branch_id']))
-            ->where('status', true)
-            ->whereDoesntHave('allocations', function ($query) use ($from, $to, $startTime, $endTime) {
-                $query->whereIn('status', ['reserved', 'active'])
-                    ->whereDate('allocated_from', '<=', $to)
-                    ->where(function ($dateQuery) use ($from) {
-                        $dateQuery->whereNull('allocated_to')
-                            ->orWhereDate('allocated_to', '>=', $from);
-                    });
-
-                if ($startTime && $endTime) {
-                    $query->where(function ($timeQuery) use ($startTime, $endTime) {
-                        $timeQuery->whereNull('start_time')
-                            ->orWhereNull('end_time')
-                            ->orWhere(function ($overlapQuery) use ($startTime, $endTime) {
-                                $overlapQuery->where('start_time', '<', $endTime)
-                                    ->where('end_time', '>', $startTime);
-                            });
-                    });
+        [$startTime,$endTime]=app(\App\Services\SeatAllocationService::class)->resolveTimes($slot,$data);
+        app(\App\Services\SeatFeeReleaseService::class)->releaseDue();
+        $paddedFrom=\Carbon\Carbon::parse($from)->subDay()->toDateString();
+        $paddedTo=\Carbon\Carbon::parse($to)->addDay()->toDateString();
+        $seats=Seat::query()->where('status',true)
+            ->whereHas('studyHall',fn($q)=>$q->where('branch_id',$data['branch_id'])->where('status',true))
+            ->with(['studyHall:id,name','allocations'=>fn($q)=>$q->whereIn('status',['active','reserved'])
+                ->whereDate('allocated_from','<=',$paddedTo)
+                ->where(fn($q)=>$q->whereNull('allocated_to')->orWhereDate('allocated_to','>=',$paddedFrom))])
+            ->orderBy('seat_no')->get()
+            ->filter(function($seat)use($from,$to,$startTime,$endTime){
+                foreach($seat->allocations as $a) {
+                    if(\App\Services\DailySeatWindow::overlaps($from,$to,$startTime,$endTime,
+                        $a->allocated_from->toDateString(),$a->allocated_to?->toDateString(),$a->start_time,$a->end_time)) return false;
                 }
-            })
-            ->with('studyHall:id,name')
-            ->orderBy('seat_no')
-            ->get(['id', 'study_hall_id', 'seat_no'])
-            ->map(fn (Seat $seat) => [
-                'id' => $seat->id,
-                'seat_no' => $seat->seat_no,
-                'hall' => $seat->studyHall?->name,
-            ]);
+                return true;
+            })->map(fn($seat)=>['id'=>$seat->id,'seat_no'=>$seat->seat_no,'hall'=>$seat->studyHall?->name])->values();
 
         if ($request->expectsJson()) {
             return response()->json($seats);

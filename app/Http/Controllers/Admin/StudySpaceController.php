@@ -21,6 +21,7 @@ class StudySpaceController extends Controller
 {
     public function index(Request $request): View
     {
+        app(\App\Services\SeatFeeReleaseService::class)->releaseDue();
         $user=$request->user(); $branches=Branch::query()->where('status',true)->when(!$user->isGlobalAdmin(),fn($q)=>$q->whereKey($user->branch_id))->orderBy('name')->get(); $branchIds=$branches->pluck('id');
         $halls=StudyHall::query()->whereIn('branch_id',$branchIds)->withCount('seats')->with(['seats'=>fn($q)=>$q->withCount('allocations')->orderBy('seat_no')])->orderBy('branch_id')->orderBy('name')->get();
         $slots=StudySlot::query()->whereIn('branch_id',$branchIds)->withCount(['feePlans','memberships','seatAllocations'])->orderBy('branch_id')->orderBy('duration_hours')->orderBy('start_time')->get(); $plans=FeePlan::query()->whereIn('branch_id',$branchIds)->with('studySlot')->orderBy('branch_id')->orderBy('monthly_fee')->get();
@@ -47,7 +48,19 @@ class StudySpaceController extends Controller
     public function updateSlot(Request $r,StudySlot $slot):RedirectResponse{AdminBranchScope::authorize($r,$slot->branch_id);$d=$this->validateSlot($r,false);$d=$this->normalizeSlot($r,$d);unset($d['branch_id']);$slot->update($d);return back()->with('success','Study slot updated successfully.');}
     public function destroySlot(Request $r,StudySlot $slot):RedirectResponse{AdminBranchScope::authorize($r,$slot->branch_id);$slot->loadCount(['feePlans','memberships','seatAllocations']);if($slot->fee_plans_count||$slot->memberships_count||$slot->seat_allocations_count)return back()->withErrors(['slot'=>'Slot cannot be deleted because history/setup exists (plans: '.$slot->fee_plans_count.', memberships: '.$slot->memberships_count.', allocations: '.$slot->seat_allocations_count.'). Disable it instead, or remove unused linked setup first.']);$name=$slot->name;$slot->delete();return back()->with('success','Study slot deleted: '.$name);}
     private function validateSlot(Request $r,bool $withBranch=true):array{$rules=['name'=>['required','string','max:120'],'duration_hours'=>['required','integer','min:1','max:24'],'start_time'=>['nullable','date_format:H:i'],'end_time'=>['nullable','date_format:H:i'],'is_24x7'=>['nullable','boolean'],'is_flexible'=>['nullable','boolean'],'status'=>['nullable','boolean']];if($withBranch)$rules=['branch_id'=>['required','exists:branches,id']]+$rules;return $r->validate($rules);}
-    private function normalizeSlot(Request $r,array $d):array{$d['is_24x7']=$r->boolean('is_24x7');$d['is_flexible']=$r->boolean('is_flexible');$d['status']=$r->boolean('status',true);if($d['is_24x7']||$d['is_flexible']||$r->boolean('clear_timing')){$d['start_time']=null;$d['end_time']=null;}return $d;}
+    private function normalizeSlot(Request $r,array $d):array
+    {
+        $d['is_24x7']=$r->boolean('is_24x7');$d['is_flexible']=$r->boolean('is_flexible');$d['status']=$r->boolean('status',true);
+        if($d['is_24x7']){$d['duration_hours']=24;$d['start_time']=null;$d['end_time']=null;}
+        elseif($r->boolean('clear_timing')){$d['start_time']=null;$d['end_time']=null;}
+        elseif(!empty($d['start_time'])){
+            $slot=new StudySlot($d);
+            [$d['start_time'],$d['end_time']]=app(\App\Services\SeatAllocationService::class)->resolveTimes($slot,$d);
+        } elseif(!$d['is_flexible']) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['start_time'=>'Fixed slots require a start time.']);
+        }
+        return $d;
+    }
 
     public function storePlan(Request $r):RedirectResponse
     {
@@ -68,6 +81,56 @@ class StudySpaceController extends Controller
         $d['monthly_fee']=(float)$d['monthly_fee'];$d['status']=$r->boolean('status',$creating);return $d;
     }
 
-    public function allocate(Request $r):RedirectResponse{$d=$r->validate(['student_id'=>['required','exists:students,id'],'seat_id'=>['required','exists:seats,id'],'study_slot_id'=>['required','exists:study_slots,id'],'allocated_from'=>['required','date'],'allocated_to'=>['nullable','date','after_or_equal:allocated_from'],'status'=>['required',Rule::in(['reserved','active'])],'remarks'=>['nullable','string','max:500']]);$student=Student::findOrFail($d['student_id']);$seat=Seat::with('studyHall')->findOrFail($d['seat_id']);$slot=StudySlot::findOrFail($d['study_slot_id']);AdminBranchScope::authorize($r,$student->branch_id);abort_unless((int)$seat->studyHall->branch_id===(int)$student->branch_id,422,'Seat is in another branch.');abort_unless((int)$slot->branch_id===(int)$student->branch_id,422,'Study slot is in another branch.');$to=$d['allocated_to']??$d['allocated_from'];$conflict=SeatAllocation::query()->where('seat_id',$seat->id)->whereIn('status',['reserved','active'])->whereDate('allocated_from','<=',$to)->where(fn($q)=>$q->whereNull('allocated_to')->orWhereDate('allocated_to','>=',$d['allocated_from']))->exists();if($conflict)return back()->withErrors(['seat_id'=>'Selected seat is already allocated for an overlapping period/slot.'])->withInput();$m=$student->memberships()->where('study_slot_id',$slot->id)->whereIn('status',['active','pending'])->latest('id')->first();SeatAllocation::create(['student_id'=>$student->id,'student_membership_id'=>$m?->id,'seat_id'=>$seat->id,'study_slot_id'=>$slot->id,'allocated_from'=>$d['allocated_from'],'allocated_to'=>$d['allocated_to']??null,'start_time'=>$slot->start_time,'end_time'=>$slot->end_time,'status'=>$d['status'],'remarks'=>$d['remarks']??null]);return back()->with('success','Seat allocated successfully.');}
-    public function updateAllocation(Request $r,SeatAllocation $allocation):RedirectResponse{$allocation->loadMissing('student');AdminBranchScope::authorize($r,$allocation->student->branch_id);$d=$r->validate(['status'=>['required',Rule::in(['reserved','active','completed','cancelled'])],'allocated_to'=>['nullable','date'],'remarks'=>['nullable','string','max:500']]);$allocation->update($d);return back()->with('success','Seat allocation updated.');}
+    public function allocate(Request $r):RedirectResponse
+    {
+        $d=$r->validate(['student_id'=>['required','exists:students,id'],'seat_id'=>['required','exists:seats,id'],'study_slot_id'=>['required','exists:study_slots,id'],'allocated_from'=>['required','date'],'allocated_to'=>['nullable','date','after_or_equal:allocated_from'],'start_time'=>['nullable','date_format:H:i'],'end_time'=>['nullable','date_format:H:i'],'status'=>['required',Rule::in(['reserved','active'])],'remarks'=>['nullable','string','max:500']]);
+        DB::transaction(function()use($r,$d){
+            $seat=Seat::with('studyHall')->whereKey($d['seat_id'])->lockForUpdate()->firstOrFail();
+            $student=Student::findOrFail($d['student_id']);$slot=StudySlot::findOrFail($d['study_slot_id']);
+            AdminBranchScope::authorize($r,$student->branch_id);
+            abort_unless($seat->status && $seat->studyHall->status && $slot->status && $student->status==='active',422,'Only active seats, slots and students can be allocated.');
+            abort_unless((int)$seat->studyHall->branch_id===(int)$student->branch_id && (int)$slot->branch_id===(int)$student->branch_id,422,'Seat and slot must belong to the student campus.');
+            $m=$student->memberships()->where('study_slot_id',$slot->id)->whereIn('status',['active','pending'])->latest('id')->first();
+            if(app(\App\Services\SeatFeeReleaseService::class)->enabled() && !$m) throw \Illuminate\Validation\ValidationException::withMessages(['student_id'=>'Create or renew the student membership and fee plan before allocating a seat.']);
+            $to=$d['allocated_to']??($m ? app(\App\Services\SeatFeeReleaseService::class)->holdUntil($m->expiry_date->toDateString()) : null);
+            if($m) app(\App\Services\SeatFeeReleaseService::class)->assertMembership($m,$slot->id,$d['allocated_from'],$to);
+            $service=app(\App\Services\SeatAllocationService::class);[$start,$end]=$service->resolveTimes($slot,$d);
+            $service->assertAvailable($seat->id,$d['allocated_from'],$to,$start,$end);
+            SeatAllocation::create(['student_id'=>$student->id,'student_membership_id'=>$m?->id,'seat_id'=>$seat->id,'study_slot_id'=>$slot->id,'allocated_from'=>$d['allocated_from'],'allocated_to'=>$to,'start_time'=>$start,'end_time'=>$end,'status'=>$d['status'],'remarks'=>$d['remarks']??null]);
+        },3);
+        return back()->with('success','Seat allocated for the selected date and time.');
+    }
+
+    public function updateAllocation(Request $r,SeatAllocation $allocation):RedirectResponse
+    {
+        $allocation->loadMissing('student');AdminBranchScope::authorize($r,$allocation->student->branch_id);
+        $d=$r->validate(['status'=>['required',Rule::in(['reserved','active','released','completed','cancelled'])],'seat_id'=>['nullable','exists:seats,id'],'study_slot_id'=>['nullable','exists:study_slots,id'],'allocated_from'=>['nullable','date'],'allocated_to'=>['nullable','date'],'start_time'=>['nullable','date_format:H:i'],'end_time'=>['nullable','date_format:H:i'],'remarks'=>['nullable','string','max:500']]);
+        DB::transaction(function()use($r,$allocation,$d){
+            $seat=Seat::with('studyHall')->whereKey($d['seat_id']??$allocation->seat_id)->lockForUpdate()->firstOrFail();
+            $locked=SeatAllocation::with('student')->whereKey($allocation->id)->lockForUpdate()->firstOrFail();
+            AdminBranchScope::authorize($r,$locked->student->branch_id);
+            $slot=StudySlot::findOrFail($d['study_slot_id']??$locked->study_slot_id);
+            abort_unless((int)$seat->studyHall->branch_id===(int)$locked->student->branch_id && (int)$slot->branch_id===(int)$locked->student->branch_id,422,'Seat and slot must belong to the student campus.');
+            $service=app(\App\Services\SeatAllocationService::class);
+            $times=$d;
+            if(!isset($d['study_slot_id']) || (int)$d['study_slot_id']===(int)$locked->study_slot_id) {
+                $times['start_time']=$d['start_time']??$locked->start_time;
+                $times['end_time']=$d['end_time']??$locked->end_time;
+            }
+            [$start,$end]=$service->resolveTimes($slot,$times);
+            $from=$d['allocated_from']??$locked->allocated_from->toDateString();
+            $to=array_key_exists('allocated_to',$d) ? $d['allocated_to'] : $locked->allocated_to?->toDateString();
+            if($to && $to<$from) throw \Illuminate\Validation\ValidationException::withMessages(['allocated_to'=>'End date must not precede start date.']);
+            if(in_array($d['status'],['active','reserved'],true)) {
+                abort_unless($seat->status && $seat->studyHall->status && $slot->status,422,'Selected seat or slot is disabled.');
+                $membership=$locked->membership;
+                if(app(\App\Services\SeatFeeReleaseService::class)->enabled() && !$membership) throw \Illuminate\Validation\ValidationException::withMessages(['student_id'=>'Create a membership first.']);
+                if($membership) app(\App\Services\SeatFeeReleaseService::class)->assertMembership($membership,$slot->id,$from,$to);
+                $service->assertAvailable($seat->id,$from,$to,$start,$end,$locked->id);
+            }
+            app(\App\Services\AuditService::class)->log('seat.allocation_updated',$locked,$locked->only(['seat_id','study_slot_id','start_time','end_time','status']),$d,$r);
+            $locked->update(['seat_id'=>$seat->id,'study_slot_id'=>$slot->id,'allocated_from'=>$from,'allocated_to'=>$to,'start_time'=>$start,'end_time'=>$end,'status'=>$d['status'],'remarks'=>$d['remarks']??$locked->remarks]);
+        },3);
+        return back()->with('success','Seat, date, time and allocation status updated.');
+    }
 }

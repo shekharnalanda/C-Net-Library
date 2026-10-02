@@ -119,6 +119,59 @@ class InstallerTest(unittest.TestCase):
             apk.write_bytes(b'not apk')
             self.assertEqual(module.apk_check(root)['zip_integrity'], 'failed')
 
+    def test_public_asset_directory_remains_accessible_with_private_umask(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)/'live'
+            (root/'public').mkdir(parents=True)
+            private = root/'private-config'
+            private.mkdir(mode=0o700)
+            previous = module.os.umask(0o077)
+            try:
+                inventory = module.public_directory_inventory([{'path':'public/js/library-app-install.js'}], root)
+                module.enable_public_directories(inventory, root)
+                module.replace_file(root/'public/js/library-app-install.js', b'public script')
+                self.assertEqual((root/'public/js').stat().st_mode & 0o777, 0o755)
+                self.assertEqual((root/'public/js/library-app-install.js').stat().st_mode & 0o777, 0o644)
+                self.assertEqual(private.stat().st_mode & 0o777, 0o700)
+                (root/'public/js/library-app-install.js').unlink()
+                module.restore_public_directories(inventory, root)
+                self.assertFalse((root/'public/js').exists())
+            finally:
+                module.os.umask(previous)
+
+    def test_private_asset_parent_permission_is_repaired_and_restored_on_failure(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, source, home = self.fixture(Path(folder))
+            for tree in [root, source]:
+                (tree/'public/js').mkdir(parents=True)
+            (root/'public/js').chmod(0o700)
+            (root/'public/js/admission-photo.js').write_text('existing photo script')
+            (source/'public/js/library-app-install.js').write_text('app script')
+            manifest=source/'tools/portal-flow/mobile-app-manifest.json'
+            entries=json.loads(manifest.read_text())
+            entries.append({'path':'public/js/library-app-install.js','blob':module.digest(b'app script'),'original_blobs':[None]})
+            manifest.write_text(json.dumps(entries))
+            def fail_later():
+                self.assertEqual((root/'public/js').stat().st_mode & 0o777, 0o755)
+                raise RuntimeError('Later check failed')
+            with patch.multiple(module, ROOT=root, SOURCE=source, HOME=home), patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0)), patch.object(module,'public_preflight'), patch.object(module,'public_check',side_effect=fail_later):
+                with self.assertRaisesRegex(RuntimeError,'Later check failed'): module.main()
+            self.assertEqual((root/'public/js').stat().st_mode & 0o777, 0o700)
+            self.assertEqual((root/'public/js/admission-photo.js').read_text(),'existing photo script')
+            self.assertFalse((root/'public/js/library-app-install.js').exists())
+            self.assertEqual((root/'old.php').read_text(),'old')
+            backup = next((home/'mci-library-app-backups').iterdir())
+            self.assertEqual(backup.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(json.loads((backup/'directories.json').read_text())[0]['mode'],0o700)
+
+    def test_public_directory_symlinks_are_not_followed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder); (root/'public').mkdir(); (root/'private').mkdir(mode=0o700)
+            (root/'public/js').symlink_to(root/'private', target_is_directory=True)
+            with self.assertRaisesRegex(RuntimeError,'Public asset directory requires review'):
+                module.public_directory_inventory([{'path':'public/js/library-app-install.js'}],root)
+            self.assertEqual((root/'private').stat().st_mode & 0o777,0o700)
+
 
 if __name__ == '__main__':
     unittest.main()

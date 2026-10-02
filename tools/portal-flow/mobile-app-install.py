@@ -55,6 +55,47 @@ def replace_file(target, data, mode=0o644):
             os.unlink(temporary)
 
 
+def public_directory_inventory(entries, root=None):
+    root = ROOT if root is None else root
+    public = root / 'public'
+    paths = set()
+    for entry in entries:
+        target = root / entry['path']
+        if public in target.parents:
+            for parent in target.parents:
+                if parent == public:
+                    break
+                paths.add(parent)
+    inventory = []
+    for path in sorted(paths, key=lambda p: (len(p.parts), str(p))):
+        if path.is_symlink() or (path.exists() and not path.is_dir()):
+            raise RuntimeError('Public asset directory requires review: ' + str(path.relative_to(root)))
+        inventory.append({'path': str(path.relative_to(root)), 'mode': path.stat().st_mode & 0o7777 if path.is_dir() else None})
+    return inventory
+
+
+def enable_public_directories(inventory, root=None):
+    root = ROOT if root is None else root
+    for item in inventory:
+        path = root / item['path']
+        path.mkdir(parents=True, exist_ok=True)
+        # Public asset parents must be readable/traversable by the web server.
+        # Keep existing write/special bits and leave all private directories alone.
+        mode = (item['mode'] if item['mode'] is not None else 0o700) | 0o055
+        os.chmod(str(path), mode)
+        print('PUBLIC_ASSET_DIRECTORY | ' + item['path'] + ' | before=' + (oct(item['mode']) if item['mode'] is not None else 'missing') + ' | applied=' + oct(mode), flush=True)
+
+
+def restore_public_directories(inventory, root=None):
+    root = ROOT if root is None else root
+    for item in reversed(inventory):
+        path = root / item['path']
+        if item['mode'] is not None:
+            os.chmod(str(path), item['mode'])
+        elif path.is_dir() and not any(path.iterdir()):
+            path.rmdir()
+
+
 def apk_check(root=None):
     """Format diagnostics only; Android signing/package compatibility is not asserted."""
     root = ROOT if root is None else root
@@ -159,6 +200,8 @@ def main():
     if cached_routes:
         shutil.copy2(str(cached_route_file), str(backup / 'routes-v7.php'))
     saved, changed, down = [], False, False
+    asset_directories = public_directory_inventory(entries)
+    (backup / 'directories.json').write_text(json.dumps(asset_directories, indent=2))
     with (backup / 'install.log').open('wb') as log:
         def run(args):
             log.write(('STEP | ' + ' '.join(args[-3:]) + '\n').encode()); log.flush()
@@ -185,6 +228,7 @@ def main():
             artisan('down', '--retry=5'); down = True
             verify_files(entries)
             changed = True
+            enable_public_directories(asset_directories)
             for entry in entries:
                 replace_file(ROOT / entry['path'], (SOURCE / entry['path']).read_bytes())
             artisan('route:clear'); artisan('view:clear')
@@ -193,7 +237,8 @@ def main():
             run([PHP, str(SOURCE / 'tools/portal-flow/mobile-app-check.php'), str(ROOT), 'verify'])
             artisan('up'); down = False
             public_check()
-            result = {'status': 'APPLIED', 'old_apk': apk_check(), 'database_changed': False, 'public_verified': True, 'mobile_install_verified': False}
+            result = {'status': 'APPLIED', 'old_apk': apk_check(), 'database_changed': False, 'public_verified': True, 'mobile_install_verified': False,
+                      'public_directories': [{'path': item['path'], 'previous_mode': item['mode'], 'applied_mode': (ROOT / item['path']).stat().st_mode & 0o7777} for item in asset_directories]}
             (backup / 'summary.json').write_text(json.dumps(result, indent=2))
             print('APPLIED | browser app installer | Android/iPhone guidance | real library icons | private data never cached')
             print('VERIFIED | manifest | install controls | service worker | public assets')
@@ -217,6 +262,7 @@ def main():
                     replace_file(cached_route_file, (backup / 'routes-v7.php').read_bytes())
                 elif cached_route_file.exists():
                     cached_route_file.unlink()
+                restore_public_directories(asset_directories)
                 artisan('view:clear')
             if down:
                 artisan('up')

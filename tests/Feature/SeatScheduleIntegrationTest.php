@@ -145,6 +145,36 @@ class SeatScheduleIntegrationTest extends TestCase
         $studentBackup=dirname($manifest).'/students.json';$this->assertSame($data['tables']['students']['sha256'],hash_file('sha256',$studentBackup));
         File::deleteDirectory($dir);
     }
+    public function test_reset_backs_up_only_library_schema_when_other_databases_are_accessible(): void
+    {
+        $m=$this->member();$this->allocation($m);
+        $dir=sys_get_temp_dir().'/cnet-schema-test-'.bin2hex(random_bytes(6));
+        DB::statement("ATTACH DATABASE ':memory:' AS other_firm");
+        $pdo=DB::connection()->getPdo();
+        try {
+            DB::statement('CREATE TABLE other_firm.courses (id INTEGER PRIMARY KEY, name TEXT)');
+            DB::statement('CREATE TABLE other_firm.students (id INTEGER PRIMARY KEY, name TEXT)');
+            DB::statement("INSERT INTO other_firm.courses VALUES (1, 'Foreign course')");
+            DB::statement("INSERT INTO other_firm.students VALUES (1, 'Foreign student')");
+            $tables=\Illuminate\Support\Facades\Schema::getTables();
+            $this->assertContains('other_firm',array_column($tables,'schema'));
+            $this->artisan('maintenance:reset-enrollments',['--confirm'=>'RESET-CNET-LIBRARY-ENROLLMENTS','--backup-directory'=>$dir])->assertSuccessful();
+            $manifest=glob($dir.'/*/manifest.json')[0];$data=json_decode(file_get_contents($manifest),true);
+            $this->assertSame('main',$data['schema']);
+            $this->assertArrayNotHasKey('courses',$data['tables']);
+            $this->assertFileDoesNotExist(dirname($manifest).'/courses.json');
+            $this->assertSame(1,$data['tables']['students']['rows']);
+            $this->assertSame(0,Student::count());
+            $this->assertSame('Foreign course',DB::table('other_firm.courses')->value('name'));
+            $this->assertSame('Foreign student',DB::table('other_firm.students')->value('name'));
+            $this->assertDatabaseHas('seats',['id'=>$this->seat->id]);
+        } finally {
+            // RefreshDatabase rolls back its outer transaction before this callback;
+            // SQLite cannot detach an accessed schema while that transaction is open.
+            $this->beforeApplicationDestroyed(fn()=>$pdo->exec('DETACH DATABASE other_firm'));
+            File::deleteDirectory($dir);
+        }
+    }
     public function test_reset_refuses_public_backup_path_and_preserves_data(): void
     {
         $m=$this->member();$this->allocation($m);

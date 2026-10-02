@@ -32,9 +32,12 @@ class ResetEnrollments extends Command
                 $students=Student::query()->lockForUpdate()->get(['id','user_id']);
                 $ids=$students->pluck('id');
                 $users=DB::table('users')->whereIn('id',$students->pluck('user_id')->filter())->where('role','student')->whereNotIn('id',DB::table('staff')->whereNotNull('user_id')->select('user_id'))->get(['id','email']);
-                $tables=Schema::getTables();$manifest=['created_at'=>now()->toIso8601String(),'tables'=>[]];
+                $schema=Schema::getCurrentSchemaName();
+                if(!$schema) throw new RuntimeException('Cannot resolve current library database schema.');
+                $tables=Schema::getTables($schema);$manifest=['created_at'=>now()->toIso8601String(),'schema'=>$schema,'tables'=>[]];
                 // Full database snapshot also covers live extension/recovery tables and FK side effects.
                 foreach($tables as $table) {
+                    if(($table['schema']??null)!==$schema) throw new RuntimeException('Backup table is outside the current library database.');
                     $name=$table['name'];
                     if(!preg_match('/^[A-Za-z0-9_]+$/',$name)) throw new RuntimeException('Unexpected table name.');
                     $path=$backupPath.'/'.$name.'.json';

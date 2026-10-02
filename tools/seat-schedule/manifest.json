@@ -59,8 +59,8 @@
   {
     "path": "app/Console/Commands/ResetEnrollments.php",
     "original_blob": null,
-    "blob": "63e8c4e48c5851c18651b4b544645523216fc1d2",
-    "sha256": "ae3e3f2aa5d5e4a0e3185adca72ade77db8c88df46bf821c5e00a54db08a0d5f"
+    "blob": "a66e5531f1cc4c3a234bdbdbcf923f1ca92248bf",
+    "sha256": "98dd4f00a2c4d0745f2d7e29e01b536af5e742ebf89b9c222eeef6dfa9c67d80"
   },
   {
     "path": "app/Console/Commands/ExpireDueMemberships.php",
@@ -179,7 +179,7 @@
   {
     "path": "tests/Feature/SeatScheduleIntegrationTest.php",
     "original_blob": null,
-    "blob": "be6b13b8ea593dec537d6113e7fb047246547d53",
-    "sha256": "538232486403aebffbb56bb1c09106131611ee66f1edba5b7b929b90ddf12f5e"
+    "blob": "c6a8d4d8b7240ed6e70a4bc0322b9bcf6b8598fa",
+    "sha256": "5ae41f39bebda1936400a385fecdfcebc132efcf87e2534fd66b7c63177208c0"
   }
 ]

@@ -14,6 +14,7 @@ def blob(data):
 
 def run(command,root,log,timeout=180):
     step=pathlib.Path(command[1]).name if len(command)>1 else pathlib.Path(command[0]).name
+    if step=='artisan' and len(command)>2:step+=' '+command[2]
     actual=list(command)
     if command[0]==PHP and len(command)>1 and command[1].endswith('.php'):
         actual=[PHP,str(SOURCE/'tools/portal-flow/run-helper.php')]+command[1:]
@@ -22,6 +23,10 @@ def run(command,root,log,timeout=180):
         result=subprocess.run(actual,cwd=str(root),stdout=stream,stderr=subprocess.STDOUT,timeout=timeout,env=dict(os.environ,APP_DEBUG='false'))
         stream.write(('EXIT_CODE='+str(result.returncode)+'\n').encode());stream.flush()
     if result.returncode:
+        lines=log.read_text(encoding='utf-8',errors='replace').splitlines()
+        start=max((i for i,line in enumerate(lines) if line.startswith('STEP | ')),default=0)
+        print('FAILED STEP DETAILS',flush=True)
+        print('\n'.join(lines[start:start+60]),flush=True)
         raise RuntimeError('Deployment step failed: '+step+'. Private log: '+str(log))
 
 def check_entries(source,root,entries):

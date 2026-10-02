@@ -18,6 +18,8 @@ use App\Services\LibraryPortalMailService;
 use App\Services\LibraryStudentSessionService;
 use App\Services\SettingsService;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\MySqlConnection;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -79,6 +82,48 @@ class LibraryPortalFlowTest extends TestCase
         $s = $this->student();
         $m = $this->member($s);
         SeatAllocation::create(['student_id' => $s->id, 'student_membership_id' => $m->id, 'seat_id' => $this->seat->id, 'study_slot_id' => $this->slot->id, 'allocated_from' => '2026-10-01', 'allocated_to' => '2026-11-10', 'start_time' => $from, 'end_time' => $to, 'status' => 'active']);
+    }
+
+    public function test_partial_portal_migration_can_resume_without_losing_students_or_existing_leases(): void
+    {
+        $student = $this->student();
+        Schema::dropIfExists('library_device_recovery');
+        Schema::dropIfExists('library_portal_mail');
+        Schema::dropIfExists('library_student_sessions');
+        Schema::table('admissions', fn (Blueprint $table) => $table->dropColumn('preferred_start_time'));
+        $migration = require database_path('migrations/2026_10_02_083000_add_library_portal_flow.php');
+        $migration->up();
+        $this->assertTrue(Schema::hasColumn('admissions', 'preferred_start_time'));
+        $this->assertDatabaseHas('students', ['id' => $student->id]);
+        app(LibraryStudentSessionService::class)->claim($student, str_repeat('a', 64));
+        $migration->up();
+        $this->assertDatabaseHas('library_student_sessions', ['student_id' => $student->id, 'token_hash' => hash('sha256', str_repeat('a', 64))]);
+    }
+
+    public function test_mysql_portal_schema_uses_explicit_datetime_fields_without_implicit_timestamp_defaults(): void
+    {
+        $connection = new MySqlConnection(new \PDO('sqlite::memory:'), 'test', '', ['driver' => 'mysql', 'version' => '5.7.44']);
+        $connection->useDefaultSchemaGrammar();
+        $sql = [];
+        $compile = function (string $name, \Closure $callback, bool $create = false) use ($connection, &$sql) {
+            $blueprint = new Blueprint($connection, $name);
+            if ($create) {
+                $blueprint->create();
+            }
+            $callback($blueprint);
+            $sql = array_merge($sql, $blueprint->toSql());
+        };
+        Schema::shouldReceive('hasColumn')->andReturn(false);
+        Schema::shouldReceive('hasTable')->andReturn(false);
+        Schema::shouldReceive('table')->andReturnUsing(fn ($name, $callback) => $compile($name, $callback));
+        Schema::shouldReceive('create')->andReturnUsing(fn ($name, $callback) => $compile($name, $callback, true));
+        $migration = require database_path('migrations/2026_10_02_083000_add_library_portal_flow.php');
+        $migration->up();
+        $compiled = implode("\n", $sql);
+        $this->assertStringContainsString('`last_seen_at` datetime not null', $compiled);
+        $this->assertStringContainsString('`expires_at` datetime not null', $compiled);
+        $this->assertStringNotContainsString('timestamp not null', $compiled);
+        $this->assertStringNotContainsString('0000-00-00', $compiled);
     }
 
     public function test_existing_recovery_link_and_expired_form_notice_remain_on_both_login_pages(): void

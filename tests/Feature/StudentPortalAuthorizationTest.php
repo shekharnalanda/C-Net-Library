@@ -57,27 +57,27 @@ class StudentPortalAuthorizationTest extends TestCase
 
     public function test_guest_is_redirected_from_student_portal(): void
     {
-        $this->get(route('student.dashboard'))->assertRedirect(route('login'));
-        $this->get(route('student.id-card'))->assertRedirect(route('login'));
-        $this->get(route('student.saved-jobs.index'))->assertRedirect(route('login'));
+        $this->get(route('student.dashboard'))->assertRedirect(route('student.login'));
+        $this->get(route('student.id-card'))->assertRedirect(route('student.login'));
+        $this->get(route('student.saved-jobs.index'))->assertRedirect(route('student.login'));
     }
 
     public function test_admin_cannot_access_student_portal_routes(): void
     {
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
 
-        $this->actingAs($admin)->get(route('student.dashboard'))->assertForbidden();
-        $this->actingAs($admin)->get(route('student.id-card'))->assertForbidden();
-        $this->actingAs($admin)->get(route('student.saved-jobs.index'))->assertForbidden();
+        $this->actingAs($admin)->get(route('student.dashboard'))->assertRedirect(route('student.login'));
+        $this->actingAs($admin)->get(route('student.id-card'))->assertRedirect(route('student.login'));
+        $this->actingAs($admin)->get(route('student.saved-jobs.index'))->assertRedirect(route('student.login'));
     }
 
     public function test_student_can_access_dashboard_id_card_and_saved_jobs(): void
     {
         [$user] = $this->createStudentAccount('student-access@example.com', 'CNL-ACCESS');
 
-        $this->actingAs($user)->get(route('student.dashboard'))->assertOk();
-        $this->actingAs($user)->get(route('student.id-card'))->assertOk();
-        $this->actingAs($user)->get(route('student.saved-jobs.index'))->assertOk();
+        $this->libraryStudentSession($user)->get(route('student.dashboard'))->assertOk();
+        $this->libraryStudentSession($user)->get(route('student.id-card'))->assertOk();
+        $this->libraryStudentSession($user)->get(route('student.saved-jobs.index'))->assertOk();
     }
 
     public function test_student_dashboard_is_resolved_only_from_authenticated_user(): void
@@ -85,7 +85,7 @@ class StudentPortalAuthorizationTest extends TestCase
         [$firstUser, $firstStudent] = $this->createStudentAccount('first@example.com', 'CNL-FIRST');
         [, $secondStudent] = $this->createStudentAccount('second@example.com', 'CNL-SECOND');
 
-        $response = $this->actingAs($firstUser)->get(route('student.dashboard'));
+        $response = $this->libraryStudentSession($firstUser)->get(route('student.dashboard'));
 
         $response->assertOk()
             ->assertSee($firstStudent->student_code)
@@ -96,8 +96,8 @@ class StudentPortalAuthorizationTest extends TestCase
     {
         [$user] = $this->createStudentAccount('inactive-session@example.com', 'CNL-INACTIVE-SESSION', 'inactive');
 
-        $this->actingAs($user)->get(route('student.dashboard'))->assertRedirect(route('login'));
-        $this->assertGuest();
+        $this->libraryStudentSession($user)->get(route('student.dashboard'))->assertRedirect(route('student.login'));
+        $this->assertGuest('library_student');
     }
 
     public function test_inactive_linked_student_cannot_log_in(): void
@@ -109,7 +109,7 @@ class StudentPortalAuthorizationTest extends TestCase
             'password' => 'StudentPass123!',
         ])->assertSessionHasErrors('email');
 
-        $this->assertGuest();
+        $this->assertGuest('library_student');
     }
 
     public function test_inactive_student_cannot_use_activation_link(): void
@@ -125,10 +125,10 @@ class StudentPortalAuthorizationTest extends TestCase
         [$user, $student] = $this->createStudentAccount('privacy@example.com', 'CNL-PRIVACY');
         $student->forceFill(['qr_token' => 'super-secret-qr-token'])->save();
 
-        $dashboard = $this->actingAs($user)->get(route('student.dashboard'));
+        $dashboard = $this->libraryStudentSession($user)->get(route('student.dashboard'));
         $this->assertPrivateNoStoreCachePolicy($dashboard);
 
-        $idCard = $this->actingAs($user)->get(route('student.id-card'));
+        $idCard = $this->libraryStudentSession($user)->get(route('student.id-card'));
         $this->assertPrivateNoStoreCachePolicy($idCard);
         $idCard->assertDontSee($student->qr_token, false);
         $idCard->assertDontSee(route('admin.attendance.scan', ['token' => $student->qr_token]), false);

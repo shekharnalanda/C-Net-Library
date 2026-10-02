@@ -27,17 +27,17 @@ class StoreAdmissionRequest extends FormRequest
             'father_name' => ['nullable', 'string', 'max:255'],
             'dob' => ['nullable', 'date', 'before_or_equal:today'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
-            'mobile' => ['required', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'mobile' => ['required', 'string', 'regex:/^[0-9]{10}$/'],
+            'email' => ['required', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
             'study_slot_id' => [
-                'nullable',
+                'required',
                 Rule::exists('study_slots', 'id')->where(fn ($query) => $query
                     ->where('branch_id', $branchId)
                     ->where('status', true)),
             ],
             'fee_plan_id' => [
-                'nullable',
+                'required',
                 Rule::exists('fee_plans', 'id')->where(function ($query) use ($branchId, $studySlotId) {
                     $query->where('branch_id', $branchId)->where('status', true);
                     if ($studySlotId) {
@@ -45,6 +45,10 @@ class StoreAdmissionRequest extends FormRequest
                     }
                 }),
             ],
+            'preferred_seat_id' => ['required', 'integer', 'exists:seats,id'],
+            'preferred_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today', 'before_or_equal:'.today()->addYear()->toDateString()],
+            'preferred_start_time' => ['nullable', 'date_format:H:i'],
+            'preferred_end_time' => ['nullable', 'date_format:H:i'],
             'wants_locker' => ['required', 'boolean'],
         ];
     }

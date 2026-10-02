@@ -10,6 +10,7 @@ use App\Models\FeePlan;
 use App\Models\StudySlot;
 use App\Services\ApplicationNumberService;
 use App\Services\CentralSyncService;
+use App\Services\LibraryAdmissionAvailability;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -30,6 +31,7 @@ class AdmissionController extends Controller
         CentralSyncService $centralSync
     ): RedirectResponse {
         $data = $request->validated();
+        app(LibraryAdmissionAvailability::class)->assertSelection($data);
         unset($data['website']);
 
         $data['name'] = trim((string) $data['name']);

@@ -44,7 +44,7 @@ class SecurityHeadersAndThrottleTest extends TestCase
         $this->assertNotNull($route);
         $middleware = $route->gatherMiddleware();
 
-        $this->assertContains('auth', $middleware);
+        $this->assertContains('auth:web', $middleware);
         $this->assertContains('admin', $middleware);
         $this->assertContains('permission:attendance.manage', $middleware);
         $this->assertContains('throttle:30,1', $middleware);

@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\MobileApiToken;
+use App\Models\Student;
+use App\Services\LibraryStudentSessionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,6 +30,12 @@ class AuthenticateMobileApi
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        if ($token->user->role === 'student') {
+            $student = Student::where('user_id', $token->user_id)->where('status', 'active')->first();
+            if (! $student || ! app(LibraryStudentSessionService::class)->touch($student, $plainToken)) {
+                return response()->json(['message' => 'Login expired or active on another system.'], 401);
+            }
+        }
         $token->forceFill(['last_used_at' => now()])->save();
         $request->setUserResolver(fn () => $token->user);
         $request->attributes->set('mobile_api_token', $token);

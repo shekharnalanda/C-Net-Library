@@ -20,8 +20,7 @@ class AdmissionApprovalService
     public function __construct(
         private readonly SeatAllocationService $seatAllocationService,
         private readonly SettingsService $settings
-    ) {
-    }
+    ) {}
 
     public function approve(Admission $admission, array $data): Student
     {
@@ -81,17 +80,17 @@ class AdmissionApprovalService
                 ]);
             }
 
-            if (!$feePlan->status || !$slot->status || ($seat && (!$seat->status || !$seat->studyHall?->status))) {
-                throw ValidationException::withMessages(['seat_id'=>'Choose an active seat, slot and fee plan.']);
+            if (! $feePlan->status || ! $slot->status || ($seat && (! $seat->status || ! $seat->studyHall?->status))) {
+                throw ValidationException::withMessages(['seat_id' => 'Choose an active seat, slot and fee plan.']);
             }
-            if ($feePlan->study_slot_id && (int)$feePlan->study_slot_id !== (int)$slot->id) {
-                throw ValidationException::withMessages(['fee_plan_id'=>'The fee plan must match the selected study slot.']);
+            if ($feePlan->study_slot_id && (int) $feePlan->study_slot_id !== (int) $slot->id) {
+                throw ValidationException::withMessages(['fee_plan_id' => 'The fee plan must match the selected study slot.']);
             }
 
             $startDate = isset($data['start_date']) ? Carbon::parse($data['start_date'])->startOfDay() : today();
             $expiryDate = $startDate->copy()->addDays(max(1, (int) $feePlan->validity_days) - 1);
-            [$startTime,$endTime]=$this->seatAllocationService->resolveTimes($slot,$data);
-            $heldUntil=app(SeatFeeReleaseService::class)->holdUntil($expiryDate->toDateString());
+            [$startTime,$endTime] = $this->seatAllocationService->resolveTimes($slot, $data);
+            $heldUntil = app(SeatFeeReleaseService::class)->holdUntil($expiryDate->toDateString());
 
             $this->seatAllocationService->assertAvailable(
                 seatId: $seat->id,
@@ -111,6 +110,9 @@ class AdmissionApprovalService
                 ]);
             }
 
+            if ($user && ! $user->status) {
+                throw ValidationException::withMessages(['email' => 'This existing account is inactive; review it before approving a new admission.']);
+            }
             if ($user && Student::query()->where('user_id', $user->id)->exists()) {
                 throw ValidationException::withMessages([
                     'email' => 'This portal account is already linked to a student record.',
@@ -121,7 +123,7 @@ class AdmissionApprovalService
                 $user = User::create([
                     'name' => $lockedAdmission->name,
                     'email' => $portalEmail,
-                    'password' => Str::random(64),
+                    'password' => preg_replace('/\s+/', '', $lockedAdmission->mobile),
                     'role' => 'student',
                     'status' => true,
                 ]);
@@ -147,6 +149,7 @@ class AdmissionApprovalService
                 'status' => 'active',
             ]);
 
+            $user->update(['password' => preg_replace('/\s+/', '', $lockedAdmission->mobile)]);
             $student->setAttribute('portal_activation_plain_token', $activationToken);
 
             $discount = (float) ($data['discount'] ?? 0);

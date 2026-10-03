@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: ['mci-pay/callback']);
+
         $middleware->web(append: [SecurityHeaders::class, InjectMobileAppInstaller::class]);
         $middleware->alias(['admin'=>EnsureAdmin::class,'admin.branch'=>EnsureBranchScope::class,'global-admin'=>EnsureGlobalAdmin::class,'permission'=>EnsurePermission::class,'student'=>EnsureStudent::class,'mobile.auth'=>AuthenticateMobileApi::class]);
     })

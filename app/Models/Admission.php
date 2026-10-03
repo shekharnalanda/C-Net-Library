@@ -11,6 +11,7 @@ class Admission extends Model
     use HasFactory;
 
     protected $fillable = [
+        'mci_student_id',
         'branch_id',
         'application_no',
         'name',

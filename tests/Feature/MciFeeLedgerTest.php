@@ -15,4 +15,29 @@ class MciFeeLedgerTest extends TestCase
  public function test_changed_balance_routes_bank_payment_to_office_review():void { [$b,$u,$s,$m]=$this->context();$o=$this->order($s,$m);$m->update(['final_fee'=>300]);app(MciPayClient::class)->applyVerified($o);$this->assertSame('needs_review',$o->fresh()->status);$this->assertDatabaseCount('payments',0); }
  public function test_student_cannot_access_other_student_order():void { [$b,$u,$s,$m]=$this->context();$o=$this->order($s,$m);$o->update(['principal_id'=>'999']);$this->actingAs($u)->get(route('mci-pay.show',$o))->assertForbidden(); }
  public function test_admission_payment_waits_for_conversion_then_posts_to_membership():void {[$b,$u,$s,$m,$p]=$this->context();$a=Admission::create(['branch_id'=>$b->id,'application_no'=>'ADM-1','name'=>'Test','mobile'=>'9999999999','fee_plan_id'=>$p->id,'status'=>'pending']);$o=$this->order($s,$m);$o->update(['principal_type'=>'admission','principal_id'=>(string)$a->id,'metadata'=>[]]);app(MciPayClient::class)->applyVerified($o);$this->assertDatabaseCount('payments',0);$this->assertSame('verified',$o->fresh()->status);$a->update(['mci_student_id'=>$s->id,'status'=>'converted']);app(MciPayClient::class)->applyVerified($o->fresh());$this->assertSame('applied',$o->fresh()->status);$this->assertDatabaseCount('payments',1);}
+
+ public function test_dedicated_student_login_opens_fee_page_without_admin_session():void {
+  [$b,$u,$student,$membership]=$this->context();
+  config(['auth.guards.library_student'=>['driver'=>'session','provider'=>'users']]);
+  $order=$this->order($student,$membership);
+  $this->actingAs($u,'library_student')->get('/mci-pay')->assertOk()->assertSee('ST-1');
+  $this->get(route('mci-pay.show',$order))->assertOk();
+  $order->update(['principal_id'=>'999']);
+  $this->get(route('mci-pay.show',$order))->assertForbidden();
+  $this->get('/admin/upi-payments')->assertRedirect();
+ }
+ public function test_web_session_does_not_substitute_for_dedicated_student_login():void {
+  [$b,$u]=$this->context();
+  config(['auth.guards.library_student'=>['driver'=>'session','provider'=>'users']]);
+  $this->actingAs($u,'web')->get('/mci-pay')->assertRedirect(route('mci-pay.access'));
+ }
+ public function test_admin_and_student_sessions_can_coexist_without_mixing_fee_context():void {
+  [$b,$u,$student,$membership]=$this->context();
+  config(['auth.guards.library_student'=>['driver'=>'session','provider'=>'users']]);
+  $admin=User::factory()->create(['role'=>'super_admin','status'=>true]);
+  $this->actingAs($admin,'web')->actingAs($u,'library_student');
+  $this->get('/mci-pay')->assertOk()->assertSee('ST-1');
+  $this->get('/admin/upi-payments')->assertOk();
+  $this->get('/mci-pay')->assertOk()->assertSee('ST-1');
+ }
 }

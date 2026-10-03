@@ -9,7 +9,6 @@ use App\Models\Payment;
 use App\Models\PaymentAdjustment;
 use App\Models\Student;
 use App\Models\StudentMembership;
-use App\Support\AdminBranchScope;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -31,9 +30,11 @@ class MciFeeAdapter
 
     private function actor(Request $request): array
     {
-        if ($request->user()?->role === 'student') {
-            abort_unless($request->user()->status, 403);
-            $student = Student::where('user_id', $request->user()->id)->where('status', 'active')->firstOrFail();
+        $studentUser = config('auth.guards.library_student')
+            ? $request->user('library_student') : $request->user('web');
+        if ($studentUser?->role === 'student') {
+            abort_unless($studentUser->status, 403);
+            $student = Student::where('user_id', $studentUser->id)->where('status', 'active')->firstOrFail();
             abort_unless(Branch::whereKey($student->branch_id)->where('status', true)->exists(), 403);
             return ['type' => 'student', 'id' => (string) $student->id, 'record' => $student];
         }
@@ -86,15 +87,15 @@ class MciFeeAdapter
 
     public function adminQuery(Request $request)
     {
-        $user = $request->user();
+        $user = $request->user('web');
         abort_unless($user && $user->status && $user->role !== 'student' && $user->canAccess('payments.manage'), 403);
         if (! $user->isGlobalAdmin()) { abort_unless($user->branch_id && Branch::whereKey($user->branch_id)->where('status', true)->exists(), 403); }
-        return AdminBranchScope::apply(MciPayOrder::query(), $request);
+        return MciPayOrder::query()->when(! $user->isGlobalAdmin(), fn ($q) => $q->where('branch_id', $user->branch_id));
     }
 
     public function authorize(Request $request, MciPayOrder $order): void
     {
-        if ($request->user() && $request->user()->role !== 'student') {
+        if ($request->user('web') && $request->user('web')->role !== 'student') {
             abort_unless($this->adminQuery($request)->whereKey($order->id)->exists(), 403); return;
         }
         $actor = $this->actor($request);

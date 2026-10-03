@@ -175,9 +175,15 @@ class AdmissionApprovalService
                 'fee_plan_id' => $feePlan->id,
                 'study_slot_id' => $slot->id,
                 'status' => 'converted',
+                'mci_student_id' => $student->id,
                 'remarks' => $data['remarks'] ?? $lockedAdmission->remarks,
             ]);
 
+            if (config('mci_pay.enabled')) {
+                \App\Models\MciPayOrder::where('principal_type', 'admission')->where('principal_id', (string) $lockedAdmission->id)
+                    ->whereIn('status', ['verified', 'needs_review'])->lockForUpdate()->get()
+                    ->each(fn ($order) => app(\App\Services\MciPayClient::class)->applyVerified($order));
+            }
             return $student;
         });
     }

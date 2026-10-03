@@ -1,0 +1,43 @@
+<?php
+namespace Tests\Feature;
+use Tests\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use App\Models\{Branch,User,Student,StudentMembership,FeePlan,MciPayOrder,Payment,Admission};
+use App\Services\MciPayClient;
+class MciFeeLedgerTest extends TestCase
+{
+ use RefreshDatabase;
+ protected function setUp():void {parent::setUp();config(['app.key'=>'base64:'.base64_encode(str_repeat('t',32)),'mci_pay.enabled'=>true]);}
+ private function context():array { $b=Branch::create(['code'=>'TEST','name'=>'Test branch','status'=>true]);$u=User::factory()->create(['role'=>'student','status'=>true,'branch_id'=>$b->id]);$s=Student::create(['branch_id'=>$b->id,'user_id'=>$u->id,'student_code'=>'ST-1','name'=>'Test','mobile'=>'9999999999','joining_date'=>today(),'status'=>'active']);$p=FeePlan::create(['branch_id'=>$b->id,'name'=>'Monthly','monthly_fee'=>500,'status'=>true]);$m=StudentMembership::create(['student_id'=>$s->id,'fee_plan_id'=>$p->id,'start_date'=>today(),'expiry_date'=>today()->addMonth(),'base_fee'=>500,'final_fee'=>500,'status'=>'active']);return [$b,$u,$s,$m,$p]; }
+ private function order(Student $s, StudentMembership $m):MciPayOrder {return MciPayOrder::create(['id'=>(string)Str::uuid(),'branch_id'=>$s->branch_id,'principal_type'=>'student','principal_id'=>(string)$s->id,'active_key'=>(string)Str::uuid(),'student_reference'=>$s->student_code,'payer_name'=>$s->name,'purpose'=>'Monthly fee','amount_paise'=>50000,'status'=>'verified','reference'=>'123456789012','payment_date'=>today(),'central_receipt'=>'CENTRAL-1','metadata'=>['membership_id'=>$m->id]]);}
+ public function test_verified_membership_payment_creates_one_real_receipt_and_clears_due():void { [$b,$u,$s,$m]=$this->context();$o=$this->order($s,$m);$this->get('/mci-pay')->assertRedirect();$this->actingAs($u)->get('/mci-pay')->assertOk()->assertSee('500');app(MciPayClient::class)->applyVerified($o);$this->assertSame('applied',$o->fresh()->status);$this->assertDatabaseCount('payments',1);$this->assertDatabaseHas('payments',['student_id'=>$s->id,'transaction_ref'=>'123456789012','receipt_balance_due'=>0]);app(MciPayClient::class)->applyVerified($o->fresh());$this->assertDatabaseCount('payments',1);$admin=User::factory()->create(['role'=>'super_admin','status'=>true]);$this->actingAs($admin)->get('/admin/upi-payments')->assertOk()->assertSee('123456789012'); }
+ public function test_changed_balance_routes_bank_payment_to_office_review():void { [$b,$u,$s,$m]=$this->context();$o=$this->order($s,$m);$m->update(['final_fee'=>300]);app(MciPayClient::class)->applyVerified($o);$this->assertSame('needs_review',$o->fresh()->status);$this->assertDatabaseCount('payments',0); }
+ public function test_student_cannot_access_other_student_order():void { [$b,$u,$s,$m]=$this->context();$o=$this->order($s,$m);$o->update(['principal_id'=>'999']);$this->actingAs($u)->get(route('mci-pay.show',$o))->assertForbidden(); }
+ public function test_admission_payment_waits_for_conversion_then_posts_to_membership():void {[$b,$u,$s,$m,$p]=$this->context();$a=Admission::create(['branch_id'=>$b->id,'application_no'=>'ADM-1','name'=>'Test','mobile'=>'9999999999','fee_plan_id'=>$p->id,'status'=>'pending']);$o=$this->order($s,$m);$o->update(['principal_type'=>'admission','principal_id'=>(string)$a->id,'metadata'=>[]]);app(MciPayClient::class)->applyVerified($o);$this->assertDatabaseCount('payments',0);$this->assertSame('verified',$o->fresh()->status);$a->update(['mci_student_id'=>$s->id,'status'=>'converted']);app(MciPayClient::class)->applyVerified($o->fresh());$this->assertSame('applied',$o->fresh()->status);$this->assertDatabaseCount('payments',1);}
+
+ public function test_dedicated_student_login_opens_fee_page_without_admin_session():void {
+  [$b,$u,$student,$membership]=$this->context();
+  config(['auth.guards.library_student'=>['driver'=>'session','provider'=>'users']]);
+  $order=$this->order($student,$membership);
+  $this->actingAs($u,'library_student')->get('/mci-pay')->assertOk()->assertSee('ST-1');
+  $this->get(route('mci-pay.show',$order))->assertOk();
+  $order->update(['principal_id'=>'999']);
+  $this->get(route('mci-pay.show',$order))->assertForbidden();
+  $this->get('/admin/upi-payments')->assertRedirect();
+ }
+ public function test_web_session_does_not_substitute_for_dedicated_student_login():void {
+  [$b,$u]=$this->context();
+  config(['auth.guards.library_student'=>['driver'=>'session','provider'=>'users']]);
+  $this->actingAs($u,'web')->get('/mci-pay')->assertRedirect(route('mci-pay.access'));
+ }
+ public function test_admin_and_student_sessions_can_coexist_without_mixing_fee_context():void {
+  [$b,$u,$student,$membership]=$this->context();
+  config(['auth.guards.library_student'=>['driver'=>'session','provider'=>'users']]);
+  $admin=User::factory()->create(['role'=>'super_admin','status'=>true]);
+  $this->actingAs($admin,'web')->actingAs($u,'library_student');
+  $this->get('/mci-pay')->assertOk()->assertSee('ST-1');
+  $this->get('/admin/upi-payments')->assertOk();
+  $this->get('/mci-pay')->assertOk()->assertSee('ST-1');
+ }
+}

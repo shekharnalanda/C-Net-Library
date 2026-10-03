@@ -60,6 +60,7 @@ class AdmissionController extends Controller
         $data['status'] = 'new';
 
         $admission = Admission::create($data);
+        $request->session()->put('mci_pay_admission_id', $admission->id);
         $branch = Branch::find($admission->branch_id);
         $studySlot = $admission->study_slot_id ? StudySlot::find($admission->study_slot_id) : null;
         $feePlan = $admission->fee_plan_id ? FeePlan::find($admission->fee_plan_id) : null;
@@ -89,7 +90,7 @@ class AdmissionController extends Controller
         ]);
 
         return redirect()
-            ->route('admission.create')
+            ->route(config('mci_pay.enabled') ? 'mci-pay.index' : 'admission.create')
             ->with('success', "Application submitted successfully. Your application number is {$admission->application_no}.");
     }
 }

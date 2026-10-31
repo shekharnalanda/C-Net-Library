@@ -30,7 +30,7 @@ class EnquiryController extends Controller
             ],
             'name' => ['required', 'string', 'max:150'],
             'mobile' => ['required', 'string', 'max:20'],
-            'email' => ['required', 'email, 'max:150'],
+            'email' => ['required', 'email', 'max:150'],
             'source' => ['nullable', 'string', 'max:100'],
             'interested_plan' => ['nullable', 'string', 'max:150'],
             'message' => ['nullable', 'string', 'max:3000'],

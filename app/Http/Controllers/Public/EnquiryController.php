@@ -30,7 +30,7 @@ class EnquiryController extends Controller
             ],
             'name' => ['required', 'string', 'max:150'],
             'mobile' => ['required', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:150'],
+            'email' => ['required', 'email, 'max:150'],
             'source' => ['nullable', 'string', 'max:100'],
             'interested_plan' => ['nullable', 'string', 'max:150'],
             'message' => ['nullable', 'string', 'max:3000'],
@@ -60,7 +60,15 @@ class EnquiryController extends Controller
             return back()->with('success', 'Your enquiry has been received. Our team will follow up if needed.');
         }
 
-        $data['enquiry_no'] = $this->generateEnquiryNo();
+        
+        $verified = $request->session()->get('enquiry_email_verified');
+        $email = strtolower(trim((string) ($data['email'] ?? '')));
+        if (!$verified || !hash_equals((string) ($verified['email'] ?? ''), $email) || now()->timestamp > (int) ($verified['expires_at'] ?? 0)) {
+            return back()->withInput()->withErrors(['email' => 'पहले इस email पर भेजा गया OTP verify करें।']);
+        }
+        $request->session()->forget('enquiry_email_verified');
+
+$data['enquiry_no'] = $this->generateEnquiryNo();
         $data['status'] = 'new';
 
         $enquiry = Enquiry::create($data);

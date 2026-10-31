@@ -63,6 +63,7 @@ class EnquiryEmailOtpController extends Controller
             ]);
         }
 
+        if ($request->expectsJson()) { return response()->json(['message' => 'OTP sent to your email.']); }
         return back()->withInput()->with('otp_sent', 'OTP आपके email पर भेज दिया गया है।');
     }
 
@@ -104,6 +105,7 @@ class EnquiryEmailOtpController extends Controller
         ]);
         $request->session()->regenerate();
 
+        if ($request->expectsJson()) { return response()->json(['message' => 'Email verified.']); }
         return back()->withInput()->with('otp_verified', 'Email सत्यापित है। अब enquiry भेजें।');
     }
 }

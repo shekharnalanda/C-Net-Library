@@ -100,6 +100,14 @@ $data['enquiry_no'] = $this->generateEnquiryNo();
         }
 
 
+        try {
+            Mail::raw('Thank you for contacting C-Net Library. We have received your enquiry and our team will follow up shortly.', function ($mail) use ($enquiry) {
+                $mail->to($enquiry->email)->subject('C-Net Library - Enquiry Received');
+            });
+        } catch (Throwable $exception) {
+            Log::warning('Library enquiry confirmation email failed', ['enquiry_id' => $enquiry->id, 'error' => $exception->getMessage()]);
+        }
+
         return back()->with('success', 'Your enquiry has been submitted successfully.');
     }
 

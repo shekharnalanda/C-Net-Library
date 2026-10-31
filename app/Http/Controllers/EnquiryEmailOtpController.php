@@ -1,12 +1,12 @@
 <?php
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Hash;
-use Illuminate\\Support\\Facades\\Mail;
-use Illuminate\\Support\\Facades\\RateLimiter;
-use Illuminate\\Validation\\ValidationException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class EnquiryEmailOtpController extends Controller

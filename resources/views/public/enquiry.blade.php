@@ -18,7 +18,16 @@
 <div class="grid">
 <div class="field"><label>Name *</label><input name="name" value="{{ old('name') }}" autocomplete="name" required></div>
 <div class="field"><label>Mobile *</label><input type="tel" name="mobile" value="{{ old('mobile') }}" autocomplete="tel" inputmode="tel" required></div>
-<div class="field"><label>Email</label><input type="email" name="email" value="{{ old('email') }}" autocomplete="email"></div>
+<div class="field"><label>Email (OTP verification required)</label><input type="email" name="email" value="{{ old('email') }}" autocomplete="email" required></div>
+
+<div class="email-otp-step">
+<button type="submit" formmethod="POST" formaction="{{ route('enquiry.email-otp.send') }}" formnovalidate>Send email OTP</button>
+<label for="enquiry-otp">Email OTP</label>
+<input id="enquiry-otp" type="text" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" value="{{ old('otp') }}">
+<button type="submit" formmethod="POST" formaction="{{ route('enquiry.email-otp.verify') }}" formnovalidate>Verify OTP</button>
+@if(session('otp_sent'))<p role="status">{{ session('otp_sent') }}</p>@endif
+@if(session('otp_verified'))<p role="status">{{ session('otp_verified') }}</p>@endif
+</div>
 <div class="field"><label>Preferred Branch</label><select name="branch_id"><option value="">Any Branch</option>@foreach($branches as $branch)<option value="{{ $branch->id }}" @selected(old('branch_id')==$branch->id)>{{ $branch->name }}</option>@endforeach</select></div>
 <div class="field"><label>Interested Plan</label><input name="interested_plan" value="{{ old('interested_plan') }}" placeholder="e.g. 8 Hour / 12 Hour / 24x7"></div>
 <div class="field"><label>How did you hear about us?</label><select name="source"><option value="">Select</option>@foreach(['Walk-in','Google','Facebook','Instagram','Referral','WhatsApp','Other'] as $source)<option value="{{ $source }}" @selected(old('source')===$source)>{{ $source }}</option>@endforeach</select></div>

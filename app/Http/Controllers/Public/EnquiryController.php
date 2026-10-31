@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Enquiry;
-use App\Services\CentralSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -21,7 +23,7 @@ class EnquiryController extends Controller
         ]);
     }
 
-    public function store(Request $request, CentralSyncService $centralSync): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'website' => ['nullable', 'string', 'max:0'],
@@ -31,7 +33,7 @@ class EnquiryController extends Controller
             ],
             'name' => ['required', 'string', 'max:150'],
             'mobile' => ['required', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:150'],
+            'email' => ['required', 'email', 'max:150'],
             'source' => ['nullable', 'string', 'max:100'],
             'interested_plan' => ['nullable', 'string', 'max:150'],
             'message' => ['nullable', 'string', 'max:3000'],
@@ -49,6 +51,15 @@ class EnquiryController extends Controller
             : null;
         $data['message'] = isset($data['message']) && $data['message'] !== '' ? trim((string) $data['message']) : null;
 
+
+        
+        $verified = $request->session()->get('enquiry_email_verified');
+        $email = strtolower(trim((string) ($data['email'] ?? '')));
+        if (!$verified || !hash_equals((string) ($verified['email'] ?? ''), $email) || now()->timestamp > (int) ($verified['expires_at'] ?? 0)) {
+            return back()->withInput()->withErrors(['email' => 'पहले इस email पर भेजा गया OTP verify करें।']);
+        }
+        $request->session()->forget('enquiry_email_verified');
+
         $existing = Enquiry::query()
             ->where('branch_id', $data['branch_id'] ?? null)
             ->where('mobile', $data['mobile'])
@@ -61,30 +72,41 @@ class EnquiryController extends Controller
             return back()->with('success', 'Your enquiry has been received. Our team will follow up if needed.');
         }
 
-        $data['enquiry_no'] = $this->generateEnquiryNo();
+$data['enquiry_no'] = $this->generateEnquiryNo();
         $data['status'] = 'new';
 
         $enquiry = Enquiry::create($data);
         $branch = $enquiry->branch_id ? Branch::find($enquiry->branch_id) : null;
 
-        $centralSync->enquiry([
-            'business_code' => config('services.mci_central.business_code'),
-            'source_reference_id' => 'library-enquiry-'.$enquiry->enquiry_no,
-            'source_site' => config('app.url', 'https://cnetlibrary.mciedu.com'),
-            'name' => $enquiry->name,
-            'phone' => $enquiry->mobile,
-            'email' => $enquiry->email,
-            'subject' => 'C-Net Library Enquiry',
-            'message' => $enquiry->message ?: 'Library enquiry',
-            'category' => 'general',
-            'course_service' => $enquiry->interested_plan ?: 'Library Membership',
-            'metadata' => [
-                'enquiry_no' => $enquiry->enquiry_no,
-                'branch_id' => $enquiry->branch_id,
-                'branch_name' => $branch?->name,
-                'source' => $enquiry->source,
-            ],
-        ]);
+        try {
+            $body = implode("\n", [
+                'A new C-Net Library enquiry was submitted.',
+                '',
+                'Name: '.$enquiry->name,
+                'Mobile: '.$enquiry->mobile,
+                'Email: '.$enquiry->email,
+                'Branch: '.($branch?->name ?: 'Any Branch'),
+                'Plan: '.($enquiry->interested_plan ?: 'Not specified'),
+                'Message: '.($enquiry->message ?: 'Not provided'),
+                'Enquiry No: '.$enquiry->enquiry_no,
+            ]);
+            Mail::raw($body, function ($mail) use ($enquiry) {
+                $mail->to(config('enquiry.recipient'))
+                    ->replyTo($enquiry->email, $enquiry->name)
+                    ->subject('New C-Net Library Enquiry');
+            });
+        } catch (Throwable $exception) {
+            Log::warning('Library enquiry email notification failed', ['enquiry_id' => $enquiry->id, 'error' => $exception->getMessage()]);
+        }
+
+
+        try {
+            Mail::raw('Thank you for contacting C-Net Library. We have received your enquiry and our team will follow up shortly.', function ($mail) use ($enquiry) {
+                $mail->to($enquiry->email)->subject('C-Net Library - Enquiry Received');
+            });
+        } catch (Throwable $exception) {
+            Log::warning('Library enquiry confirmation email failed', ['enquiry_id' => $enquiry->id, 'error' => $exception->getMessage()]);
+        }
 
         return back()->with('success', 'Your enquiry has been submitted successfully.');
     }

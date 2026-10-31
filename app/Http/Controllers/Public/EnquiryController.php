@@ -8,6 +8,9 @@ use App\Models\Enquiry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -72,9 +75,10 @@ $data['enquiry_no'] = $this->generateEnquiryNo();
         $data['status'] = 'new';
 
         $enquiry = Enquiry::create($data);
+        $branch = $enquiry->branch_id ? Branch::find($enquiry->branch_id) : null;
 
         try {
-            $body = implode("\\n", [
+            $body = implode("\n", [
                 'A new C-Net Library enquiry was submitted.',
                 '',
                 'Name: '.$enquiry->name,
@@ -90,12 +94,10 @@ $data['enquiry_no'] = $this->generateEnquiryNo();
                     ->replyTo($enquiry->email, $enquiry->name)
                     ->subject('New C-Net Library Enquiry');
             });
-        } catch (\\Throwable $exception) {
+        } catch (Throwable $exception) {
             Log::warning('Library enquiry email notification failed', ['enquiry_id' => $enquiry->id, 'error' => $exception->getMessage()]);
         }
 
-
-        $branch = $enquiry->branch_id ? Branch::find($enquiry->branch_id) : null;
 
         return back()->with('success', 'Your enquiry has been submitted successfully.');
     }

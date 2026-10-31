@@ -72,6 +72,29 @@ $data['enquiry_no'] = $this->generateEnquiryNo();
         $data['status'] = 'new';
 
         $enquiry = Enquiry::create($data);
+
+        try {
+            $body = implode("\\n", [
+                'A new C-Net Library enquiry was submitted.',
+                '',
+                'Name: '.$enquiry->name,
+                'Mobile: '.$enquiry->mobile,
+                'Email: '.$enquiry->email,
+                'Branch: '.($branch?->name ?: 'Any Branch'),
+                'Plan: '.($enquiry->interested_plan ?: 'Not specified'),
+                'Message: '.($enquiry->message ?: 'Not provided'),
+                'Enquiry No: '.$enquiry->enquiry_no,
+            ]);
+            Mail::raw($body, function ($mail) use ($enquiry) {
+                $mail->to(config('enquiry.recipient'))
+                    ->replyTo($enquiry->email, $enquiry->name)
+                    ->subject('New C-Net Library Enquiry');
+            });
+        } catch (\\Throwable $exception) {
+            Log::warning('Library enquiry email notification failed', ['enquiry_id' => $enquiry->id, 'error' => $exception->getMessage()]);
+        }
+
+
         $branch = $enquiry->branch_id ? Branch::find($enquiry->branch_id) : null;
 
         return back()->with('success', 'Your enquiry has been submitted successfully.');

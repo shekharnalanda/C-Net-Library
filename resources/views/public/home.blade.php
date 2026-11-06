@@ -55,4 +55,9 @@
 <footer class="footer"><div class="container footerGrid"><div><strong style="font-size:21px">{{ $contact['institute_name'] ?: 'C-Net Library' }}</strong><div style="margin-top:8px">Focused Study · Books · Digital Learning · Career Support</div></div><div><strong>Explore</strong><div><a href="{{ route('home') }}">Home</a></div><div><a href="{{ route('digital-library.index') }}">Digital Library</a></div><div><a href="{{ route('jobs.index') }}">Jobs & Career</a></div><div><a href="{{ route('admission.create') }}">Online Admission</a></div></div><div><strong>Portal Access</strong><div><a href="{{ route('enquiry.create') }}">Contact / Enquiry</a></div><div><a href="{{ route('login') }}">Student Login</a></div><div><a href="{{ route('login') }}">Admin Login</a></div>@if($contact['phone'])<div>{{ $contact['phone'] }}</div>@endif @if($contact['email'])<div>{{ $contact['email'] }}</div>@endif</div></div></footer>
 <div class="mobileCta"><a class="btn" href="{{ route('admission.create') }}">Apply for Membership</a></div>
 <script>function toggleMenu(button){const menu=document.getElementById('mainNav');const open=menu.classList.toggle('open');button.setAttribute('aria-expanded',open?'true':'false');button.textContent=open?'Close':'Menu'}document.querySelectorAll('#mainNav a').forEach(a=>a.addEventListener('click',()=>{const m=document.getElementById('mainNav');m.classList.remove('open');const b=document.querySelector('.menuBtn');if(b){b.setAttribute('aria-expanded','false');b.textContent='Menu'}}));</script>
+
+<!-- Homepage tile likes and views; comments are intentionally not enabled. -->
+<link rel="stylesheet" href="/tile-engagement.css?v=20261106-1">
+<script src="/tile-engagement.js?v=20261106-1" data-endpoint="/tile-engagement.php" data-tiles="#plans .card,#facilities .feature" defer></script>
 </body></html>
+

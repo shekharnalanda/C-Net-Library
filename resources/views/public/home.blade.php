@@ -58,6 +58,6 @@
 
 <!-- Homepage tile likes and views; comments are intentionally not enabled. -->
 <link rel="stylesheet" href="/tile-engagement.css?v=20261106-2">
-<script src="/tile-engagement.js?v=20261106-2" data-endpoint="/tile-engagement.php" data-tiles="#plans .card,#facilities .feature" defer></script>
+<script src="/tile-engagement.js?v=20261106-2" data-endpoint="/tile-engagement.php" data-tiles="#plans .card,#facilities .feature,.branch-plans,.benefit-card,.facility-card" defer></script>
 </body></html>
 

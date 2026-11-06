@@ -57,7 +57,7 @@
 <script>function toggleMenu(button){const menu=document.getElementById('mainNav');const open=menu.classList.toggle('open');button.setAttribute('aria-expanded',open?'true':'false');button.textContent=open?'Close':'Menu'}document.querySelectorAll('#mainNav a').forEach(a=>a.addEventListener('click',()=>{const m=document.getElementById('mainNav');m.classList.remove('open');const b=document.querySelector('.menuBtn');if(b){b.setAttribute('aria-expanded','false');b.textContent='Menu'}}));</script>
 
 <!-- Homepage tile likes and views; comments are intentionally not enabled. -->
-<link rel="stylesheet" href="/tile-engagement.css?v=20261106-1">
-<script src="/tile-engagement.js?v=20261106-1" data-endpoint="/tile-engagement.php" data-tiles="#plans .card,#facilities .feature" defer></script>
+<link rel="stylesheet" href="/tile-engagement.css?v=20261106-2">
+<script src="/tile-engagement.js?v=20261106-2" data-endpoint="/tile-engagement.php" data-tiles="#plans .card,#facilities .feature" defer></script>
 </body></html>
 
